@@ -8,14 +8,14 @@ function Icon({ name, ...props }) {
 
 export default function Sidebar({ role }) {
   return (
-    <aside className="w-64 shrink-0 bg-[#0B1220] text-slate-300 flex flex-col h-screen sticky top-0">
+    <aside className="w-64 shrink-0 bg-white text-slate-600 flex flex-col h-screen sticky top-0 border-r border-slate-200">
       {/* Brand */}
       <div className="flex items-center gap-3 px-5 py-5 border-b border-white/10">
-        <div className="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-sm">
+        <div className="w-9 h-9 rounded-lg bg-blue-950 flex items-center justify-center text-white font-bold text-sm">
           IIG
         </div>
         <div>
-          <div className="text-white text-sm font-semibold leading-tight">IIG Learning</div>
+          <div className="text-black text-sm font-semibold leading-tight">IIG Learning</div>
           <div className="text-[11px] text-slate-500 leading-tight">ERP System</div>
         </div>
       </div>
@@ -33,13 +33,13 @@ export default function Sidebar({ role }) {
                   key={item.path}
                   to={item.path}
                   end={item.path === '/'}
-                  className={({ isActive }) =>
-                    `flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${
-                      isActive
-                        ? 'bg-white/10 text-white'
-                        : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'
-                    }`
-                  }
+className={({ isActive }) =>
+  `flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${
+    isActive
+      ? 'bg-slate-100 text-slate-900 font-medium'
+      : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+  }`
+}
                 >
                   <Icon name={item.icon} size={16} className="shrink-0" />
                   <span className="truncate">{item.label}</span>
