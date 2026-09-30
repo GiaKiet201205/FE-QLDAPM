@@ -1,16 +1,19 @@
 import { useMemo, useState } from 'react'
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import Layout from './components/Layout'
 import Dashboard from './pages/Dashboard'
 import PlaceholderPage from './pages/PlaceholderPage'
+import LoginPage from './pages/LoginPage'
 import { ROLES } from './config/roles'
 
+import { ToastContainer } from 'react-toastify'
+import 'react-toastify/dist/ReactToastify.css'
+
 function App() {
-  // Demo: chon role de xem giao dien tuong ung (thay bang thong tin dang nhap that khi noi BE)
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [roleKey, setRoleKey] = useState('ADMIN')
   const role = ROLES[roleKey]
 
-  // Gom toan bo path tu tat ca section cua role hien tai, tranh trung route
   const allItems = useMemo(() => {
     const items = []
     const seen = new Set()
@@ -27,8 +30,23 @@ function App() {
 
   return (
     <BrowserRouter>
+      <ToastContainer position="top-right" autoClose={2000} />
+      
       <Routes>
-        <Route path="/" element={<Layout role={role} onChangeRole={setRoleKey} />}>
+        <Route 
+          path="/login" 
+          element={<LoginPage setIsLoggedIn={setIsLoggedIn} />} 
+        />
+        <Route 
+          path="/" 
+          element={
+            isLoggedIn ? (
+              <Layout role={role} onChangeRole={setRoleKey} />
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        >
           {allItems.map((item) =>
             item.path === '/' ? (
               <Route key={item.path} index element={<Dashboard role={role} />} />
