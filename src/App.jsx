@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
-import Layout from './components/Layout'
+import Layout from './components/layout/Layout'
 import Dashboard from './pages/Dashboard'
+import Students from './pages/Students'
 import PlaceholderPage from './pages/PlaceholderPage'
 import { ROLES } from './config/roles'
 
@@ -32,6 +33,8 @@ function App() {
           {allItems.map((item) =>
             item.path === '/' ? (
               <Route key={item.path} index element={<Dashboard role={role} />} />
+            ) : item.path === '/students' ? (
+              <Route key={item.path} path="students" element={<Students />} />
             ) : (
               <Route
                 key={item.path}
