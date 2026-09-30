@@ -1,23 +1,48 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import Layout from './components/Layout'
+import Dashboard from './pages/Dashboard'
+import PlaceholderPage from './pages/PlaceholderPage'
+import { ROLES } from './config/roles'
 
 function App() {
-  const [count, setCount] = useState(0)
+  // Demo: chon role de xem giao dien tuong ung (thay bang thong tin dang nhap that khi noi BE)
+  const [roleKey, setRoleKey] = useState('ADMIN')
+  const role = ROLES[roleKey]
+
+  // Gom toan bo path tu tat ca section cua role hien tai, tranh trung route
+  const allItems = useMemo(() => {
+    const items = []
+    const seen = new Set()
+    role.sections.forEach((section) =>
+      section.items.forEach((item) => {
+        if (!seen.has(item.path)) {
+          seen.add(item.path)
+          items.push(item)
+        }
+      })
+    )
+    return items
+  }, [role])
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center gap-6 p-6">
-      <h1 className="text-3xl font-bold text-gray-800">
-        🚀 Đồ án của bạn đã sẵn sàng!
-      </h1>
-      <p className="text-gray-500">
-        React + Vite + Tailwind CSS đã được cấu hình xong.
-      </p>
-      <button
-        onClick={() => setCount((c) => c + 1)}
-        className="px-5 py-2.5 rounded-lg bg-indigo-600 text-white font-medium hover:bg-indigo-700 transition-colors"
-      >
-        Đếm: {count}
-      </button>
-    </div>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Layout role={role} onChangeRole={setRoleKey} />}>
+          {allItems.map((item) =>
+            item.path === '/' ? (
+              <Route key={item.path} index element={<Dashboard role={role} />} />
+            ) : (
+              <Route
+                key={item.path}
+                path={item.path.slice(1)}
+                element={<PlaceholderPage title={item.label} />}
+              />
+            )
+          )}
+        </Route>
+      </Routes>
+    </BrowserRouter>
   )
 }
 
