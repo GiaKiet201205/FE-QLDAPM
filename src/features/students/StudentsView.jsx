@@ -5,8 +5,17 @@ import DetailPanel from "../../components/ui/DetailPanel";
 
 const labelClass =
   "mb-1 block text-[11px] font-medium uppercase tracking-wide text-slate-400";
-const detailSectionClass =
-  "border-b border-slate-100 py-3.5 text-[13px] leading-5";
+
+function getInitials(fullName) {
+  return fullName
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => part[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+}
 
 function Status({ status }) {
   const dot =
@@ -21,6 +30,7 @@ function Status({ status }) {
       : status === "Graduated"
         ? "text-slate-500"
         : "text-slate-700";
+
   return (
     <span
       className={`inline-flex items-center gap-1.5 whitespace-nowrap text-xs ${color}`}
@@ -38,11 +48,12 @@ function Avatar({ student, large = false }) {
       : student.tone === "amber"
         ? "bg-amber-100 text-amber-700"
         : "bg-slate-200 text-slate-600";
+
   return (
     <span
       className={`inline-flex shrink-0 items-center justify-center rounded-full font-semibold ${large ? "h-10 w-10 text-sm" : "h-8 w-8 text-xs"} ${tone}`}
     >
-      {student.initials}
+      {getInitials(student.fullName)}
     </span>
   );
 }
@@ -68,31 +79,15 @@ function FilterSelect({ value, onChange, label, options }) {
   );
 }
 
-function Summary({ student }) {
+function EmptyRelationState({ title, description }) {
   return (
-    <div className="space-y-2 rounded-md border border-slate-200 bg-slate-50 p-3 text-xs">
-      <div className="flex justify-between gap-2">
-        <span className="text-slate-500">Attendance</span>
-        <strong className="text-right font-medium">{student.attendance}</strong>
-      </div>
-      <div className="flex justify-between gap-2">
-        <span className="text-slate-500">Score progress</span>
-        <strong className="text-right font-medium">{student.progress}</strong>
-      </div>
-      <div className="flex justify-between gap-2">
-        <span className="text-slate-500">Teacher</span>
-        <strong className="text-right font-medium">{student.teacher}</strong>
-      </div>
-    </div>
-  );
-}
-
-function HistoryRow({ date, event, result }) {
-  return (
-    <div className="grid min-h-9 grid-cols-[52px_1fr_auto] items-center gap-2 border border-b-0 border-slate-200 px-2 text-xs last:border-b">
-      <span className="font-mono text-[11px] text-slate-400">{date}</span>
-      <span>{event}</span>
-      <strong className="font-medium">{result}</strong>
+    <div className="rounded-md border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center">
+      <strong className="block text-sm font-medium text-slate-700">
+        {title}
+      </strong>
+      <span className="mt-1 block text-xs leading-5 text-slate-400">
+        {description}
+      </span>
     </div>
   );
 }
@@ -105,8 +100,8 @@ function StudentDetail({ student, tab, setTab, onClose, onEdit }) {
         student
           ? [
               { key: "Overview", label: "Overview" },
-              { key: "Learning", label: "Learning" },
-              { key: "History", label: "History" },
+              { key: "Classes", label: "Classes" },
+              { key: "Results", label: "Results" },
             ]
           : []
       }
@@ -125,22 +120,23 @@ function StudentDetail({ student, tab, setTab, onClose, onEdit }) {
         <>
           <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
             <Avatar student={student} large />
-            <div>
-              <strong className="block text-sm font-semibold text-slate-900">
-                {student.name}
+            <div className="min-w-0">
+              <strong className="block truncate text-sm font-semibold text-slate-900">
+                {student.fullName}
               </strong>
-              <span className="block text-xs text-slate-400">
-                Enrolled: Aug 15, 2024
+              <span className="block font-mono text-xs text-slate-400">
+                {student.studentCode}
               </span>
             </div>
           </div>
+
           {tab === "Overview" && (
             <>
               <div className="grid grid-cols-2 gap-3 border-b border-slate-100 py-3.5 text-[13px]">
                 <div>
-                  <span className={labelClass}>Student ID</span>
+                  <span className={labelClass}>Student Code</span>
                   <strong className="font-mono text-xs font-medium">
-                    {student.id}
+                    {student.studentCode}
                   </strong>
                 </div>
                 <div>
@@ -148,74 +144,41 @@ function StudentDetail({ student, tab, setTab, onClose, onEdit }) {
                   <Status status={student.status} />
                 </div>
               </div>
+
               <div className="grid grid-cols-2 gap-3 border-b border-slate-100 py-3.5 text-[13px]">
                 <div>
                   <span className={labelClass}>Phone</span>
-                  <span>{student.phone}</span>
+                  <span>{student.phone || "—"}</span>
                 </div>
                 <div className="min-w-0">
                   <span className={labelClass}>Email</span>
-                  <span className="break-all">{student.email}</span>
+                  <span className="break-all">{student.email || "—"}</span>
                 </div>
               </div>
-              <div className={detailSectionClass}>
-                <span className={labelClass}>Current Class</span>
-                <strong className="font-medium">
-                  {student.className}
-                </strong>{" "}
-                <span className="text-xs text-slate-400">
-                  (Room 402 · Mon, Wed 18:30)
+
+              <div className="py-3.5 text-[13px]">
+                <span className={labelClass}>Internal Record ID</span>
+                <span className="break-all font-mono text-xs text-slate-500">
+                  {student.id}
                 </span>
-              </div>
-              <div className={detailSectionClass}>
-                <span className={labelClass}>Learning Summary</span>
-                <Summary student={student} />
-              </div>
-              <div className={detailSectionClass}>
-                <span className={labelClass}>Recent Academic History</span>
-                <HistoryRow
-                  date="Oct 12"
-                  event="Mock Test #3"
-                  result={student.result}
-                />
-                <HistoryRow
-                  date="Oct 01"
-                  event="Mid-term Exam"
-                  result={
-                    student.course === "IELTS" ? "Band 7.0" : student.result
-                  }
-                />
               </div>
             </>
           )}
-          {tab === "Learning" && (
+
+          {tab === "Classes" && (
             <div className="pt-4">
-              <span className={labelClass}>Current course</span>
-              <h3 className="mb-3 text-sm font-semibold">
-                {student.course} · {student.className}
-              </h3>
-              <Summary student={student} />
+              <EmptyRelationState
+                title="No class relationships loaded yet"
+                description="Class membership will be displayed here from the ClassStudent relationship when the class module is connected."
+              />
             </div>
           )}
-          {tab === "History" && (
+
+          {tab === "Results" && (
             <div className="pt-4">
-              <span className={labelClass}>Academic history</span>
-              <HistoryRow
-                date="Oct 12"
-                event="Mock Test #3"
-                result={student.result}
-              />
-              <HistoryRow
-                date="Oct 01"
-                event="Mid-term Exam"
-                result={
-                  student.course === "IELTS" ? "Band 7.0" : student.result
-                }
-              />
-              <HistoryRow
-                date="Aug 15"
-                event="Enrolled"
-                result={student.course}
+              <EmptyRelationState
+                title="No student results loaded yet"
+                description="Scores and feedback will be displayed here from StudentResult instead of being stored directly on the student record."
               />
             </div>
           )}
@@ -232,13 +195,8 @@ function StudentDetail({ student, tab, setTab, onClose, onEdit }) {
 export default function StudentsView({
   search,
   onSearch,
-  course,
-  onCourse,
-  classFilter,
-  onClass,
   status,
   onStatus,
-  classOptions,
   onExport,
   onAdd,
   visible,
@@ -259,96 +217,71 @@ export default function StudentsView({
 }) {
   const columns = [
     {
-      key: "name",
+      key: "fullName",
       label: "Student",
-      width: "w-[32%]",
+      width: "w-[38%]",
       render: (student) => (
         <div className="flex min-w-0 items-center gap-2.5">
           <Avatar student={student} />
           <div className="min-w-0">
             <strong className="block truncate font-semibold text-slate-900">
-              {student.name}
+              {student.fullName}
             </strong>
             <span className="block truncate text-xs text-slate-400">
-              {student.email}
+              {student.email || "No email"}
             </span>
           </div>
         </div>
       ),
     },
     {
-      key: "id",
-      label: "Student ID",
-      width: "w-[16%]",
+      key: "studentCode",
+      label: "Student Code",
+      width: "w-[22%]",
       cellClassName: "font-mono text-xs break-all",
     },
     {
-      key: "className",
-      label: "Class",
-      width: "w-[18%]",
-      cellClassName: "break-words",
+      key: "phone",
+      label: "Phone",
+      width: "w-[22%]",
+      render: (student) => student.phone || "—",
     },
     {
       key: "status",
       label: "Status",
-      width: "w-[16%]",
-      render: (student) => <Status status={student.status} />,
-    },
-    {
-      key: "result",
-      label: "Result",
       width: "w-[18%]",
-      render: (student) => (
-        <>
-          <strong className="block whitespace-nowrap font-medium text-slate-900">
-            {student.result}
-          </strong>
-          {student.resultNote && (
-            <span className="block whitespace-nowrap text-xs text-slate-400">
-              {student.resultNote}
-            </span>
-          )}
-        </>
-      ),
+      render: (student) => <Status status={student.status} />,
     },
   ];
 
   return (
     <div className="font-sans text-[13px] leading-5 text-slate-800 antialiased">
       <div className="mb-4 flex flex-wrap items-center gap-2.5 rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
-        <div className="flex h-9 min-w-52 flex-1 items-center gap-2 rounded-md border border-slate-300 bg-slate-50 px-3 text-slate-400 xl:max-w-72">
+        <div className="flex h-9 min-w-52 flex-1 items-center gap-2 rounded-md border border-slate-300 bg-slate-50 px-3 text-slate-400 xl:max-w-80">
           <Search size={16} />
           <input
             className="min-w-0 flex-1 bg-transparent text-[13px] text-slate-800 outline-none placeholder:text-slate-400"
             value={search}
             onChange={(event) => onSearch(event.target.value)}
-            placeholder="Search student by name, ID..."
+            placeholder="Search by name, student code, email..."
             aria-label="Search students"
           />
         </div>
-        <FilterSelect
-          value={course}
-          onChange={onCourse}
-          label="Filter by course"
-          options={["All Courses", "IELTS", "TOEIC", "SAT"]}
-        />
-        <FilterSelect
-          value={classFilter}
-          onChange={onClass}
-          label="Filter by class"
-          options={["All Classes", ...classOptions]}
-        />
+
         <FilterSelect
           value={status}
           onChange={onStatus}
           label="Filter by status"
           options={["All Status", "Active", "On Leave", "Graduated"]}
         />
+
         <div className="hidden flex-1 2xl:block" />
+
         <Button onClick={onExport}>
           <Download size={15} />
           Export
         </Button>
+
         <Button variant="primary" onClick={onAdd}>
           <Plus size={16} />
           Add Student
@@ -373,6 +306,7 @@ export default function StudentsView({
           itemLabel="students"
           emptyMessage="No students match your filters."
         />
+
         <StudentDetail
           student={selected}
           tab={tab}
