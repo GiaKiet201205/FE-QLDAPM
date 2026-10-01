@@ -1,38 +1,39 @@
-﻿import { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import StudentsView from "../features/students/StudentsView";
 import StudentFormModal from "../features/students/StudentFormModal";
-import { initialStudents, seededStudents, PAGE_SIZE, emptyForm } from "../features/students/mockStudents";
+import {
+  initialStudents,
+  seededStudents,
+  PAGE_SIZE,
+  emptyForm,
+} from "../features/students/mockStudents";
 
 export default function Students() {
   const [students, setStudents] = useState(seededStudents);
   const [selectedId, setSelectedId] = useState(initialStudents[0].id);
   const [search, setSearch] = useState("");
-  const [course, setCourse] = useState("All Courses");
-  const [classFilter, setClassFilter] = useState("All Classes");
   const [status, setStatus] = useState("All Status");
   const [page, setPage] = useState(1);
   const [tab, setTab] = useState("Overview");
   const [checked, setChecked] = useState([]);
   const [editing, setEditing] = useState(undefined);
-  const filtered = useMemo(
-    () =>
-      students.filter(
-        (student) =>
-          `${student.name} ${student.id} ${student.email}`
-            .toLowerCase()
-            .includes(search.toLowerCase()) &&
-          (course === "All Courses" || student.course === course) &&
-          (classFilter === "All Classes" ||
-            student.className === classFilter) &&
-          (status === "All Status" || student.status === status),
-      ),
-    [students, search, course, classFilter, status],
-  );
+
+  const filtered = useMemo(() => {
+    const keyword = search.trim().toLowerCase();
+
+    return students.filter((student) => {
+      const searchable = `${student.fullName} ${student.studentCode} ${student.email ?? ""} ${student.phone ?? ""}`
+        .toLowerCase();
+
+      return (
+        searchable.includes(keyword) &&
+        (status === "All Status" || student.status === status)
+      );
+    });
+  }, [students, search, status]);
+
   const visible = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  const selected = visible.find((student) => student.id === selectedId);
-  const classOptions = [
-    ...new Set(students.map((student) => student.className)),
-  ];
+  const selected = students.find((student) => student.id === selectedId) ?? null;
   const allVisibleChecked =
     visible.length > 0 &&
     visible.every((student) => checked.includes(student.id));
@@ -42,6 +43,7 @@ export default function Students() {
     setPage(1);
     setChecked([]);
   }
+
   function toggleOne(id) {
     setChecked((current) =>
       current.includes(id)
@@ -49,6 +51,7 @@ export default function Students() {
         : [...current, id],
     );
   }
+
   function toggleAll() {
     setChecked((current) =>
       allVisibleChecked
@@ -56,30 +59,20 @@ export default function Students() {
         : [...new Set([...current, ...visible.map((student) => student.id)])],
     );
   }
+
   function exportCsv() {
     const rows = checked.length
       ? students.filter((student) => checked.includes(student.id))
       : filtered;
+
     const csv = [
-      [
-        "Student ID",
-        "Name",
-        "Email",
-        "Phone",
-        "Course",
-        "Class",
-        "Status",
-        "Result",
-      ],
+      ["Student Code", "Full Name", "Email", "Phone", "Status"],
       ...rows.map((student) => [
-        student.id,
-        student.name,
-        student.email,
-        student.phone,
-        student.course,
-        student.className,
+        student.studentCode,
+        student.fullName,
+        student.email ?? "",
+        student.phone ?? "",
         student.status,
-        student.result,
       ]),
     ]
       .map((row) =>
@@ -88,6 +81,7 @@ export default function Students() {
           .join(","),
       )
       .join("\r\n");
+
     const url = URL.createObjectURL(
       new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" }),
     );
@@ -97,51 +91,33 @@ export default function Students() {
     link.click();
     URL.revokeObjectURL(url);
   }
+
   function saveStudent(form) {
-    if (editing)
+    if (editing) {
       setStudents((current) =>
         current.map((student) =>
           student.id === editing.id
             ? {
                 ...student,
                 ...form,
-                initials: form.name
-                  .trim()
-                  .split(/\s+/)
-                  .map((part) => part[0])
-                  .slice(0, 2)
-                  .join("")
-                  .toUpperCase(),
               }
             : student,
         ),
       );
-    else {
+    } else {
       const newStudent = {
         ...form,
-        id: `STU-2024-${String(Date.now()).slice(-4)}`,
-        initials: form.name
-          .trim()
-          .split(/\s+/)
-          .map((part) => part[0])
-          .slice(0, 2)
-          .join("")
-          .toUpperCase(),
+        id: `student-${Date.now()}`,
         tone: "navy",
-        result: "—",
-        resultNote: "",
-        attendance: "—",
-        progress: "—",
-        teacher: "—",
       };
+
       setStudents((current) => [newStudent, ...current]);
       setSelectedId(newStudent.id);
       setPage(1);
       setSearch("");
-      setCourse("All Courses");
-      setClassFilter("All Classes");
       setStatus("All Status");
     }
+
     setEditing(undefined);
     setTab("Overview");
   }
@@ -151,13 +127,8 @@ export default function Students() {
       <StudentsView
         search={search}
         onSearch={(value) => changeFilter(setSearch, value)}
-        course={course}
-        onCourse={(value) => changeFilter(setCourse, value)}
-        classFilter={classFilter}
-        onClass={(value) => changeFilter(setClassFilter, value)}
         status={status}
         onStatus={(value) => changeFilter(setStatus, value)}
-        classOptions={classOptions}
         onExport={exportCsv}
         onAdd={() => setEditing(null)}
         visible={visible}
@@ -179,6 +150,7 @@ export default function Students() {
         onCloseDetail={() => setSelectedId(null)}
         onEdit={() => setEditing(selected)}
       />
+
       {editing !== undefined && (
         <StudentFormModal
           student={editing}
@@ -190,4 +162,3 @@ export default function Students() {
     </>
   );
 }
-
