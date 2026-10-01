@@ -1,5 +1,5 @@
 import { Bell, ChevronDown } from 'lucide-react'
-import { ROLE_LIST } from '../config/roles'
+import { ROLE_LIST } from '../../config/roles'
 
 export default function Topbar({ role, onChangeRole, pageTitle, pageSubtitle }) {
   return (
