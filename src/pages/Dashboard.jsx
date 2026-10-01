@@ -1,7 +1,8 @@
-import StatCard from '../components/StatCard'
-import DataTable from '../components/DataTable'
-import { ActivityFeed, StatusPanel } from '../components/ActivityFeed'
-import { getDashboardData } from '../data/mockData'
+import StatCard from '../features/dashboard/components/StatCard'
+import DataTable from '../features/dashboard/components/DataTable'
+import { ActivityFeed } from '../features/dashboard/components/ActivityFeed'
+import StatusPanel from '../features/dashboard/components/StatusPanel'
+import { getDashboardData } from '../features/dashboard/mockData'
 
 export default function Dashboard({ role }) {
   const data = getDashboardData(role.key)
