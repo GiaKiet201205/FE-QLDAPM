@@ -15,13 +15,17 @@ import { classStatuses, courses } from "./mockClasses";
 const labelClass =
   "mb-1 block text-[11px] font-medium uppercase tracking-wide text-slate-400";
 
-const statusStyles = {
-  DRAFT: "bg-slate-100 text-slate-600",
-  READY: "bg-blue-50 text-blue-700",
-  RUNNING: "bg-emerald-50 text-emerald-700",
-  COMPLETED: "bg-violet-50 text-violet-700",
-  CLOSED: "bg-slate-200 text-slate-500",
+const statusDots = {
+  DRAFT: "bg-slate-400",
+  READY: "bg-[#173557]",
+  RUNNING: "bg-emerald-500",
+  COMPLETED: "bg-slate-500",
+  CLOSED: "bg-slate-300",
 };
+
+function statusLabel(status) {
+  return status.charAt(0) + status.slice(1).toLowerCase();
+}
 
 function courseName(courseId) {
   return courses.find((course) => course.id === courseId)?.name ?? "—";
@@ -36,12 +40,13 @@ function formatDate(value) {
   }).format(new Date(value));
 }
 
-function StatusBadge({ status }) {
+function StatusLabel({ status }) {
   return (
-    <span
-      className={`inline-flex rounded-full px-2 py-1 text-[11px] font-semibold ${statusStyles[status] ?? statusStyles.DRAFT}`}
-    >
-      {status}
+    <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-xs font-medium text-slate-600">
+      <span
+        className={`h-1.5 w-1.5 rounded-full ${statusDots[status] ?? statusDots.DRAFT}`}
+      />
+      {statusLabel(status)}
     </span>
   );
 }
@@ -123,7 +128,7 @@ function ClassDetail({
             </Button>
             {nextStatus && (
               <Button className="w-full" onClick={() => onAdvanceStatus(nextStatus)}>
-                Move to {nextStatus}
+                Move to {statusLabel(nextStatus)}
               </Button>
             )}
           </div>
@@ -140,7 +145,8 @@ function ClassDetail({
               <span className="font-mono text-xs text-slate-400">
                 {classItem.classCode}
               </span>
-              <StatusBadge status={classItem.status} />
+              <span className="text-slate-300">•</span>
+              <StatusLabel status={classItem.status} />
             </div>
           </div>
 
@@ -155,7 +161,7 @@ function ClassDetail({
                 </div>
                 <div>
                   <span className={labelClass}>Status</span>
-                  <StatusBadge status={classItem.status} />
+                  <StatusLabel status={classItem.status} />
                 </div>
               </div>
 
@@ -273,7 +279,7 @@ export default function ClassesView({
       key: "status",
       label: "Status",
       width: "w-[18%]",
-      render: (classItem) => <StatusBadge status={classItem.status} />,
+      render: (classItem) => <StatusLabel status={classItem.status} />,
     },
   ];
 
@@ -307,7 +313,10 @@ export default function ClassesView({
           label="Filter by status"
           options={[
             { value: "ALL", label: "All Status" },
-            ...classStatuses.map((item) => ({ value: item, label: item })),
+            ...classStatuses.map((item) => ({
+              value: item,
+              label: statusLabel(item),
+            })),
           ]}
         />
 
