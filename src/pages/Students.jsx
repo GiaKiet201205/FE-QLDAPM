@@ -7,13 +7,14 @@ import { demoTeacherId } from "../features/academic/mockAcademicRelations";
 import { useAcademicData } from "../features/academic/AcademicDataContext";
 
 const actors = {
-  ADMIN: { id: "admin-001", fullName: "System Admin" },
-  TEACHER: { id: demoTeacherId, fullName: "David Miller" },
+  ADMIN: { id: "admin-001", fullName: "System Admin", role: "ADMIN" },
+  TEACHER: { id: demoTeacherId, fullName: "David Miller", role: "TEACHER" },
 };
 
 export default function Students({ role }) {
   const roleKey = role?.key ?? "ADMIN";
-  const actor = actors[roleKey] ?? { id: "staff-demo", fullName: roleKey };
+  const actor =
+    actors[roleKey] ?? { id: "staff-demo", fullName: roleKey, role: roleKey };
   const canManage = roleKey === "ADMIN";
 
   const {
@@ -231,7 +232,7 @@ export default function Students({ role }) {
   function handleDelete() {
     if (!selected || !canManage) return;
     const confirmed = window.confirm(
-      `Delete ${selected.fullName}? This action is only allowed when no academic result must be preserved.`,
+      `Delete ${selected.fullName}? Hard delete is only allowed when the student has never belonged to a class and has no academic results.`,
     );
     if (!confirmed) return;
 
