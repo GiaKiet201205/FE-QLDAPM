@@ -1,5 +1,8 @@
 import { createContext, useContext, useMemo, useState } from "react";
-import { seededStudents } from "../students/mockStudents";
+import {
+  seededStudents,
+  studentStatusTransitions,
+} from "../students/mockStudents";
 import { initialClasses, classStatuses } from "../classes/mockClasses";
 import { initialAuditLogs, initialStaffSchedules } from "../classes/mockClassOperations";
 import { evaluateStudentClassTarget } from "./targetEligibility";
@@ -76,65 +79,50 @@ export function AcademicDataProvider({ children }) {
     );
   }
 
-  function syncToeicStudentTargets(studentId, form) {
-    const values = [
-      { targetType: "RL", value: form.toeicRlTarget },
-      { targetType: "SW", value: form.toeicSwTarget },
-    ];
-
+  function syncStudentTargets(studentId, targets = {}) {
     setStudentTargets((current) => {
-      const withoutToeic = current.filter(
-        (target) =>
-          !(
-            target.studentId === studentId &&
-            target.courseId === "course-toeic" &&
-            ["RL", "SW"].includes(target.targetType)
-          ),
+      const withoutStudent = current.filter(
+        (target) => target.studentId !== studentId,
       );
 
-      const nextTargets = values
-        .filter(({ value }) => value !== "" && value != null)
-        .map(({ targetType, value }) => ({
-          id: `student-target-${studentId}-${targetType.toLowerCase()}`,
-          studentId,
-          courseId: "course-toeic",
-          targetType,
-          targetValue: Number(value),
-        }));
+      const nextTargets = Object.entries(targets).flatMap(
+        ([courseId, courseTargets]) =>
+          Object.entries(courseTargets ?? {})
+            .filter(([, value]) => value !== "" && value != null)
+            .map(([targetType, value]) => ({
+              id: `student-target-${studentId}-${courseId}-${targetType.toLowerCase()}`,
+              studentId,
+              courseId,
+              targetType,
+              targetValue: Number(value),
+            })),
+      );
 
-      return [...withoutToeic, ...nextTargets];
+      return [...withoutStudent, ...nextTargets];
     });
   }
 
-  function syncToeicClassRequirements(classId, form) {
-    const values = [
-      { targetType: "RL", value: form.requiredRlTarget },
-      { targetType: "SW", value: form.requiredSwTarget },
-    ];
-
+  function syncClassTargetRequirements(
+    classId,
+    courseId,
+    requiredTargets = {},
+  ) {
     setClassTargetRequirements((current) => {
-      const withoutToeic = current.filter(
-        (requirement) =>
-          !(
-            requirement.classId === classId &&
-            ["RL", "SW"].includes(requirement.targetType)
-          ),
+      const withoutClass = current.filter(
+        (requirement) => requirement.classId !== classId,
       );
 
-      if (form.courseId !== "course-toeic") {
-        return withoutToeic;
-      }
-
-      const nextRequirements = values
-        .filter(({ value }) => value !== "" && value != null)
-        .map(({ targetType, value }) => ({
+      const courseTargets = requiredTargets[courseId] ?? {};
+      const nextRequirements = Object.entries(courseTargets)
+        .filter(([, value]) => value !== "" && value != null)
+        .map(([targetType, value]) => ({
           id: `class-target-${classId}-${targetType.toLowerCase()}`,
           classId,
           targetType,
           requiredTarget: Number(value),
         }));
 
-      return [...withoutToeic, ...nextRequirements];
+      return [...withoutClass, ...nextRequirements];
     });
   }
 
@@ -150,22 +138,16 @@ export function AcademicDataProvider({ children }) {
     );
     if (duplicate) return { ok: false, reason: "Student code already exists." };
 
-    const {
-      toeicRlTarget,
-      toeicSwTarget,
-      ...studentForm
-    } = form;
+    const { targets, ...studentForm } = form;
 
     const student = {
       ...studentForm,
+      status: "Active",
       id: `student-${Date.now()}`,
       tone: "navy",
     };
     setStudents((current) => [student, ...current]);
-    syncToeicStudentTargets(student.id, {
-      toeicRlTarget,
-      toeicSwTarget,
-    });
+    syncStudentTargets(student.id, targets);
     addAudit(actor, "CREATE_STUDENT", "STUDENT", student.id, {
       studentCode: student.studentCode,
     });
@@ -185,21 +167,14 @@ export function AcademicDataProvider({ children }) {
     );
     if (duplicate) return { ok: false, reason: "Student code already exists." };
 
-    const {
-      toeicRlTarget,
-      toeicSwTarget,
-      ...studentForm
-    } = form;
+    const { targets, status: _ignoredStatus, ...studentForm } = form;
 
     setStudents((current) =>
       current.map((student) =>
         student.id === studentId ? { ...student, ...studentForm } : student,
       ),
     );
-    syncToeicStudentTargets(studentId, {
-      toeicRlTarget,
-      toeicSwTarget,
-    });
+    syncStudentTargets(studentId, targets);
     addAudit(actor, "UPDATE_STUDENT", "STUDENT", studentId, {
       studentCode: studentForm.studentCode,
     });
@@ -230,6 +205,39 @@ export function AcademicDataProvider({ children }) {
       current.filter((student) => student.id !== studentId),
     );
     addAudit(actor, "DELETE_STUDENT", "STUDENT", studentId);
+    return { ok: true };
+  }
+
+  function changeStudentStatus(studentId, nextStatus, actor) {
+    if (actor.role !== "ADMIN") {
+      return {
+        ok: false,
+        reason: "Only Admin can change student status.",
+      };
+    }
+
+    const student = students.find((item) => item.id === studentId);
+    if (!student) return { ok: false, reason: "Student not found." };
+
+    const allowed = studentStatusTransitions[student.status] ?? [];
+    if (!allowed.includes(nextStatus)) {
+      return {
+        ok: false,
+        reason: `Cannot change student status from ${student.status} to ${nextStatus}.`,
+      };
+    }
+
+    setStudents((current) =>
+      current.map((item) =>
+        item.id === studentId ? { ...item, status: nextStatus } : item,
+      ),
+    );
+
+    addAudit(actor, "CHANGE_STUDENT_STATUS", "STUDENT", studentId, {
+      from: student.status,
+      to: nextStatus,
+    });
+
     return { ok: true };
   }
 
@@ -361,11 +369,7 @@ export function AcademicDataProvider({ children }) {
     );
     if (duplicate) return { ok: false, reason: "Class code already exists." };
 
-    const {
-      requiredRlTarget,
-      requiredSwTarget,
-      ...classForm
-    } = form;
+    const { requiredTargets, ...classForm } = form;
 
     const classItem = {
       ...classForm,
@@ -374,11 +378,11 @@ export function AcademicDataProvider({ children }) {
       createdBy: actor.id,
     };
     setClasses((current) => [classItem, ...current]);
-    syncToeicClassRequirements(classItem.id, {
-      ...classForm,
-      requiredRlTarget,
-      requiredSwTarget,
-    });
+    syncClassTargetRequirements(
+      classItem.id,
+      classItem.courseId,
+      requiredTargets,
+    );
 
     if (actor.role === "CS") {
       setClassAccessScopes((current) => [
@@ -416,11 +420,7 @@ export function AcademicDataProvider({ children }) {
     );
     if (duplicate) return { ok: false, reason: "Class code already exists." };
 
-    const {
-      requiredRlTarget,
-      requiredSwTarget,
-      ...classForm
-    } = form;
+    const { requiredTargets, ...classForm } = form;
 
     setClasses((current) =>
       current.map((classItem) =>
@@ -429,11 +429,11 @@ export function AcademicDataProvider({ children }) {
           : classItem,
       ),
     );
-    syncToeicClassRequirements(classId, {
-      ...classForm,
-      requiredRlTarget,
-      requiredSwTarget,
-    });
+    syncClassTargetRequirements(
+      classId,
+      classForm.courseId,
+      requiredTargets,
+    );
     addAudit(actor, "UPDATE_CLASS", "CLASS", classId, {
       classCode: classForm.classCode,
       name: classForm.name,
@@ -661,6 +661,7 @@ export function AcademicDataProvider({ children }) {
       addStudent,
       updateStudent,
       deleteStudent,
+      changeStudentStatus,
       getStudentClassEligibility,
       assignStudentsToClass,
       removeStudentFromClass,
