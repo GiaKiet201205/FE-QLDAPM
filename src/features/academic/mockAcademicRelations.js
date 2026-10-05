@@ -42,7 +42,9 @@ export const initialExams = [
   { id: "exam-002", teacherId: "teacher-003", classId: "class-0003", title: "TOEFL Progress Test", description: "Progress checkpoint.", duration: 120, examDate: "2026-10-30", status: "SCHEDULED" },
 ];
 
-const classOneStudents = seededStudents.filter((_, index) => index % classIds.length === 0).slice(0, 8);
+const classOneStudents = seededStudents
+  .filter((_, index) => index % classIds.length === 0)
+  .slice(0, 8);
 
 export const initialStudentResults = classOneStudents.map((student, index) => ({
   id: `result-${String(index + 1).padStart(3, "0")}`,
@@ -51,10 +53,13 @@ export const initialStudentResults = classOneStudents.map((student, index) => ({
   assignmentId: index % 2 === 0 ? "assignment-001" : null,
   examId: index % 2 === 1 ? "exam-001" : null,
   score: index % 2 === 0 ? 7 + (index % 3) * 0.5 : 6.5 + (index % 3) * 0.5,
-  feedback: index % 2 === 0 ? "Good structure; improve lexical range." : "Solid progress; review listening accuracy.",
+  feedback:
+    index % 2 === 0
+      ? "Good structure; improve lexical range."
+      : "Solid progress; review listening accuracy.",
   evaluatedBy: "teacher-001",
   evaluatedAt: "2026-10-05T11:00:00.000Z",
-]));
+}));
 
 export function getTeacherName(teacherId) {
   return teachers.find((teacher) => teacher.id === teacherId)?.fullName ?? teacherId;
