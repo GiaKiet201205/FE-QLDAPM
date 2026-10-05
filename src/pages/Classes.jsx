@@ -527,7 +527,6 @@ export default function Classes({ role }) {
               }
             : undefined
         }
-        teacherActorId={isTeacher ? actor.id : undefined}
         onEditAssignment={
           canTeach && selected && ["READY", "RUNNING"].includes(selected.status)
             ? editAssignment
@@ -609,7 +608,6 @@ export default function Classes({ role }) {
           assignments={selectedAssignments}
           exams={selectedExams}
           existingResults={selectedResults}
-          teacherActorId={isTeacher ? actor.id : undefined}
           onClose={() => setGrading(false)}
           onSave={saveResult}
         />
