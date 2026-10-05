@@ -27,16 +27,6 @@ export const ROLES = {
           { label: 'Danh sách học viên', path: '/students', icon: 'Users' },
         ],
       },
-      {
-        title: 'Giảng dạy',
-        items: [
-          { label: 'Giao bài tập', path: '/assignments', icon: 'FileEdit' },
-          { label: 'Giao bài kiểm tra', path: '/tests', icon: 'ClipboardList' },
-          { label: 'Chấm điểm', path: '/grading', icon: 'CheckSquare' },
-          { label: 'Đánh giá học viên', path: '/student-reviews', icon: 'Star' },
-          { label: 'Theo dõi kết quả lớp', path: '/class-results', icon: 'BarChart3' },
-        ],
-      },
     ],
   },
 
