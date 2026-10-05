@@ -2,79 +2,128 @@ import { useMemo, useState } from "react";
 import ClassesView from "../features/classes/ClassesView";
 import ClassFormModal from "../features/classes/ClassFormModal";
 import SupportOverrideModal from "../features/classes/SupportOverrideModal";
+import AddClassStudentsModal from "../features/classes/AddClassStudentsModal";
+import TeachingActivityModal from "../features/classes/TeachingActivityModal";
+import StudentResultModal from "../features/classes/StudentResultModal";
 import {
   emptyClassForm,
-  initialClasses,
   PAGE_SIZE,
   courses,
   classStatuses,
 } from "../features/classes/mockClasses";
 import {
-  getActorForRole,
+  demoTeacherId,
+  getTeacherName,
+} from "../features/academic/mockAcademicRelations";
+import {
   getCsName,
-  initialAuditLogs,
-  initialStaffSchedules,
 } from "../features/classes/mockClassOperations";
+import { useAcademicData } from "../features/academic/AcademicDataContext";
 
-function createAudit(actor, action, entityId, details) {
-  return {
-    id: `audit-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-    userId: actor.id,
-    userName: actor.fullName,
-    action,
-    entityType: "CLASS",
-    entityId,
-    details,
-    createdAt: new Date().toISOString(),
-  };
-}
+const actors = {
+  ADMIN: { id: "admin-001", fullName: "System Admin", role: "ADMIN" },
+  CS: { id: "cs-001", fullName: "Current CS", role: "CS" },
+  TEACHER: { id: demoTeacherId, fullName: "David Miller", role: "TEACHER" },
+};
 
 export default function Classes({ role }) {
   const roleKey = role?.key ?? "ADMIN";
-  const actor = getActorForRole(roleKey);
+  const actor =
+    actors[roleKey] ?? { id: "staff-demo", fullName: roleKey, role: roleKey };
   const isAdmin = roleKey === "ADMIN";
   const isCs = roleKey === "CS";
+  const isTeacher = roleKey === "TEACHER";
+  const canManageCore = isAdmin || isCs;
+  const canManageStudents = isAdmin || isCs;
+  const canTeach = isTeacher;
 
-  const [classes, setClasses] = useState(initialClasses);
-  const [staffSchedules, setStaffSchedules] = useState(initialStaffSchedules);
-  const [auditLogs, setAuditLogs] = useState(initialAuditLogs);
+  const {
+    students,
+    classes,
+    classStudents,
+    classAccessScopes,
+    teachingSchedules,
+    staffSchedules,
+    assignments,
+    exams,
+    studentResults,
+    auditLogs,
+    assignStudentsToClass,
+    removeStudentFromClass,
+    addClass,
+    updateClass,
+    advanceClassStatus,
+    overrideSupport,
+    addAssignment,
+    addExam,
+    upsertStudentResult,
+  } = useAcademicData();
+
   const [selectedId, setSelectedId] = useState(null);
   const [search, setSearch] = useState("");
   const [course, setCourse] = useState("ALL");
   const [status, setStatus] = useState("ALL");
   const [page, setPage] = useState(1);
   const [tab, setTab] = useState("Overview");
-  const [checked, setChecked] = useState([]);
   const [editing, setEditing] = useState(undefined);
   const [overrideSchedule, setOverrideSchedule] = useState(null);
+  const [addingStudents, setAddingStudents] = useState(false);
+  const [activityType, setActivityType] = useState(null);
+  const [grading, setGrading] = useState(false);
+  const [message, setMessage] = useState("");
 
   const scopedClasses = useMemo(() => {
     if (isAdmin) return classes;
-    if (!isCs) return [];
 
-    const assignedClassIds = new Set(
-      staffSchedules
-        .filter(
-          (schedule) =>
-            schedule.staffRole === "CS" &&
-            schedule.userId === actor.id &&
-            schedule.status === "ASSIGNED" &&
-            schedule.classId,
-        )
-        .map((schedule) => schedule.classId),
-    );
+    if (isTeacher) {
+      const assignedIds = new Set(
+        teachingSchedules
+          .filter(
+            (schedule) =>
+              schedule.teacherId === actor.id && schedule.status === "ASSIGNED",
+          )
+          .map((schedule) => schedule.classId),
+      );
+      return classes.filter((classItem) => assignedIds.has(classItem.id));
+    }
 
-    return classes.filter(
-      (classItem) =>
-        assignedClassIds.has(classItem.id) || classItem.createdBy === actor.id,
-    );
-  }, [classes, staffSchedules, isAdmin, isCs, actor.id]);
+    if (isCs) {
+      const allowedClassIds = new Set(
+        classAccessScopes
+          .filter(
+            (scope) =>
+              scope.role === "CS" &&
+              scope.userId === actor.id &&
+              scope.status === "ACTIVE",
+          )
+          .map((scope) => scope.classId),
+      );
+
+      return classes.filter((classItem) => allowedClassIds.has(classItem.id));
+    }
+
+    return [];
+  }, [
+    classes,
+    teachingSchedules,
+    staffSchedules,
+    classAccessScopes,
+    isAdmin,
+    isTeacher,
+    isCs,
+    actor.id,
+  ]);
 
   const filtered = useMemo(() => {
     const keyword = search.trim().toLowerCase();
 
     return scopedClasses.filter((classItem) => {
-      const searchable = `${classItem.classCode} ${classItem.name}`.toLowerCase();
+      const teacherNames = teachingSchedules
+        .filter((schedule) => schedule.classId === classItem.id)
+        .map((schedule) => getTeacherName(schedule.teacherId))
+        .join(" ");
+      const searchable =
+        `${classItem.classCode} ${classItem.name} ${teacherNames}`.toLowerCase();
 
       return (
         searchable.includes(keyword) &&
@@ -82,73 +131,95 @@ export default function Classes({ role }) {
         (status === "ALL" || classItem.status === status)
       );
     });
-  }, [scopedClasses, search, course, status]);
+  }, [scopedClasses, search, course, status, teachingSchedules]);
 
   const visible = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const selected =
     scopedClasses.find((classItem) => classItem.id === selectedId) ?? null;
-  const selectedSchedules = selected
+
+  const selectedClassStudents = selected
+    ? classStudents.filter(
+        (relation) =>
+          relation.classId === selected.id && relation.status === "ACTIVE",
+      )
+    : [];
+  const selectedStudents = selectedClassStudents
+    .map((relation) => students.find((student) => student.id === relation.studentId))
+    .filter(Boolean);
+
+  const selectedTeachingSchedules = selected
+    ? teachingSchedules.filter(
+        (schedule) =>
+          schedule.classId === selected.id &&
+          (!isTeacher || schedule.teacherId === actor.id),
+      )
+    : [];
+
+  const selectedSupportSchedules = selected
     ? staffSchedules.filter(
         (schedule) =>
           schedule.classId === selected.id &&
           schedule.staffRole === "CS" &&
-          (isAdmin || schedule.userId === actor.id),
+          (isAdmin || isCs && schedule.userId === actor.id),
       )
     : [];
-  const selectedAuditLogs = selected
-    ? auditLogs.filter((log) => log.entityId === selected.id)
-    : [];
 
-  const allVisibleChecked =
-    visible.length > 0 &&
-    visible.every((classItem) => checked.includes(classItem.id));
+  const selectedAssignments = selected
+    ? assignments.filter((item) => item.classId === selected.id)
+    : [];
+  const selectedExams = selected
+    ? exams.filter((item) => item.classId === selected.id)
+    : [];
+  const selectedResults = selected
+    ? studentResults.filter((item) => item.classId === selected.id)
+    : [];
+  const selectedAuditLogs = selected
+    ? auditLogs.filter(
+        (log) => log.entityType === "CLASS" && log.entityId === selected.id,
+      )
+    : [];
 
   function changeFilter(setter, value) {
     setter(value);
     setPage(1);
-    setChecked([]);
-  }
-
-  function toggleOne(id) {
-    setChecked((current) =>
-      current.includes(id)
-        ? current.filter((value) => value !== id)
-        : [...current, id],
-    );
-  }
-
-  function toggleAll() {
-    setChecked((current) =>
-      allVisibleChecked
-        ? current.filter((id) => !visible.some((classItem) => classItem.id === id))
-        : [...new Set([...current, ...visible.map((classItem) => classItem.id)])],
-    );
   }
 
   function exportCsv() {
-    const rows = checked.length
-      ? scopedClasses.filter((classItem) => checked.includes(classItem.id))
-      : filtered;
-
     const csv = [
       [
         "Class Code",
         "Class Name",
         "Course",
+        "Teacher",
+        "Students",
         "Start Date",
         "End Date",
         "Status",
-        "Created By",
       ],
-      ...rows.map((classItem) => [
-        classItem.classCode,
-        classItem.name,
-        courses.find((item) => item.id === classItem.courseId)?.name ?? "",
-        classItem.startDate,
-        classItem.endDate,
-        classItem.status,
-        classItem.createdBy,
-      ]),
+      ...filtered.map((classItem) => {
+        const teachers = [
+          ...new Set(
+            teachingSchedules
+              .filter((schedule) => schedule.classId === classItem.id)
+              .map((schedule) => getTeacherName(schedule.teacherId)),
+          ),
+        ].join("; ");
+        const studentCount = classStudents.filter(
+          (relation) =>
+            relation.classId === classItem.id && relation.status === "ACTIVE",
+        ).length;
+
+        return [
+          classItem.classCode,
+          classItem.name,
+          courses.find((item) => item.id === classItem.courseId)?.name ?? "",
+          teachers,
+          studentCount,
+          classItem.startDate,
+          classItem.endDate,
+          classItem.status,
+        ];
+      }),
     ]
       .map((row) =>
         row
@@ -160,118 +231,140 @@ export default function Classes({ role }) {
     const url = URL.createObjectURL(
       new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" }),
     );
-    const linkElement = document.createElement("a");
-    linkElement.href = url;
-    linkElement.download = "classes.csv";
-    linkElement.click();
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "classes.csv";
+    link.click();
     URL.revokeObjectURL(url);
   }
 
   function saveClass(form) {
-    if (editing) {
-      setClasses((current) =>
-        current.map((classItem) =>
-          classItem.id === editing.id
-            ? {
-                ...classItem,
-                ...form,
-                status: classItem.status,
-              }
-            : classItem,
-        ),
-      );
-      setAuditLogs((current) => [
-        createAudit(actor, "UPDATE_CLASS", editing.id, {
-          classCode: form.classCode,
-          name: form.name,
-        }),
-        ...current,
-      ]);
-    } else {
-      const newClass = {
-        ...form,
-        status: "DRAFT",
-        id: `class-${Date.now()}`,
-        createdBy: actor.id,
-      };
+    const result = editing
+      ? updateClass(editing.id, form, actor)
+      : addClass(form, actor);
 
-      setClasses((current) => [newClass, ...current]);
-      setAuditLogs((current) => [
-        createAudit(actor, "CREATE_CLASS", newClass.id, {
-          classCode: newClass.classCode,
-        }),
-        ...current,
-      ]);
-      setSelectedId(newClass.id);
-      setPage(1);
-      setSearch("");
-      setCourse("ALL");
-      setStatus("ALL");
+    if (!result.ok) {
+      setMessage(result.reason);
+      return;
     }
 
+    setSelectedId(editing?.id ?? result.classItem.id);
     setEditing(undefined);
     setTab("Overview");
+    setMessage("");
   }
 
   function advanceStatus(nextStatus) {
-    if (!selected) return;
-
-    const currentIndex = classStatuses.indexOf(selected.status);
-    const expectedNext = classStatuses[currentIndex + 1];
-    if (nextStatus !== expectedNext) return;
-
-    const previousStatus = selected.status;
-    setClasses((current) =>
-      current.map((classItem) =>
-        classItem.id === selected.id
-          ? { ...classItem, status: nextStatus }
-          : classItem,
-      ),
-    );
-    setAuditLogs((current) => [
-      createAudit(actor, "CHANGE_CLASS_STATUS", selected.id, {
-        from: previousStatus,
-        to: nextStatus,
-      }),
-      ...current,
-    ]);
+    if (!selected || !canManageCore) return;
+    const result = advanceClassStatus(selected.id, nextStatus, actor);
+    if (!result.ok) setMessage(result.reason);
   }
 
-  function confirmSupportOverride({ scheduleId, newCsId, reason }) {
-    if (!isAdmin || !overrideSchedule || !selected) return;
-
-    const oldCsId = overrideSchedule.userId;
-    setStaffSchedules((current) =>
-      current.map((schedule) =>
-        schedule.id === scheduleId
-          ? {
-              ...schedule,
-              userId: newCsId,
-              assignedBy: actor.id,
-              assignmentSource: "ADMIN_OVERRIDE",
-            }
-          : schedule,
-      ),
+  function confirmSupportOverride({
+    scheduleId,
+    newCsId,
+    reason,
+    allowConflict,
+  }) {
+    if (!isAdmin) return;
+    const result = overrideSupport(
+      scheduleId,
+      newCsId,
+      reason,
+      actor,
+      allowConflict,
     );
-    setAuditLogs((current) => [
-      createAudit(actor, "OVERRIDE_CS_SUPPORT", selected.id, {
-        scheduleId,
-        fromCs: getCsName(oldCsId),
-        toCs: getCsName(newCsId),
-        reason,
-      }),
-      ...current,
-    ]);
+    if (!result.ok) {
+      setMessage(result.reason);
+      return;
+    }
     setOverrideSchedule(null);
+    setMessage("");
   }
 
-  const canCreate = isAdmin || isCs;
-  const canEdit = Boolean(selected) && (isAdmin || isCs);
+  function addStudents(ids) {
+    if (!selected || !canManageStudents) return;
+    const result = assignStudentsToClass(ids, selected.id, actor);
+    if (!result.ok) {
+      setMessage(result.reason);
+      return;
+    }
+    setAddingStudents(false);
+    setMessage(`${result.added} student(s) added to ${selected.classCode}.`);
+  }
+
+  function removeStudent(studentId) {
+    if (!selected || !canManageStudents) return;
+    const result = removeStudentFromClass(studentId, selected.id, actor);
+    if (!result?.ok) {
+      setMessage(result?.reason ?? "Unable to remove student from class.");
+      return;
+    }
+    setMessage("Student removed from the active roster. Membership history was preserved.");
+  }
+
+  function saveActivity(data) {
+    if (!canTeach || !selected) return;
+    const result =
+      activityType === "exam" ? addExam(data, actor) : addAssignment(data, actor);
+    if (result?.ok === false) {
+      setMessage(result.reason);
+      return;
+    }
+    setActivityType(null);
+    setMessage(activityType === "exam" ? "Exam created." : "Assignment created.");
+  }
+
+  function saveResult(data) {
+    if (!canTeach) return;
+    const result = upsertStudentResult(data, actor);
+    if (result?.ok === false) {
+      setMessage(result.reason);
+      return;
+    }
+    setGrading(false);
+    setMessage("Student result and feedback saved.");
+  }
+
+  function studentCount(classId) {
+    return classStudents.filter(
+      (relation) =>
+        relation.classId === classId && relation.status === "ACTIVE",
+    ).length;
+  }
+
+  function teacherSummary(classId) {
+    return [
+      ...new Set(
+        teachingSchedules
+          .filter((schedule) => schedule.classId === classId)
+          .map((schedule) => getTeacherName(schedule.teacherId)),
+      ),
+    ];
+  }
+
+  function supportSummary(classId) {
+    return [
+      ...new Set(
+        staffSchedules
+          .filter(
+            (schedule) =>
+              schedule.classId === classId &&
+              schedule.staffRole === "CS" &&
+              schedule.status === "ASSIGNED",
+          )
+          .map((schedule) => getCsName(schedule.userId)),
+      ),
+    ];
+  }
 
   return (
     <>
       <ClassesView
         roleKey={roleKey}
+        canManageCore={canManageCore}
+        canManageStudents={canManageStudents}
+        canTeach={canTeach}
         search={search}
         onSearch={(value) => changeFilter(setSearch, value)}
         course={course}
@@ -279,29 +372,43 @@ export default function Classes({ role }) {
         status={status}
         onStatus={(value) => changeFilter(setStatus, value)}
         onExport={exportCsv}
-        onCreate={canCreate ? () => setEditing(null) : undefined}
+        onCreate={canManageCore ? () => setEditing(null) : undefined}
         visible={visible}
-        selectedId={selectedId}
-        checked={checked}
-        onToggleAll={toggleAll}
-        onToggleOne={toggleOne}
         onSelect={(id) => {
           setSelectedId(id);
           setTab("Overview");
+          setMessage("");
         }}
         filteredCount={filtered.length}
         page={page}
         pageSize={PAGE_SIZE}
         onPage={setPage}
         selected={selected}
+        selectedId={selectedId}
         tab={tab}
         setTab={setTab}
         onCloseDetail={() => setSelectedId(null)}
-        onEdit={canEdit ? () => setEditing(selected) : undefined}
-        onAdvanceStatus={advanceStatus}
-        supportSchedules={selectedSchedules}
-        auditLogs={selectedAuditLogs}
+        onEdit={canManageCore && selected ? () => setEditing(selected) : undefined}
+        onAdvanceStatus={canManageCore ? advanceStatus : undefined}
+        students={selectedStudents}
+        onAddStudents={
+          canManageStudents && selected ? () => setAddingStudents(true) : undefined
+        }
+        onRemoveStudent={canManageStudents ? removeStudent : undefined}
+        teachingSchedules={selectedTeachingSchedules}
+        teacherSummary={teacherSummary}
+        studentCount={studentCount}
+        supportSchedules={selectedSupportSchedules}
+        supportSummary={supportSummary}
         onOverrideSupport={isAdmin ? setOverrideSchedule : undefined}
+        assignments={selectedAssignments}
+        exams={selectedExams}
+        onCreateAssignment={canTeach ? () => setActivityType("assignment") : undefined}
+        onCreateExam={canTeach ? () => setActivityType("exam") : undefined}
+        results={selectedResults}
+        onRecordResult={canTeach ? () => setGrading(true) : undefined}
+        auditLogs={selectedAuditLogs}
+        message={message}
       />
 
       {editing !== undefined && (
@@ -316,8 +423,40 @@ export default function Classes({ role }) {
       {overrideSchedule && isAdmin && (
         <SupportOverrideModal
           schedule={overrideSchedule}
+          staffSchedules={staffSchedules}
           onClose={() => setOverrideSchedule(null)}
           onConfirm={confirmSupportOverride}
+        />
+      )}
+
+      {addingStudents && selected && (
+        <AddClassStudentsModal
+          classItem={selected}
+          students={students}
+          classStudents={classStudents}
+          onClose={() => setAddingStudents(false)}
+          onAdd={addStudents}
+        />
+      )}
+
+      {activityType && selected && (
+        <TeachingActivityModal
+          classItem={selected}
+          type={activityType}
+          onClose={() => setActivityType(null)}
+          onSave={saveActivity}
+        />
+      )}
+
+      {grading && selected && (
+        <StudentResultModal
+          classItem={selected}
+          students={selectedStudents}
+          assignments={selectedAssignments}
+          exams={selectedExams}
+          existingResults={selectedResults}
+          onClose={() => setGrading(false)}
+          onSave={saveResult}
         />
       )}
     </>
