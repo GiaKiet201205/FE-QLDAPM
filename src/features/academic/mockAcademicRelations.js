@@ -42,7 +42,9 @@ export const initialExams = [
   { id: "exam-002", teacherId: "teacher-003", classId: "class-0003", title: "TOEFL Progress Test", description: "Progress checkpoint.", duration: 120, examDate: "2026-10-30", status: "SCHEDULED" },
 ];
 
-export const initialStudentResults = seededStudents.slice(0, 8).map((student, index) => ({
+const classOneStudents = seededStudents.filter((_, index) => index % classIds.length === 0).slice(0, 8);
+
+export const initialStudentResults = classOneStudents.map((student, index) => ({
   id: `result-${String(index + 1).padStart(3, "0")}`,
   studentId: student.id,
   classId: "class-0001",
