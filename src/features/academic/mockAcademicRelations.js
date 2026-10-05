@@ -25,6 +25,33 @@ const classIds = [
   "class-0006",
 ];
 
+export const initialClassAccessScopes = [
+  {
+    id: "class-scope-001",
+    userId: "cs-001",
+    role: "CS",
+    classId: "class-0001",
+    status: "ACTIVE",
+    source: "ASSIGNED_SCOPE",
+  },
+  {
+    id: "class-scope-002",
+    userId: "cs-001",
+    role: "CS",
+    classId: "class-0003",
+    status: "ACTIVE",
+    source: "ASSIGNED_SCOPE",
+  },
+  {
+    id: "class-scope-003",
+    userId: "cs-001",
+    role: "CS",
+    classId: "class-0006",
+    status: "ACTIVE",
+    source: "ASSIGNED_SCOPE",
+  },
+];
+
 export const initialClassStudents = seededStudents.slice(0, 36).map((student, index) => ({
   id: `class-student-${String(index + 1).padStart(3, "0")}`,
   classId: classIds[index % classIds.length],
