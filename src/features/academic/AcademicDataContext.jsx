@@ -4,6 +4,7 @@ import { initialClasses, classStatuses } from "../classes/mockClasses";
 import { initialAuditLogs, initialStaffSchedules } from "../classes/mockClassOperations";
 import {
   initialAssignments,
+  initialClassAccessScopes,
   initialClassStudents,
   initialExams,
   initialStudentResults,
@@ -29,6 +30,7 @@ export function AcademicDataProvider({ children }) {
   const [students, setStudents] = useState(seededStudents);
   const [classes, setClasses] = useState(initialClasses);
   const [classStudents, setClassStudents] = useState(initialClassStudents);
+  const [classAccessScopes, setClassAccessScopes] = useState(initialClassAccessScopes);
   const [teachingSchedules] = useState(initialTeachingSchedules);
   const [staffSchedules, setStaffSchedules] = useState(initialStaffSchedules);
   const [assignments, setAssignments] = useState(initialAssignments);
@@ -84,54 +86,101 @@ export function AcademicDataProvider({ children }) {
   }
 
   function deleteStudent(studentId, actor) {
-    const hasResults = studentResults.some((result) => result.studentId === studentId);
-    if (hasResults) {
+    const hasClassHistory = classStudents.some(
+      (relation) => relation.studentId === studentId,
+    );
+    const hasResults = studentResults.some(
+      (result) => result.studentId === studentId,
+    );
+
+    if (hasClassHistory || hasResults) {
       return {
         ok: false,
         reason:
-          "This student has academic results. Keep the record for history or change its status instead.",
+          "This student already has class or academic history. Keep the record and change its status instead of deleting it.",
       };
     }
-    setStudents((current) => current.filter((student) => student.id !== studentId));
-    setClassStudents((current) =>
-      current.filter((relation) => relation.studentId !== studentId),
+
+    setStudents((current) =>
+      current.filter((student) => student.id !== studentId),
     );
     addAudit(actor, "DELETE_STUDENT", "STUDENT", studentId);
     return { ok: true };
   }
 
   function assignStudentsToClass(studentIds, classId, actor) {
-    const existing = new Set(
+    const activeIds = new Set(
       classStudents
-        .filter((relation) => relation.classId === classId)
+        .filter(
+          (relation) =>
+            relation.classId === classId && relation.status === "ACTIVE",
+        )
         .map((relation) => relation.studentId),
     );
-    const newIds = studentIds.filter((studentId) => !existing.has(studentId));
-    if (!newIds.length) return { ok: false, reason: "Selected students are already in this class." };
+
+    const candidateIds = studentIds.filter(
+      (studentId) => !activeIds.has(studentId),
+    );
+
+    if (!candidateIds.length) {
+      return {
+        ok: false,
+        reason: "Selected students are already active in this class.",
+      };
+    }
 
     const timestamp = Date.now();
-    const additions = newIds.map((studentId, index) => ({
-      id: `class-student-${timestamp}-${index}`,
-      classId,
-      studentId,
-      status: "ACTIVE",
-    }));
-    setClassStudents((current) => [...current, ...additions]);
-    addAudit(actor, "ADD_STUDENTS_TO_CLASS", "CLASS", classId, {
-      studentIds: newIds,
+    let added = 0;
+
+    setClassStudents((current) => {
+      const next = [...current];
+
+      candidateIds.forEach((studentId, index) => {
+        const historicalIndex = next.findIndex(
+          (relation) =>
+            relation.classId === classId &&
+            relation.studentId === studentId,
+        );
+
+        if (historicalIndex >= 0) {
+          next[historicalIndex] = {
+            ...next[historicalIndex],
+            status: "ACTIVE",
+          };
+        } else {
+          next.push({
+            id: `class-student-${timestamp}-${index}`,
+            classId,
+            studentId,
+            status: "ACTIVE",
+          });
+        }
+
+        added += 1;
+      });
+
+      return next;
     });
-    return { ok: true, added: newIds.length };
+
+    addAudit(actor, "ADD_STUDENTS_TO_CLASS", "CLASS", classId, {
+      studentIds: candidateIds,
+    });
+    return { ok: true, added };
   }
 
   function removeStudentFromClass(studentId, classId, actor) {
     setClassStudents((current) =>
-      current.filter(
-        (relation) =>
-          !(relation.studentId === studentId && relation.classId === classId),
+      current.map((relation) =>
+        relation.studentId === studentId &&
+        relation.classId === classId &&
+        relation.status === "ACTIVE"
+          ? { ...relation, status: "INACTIVE" }
+          : relation,
       ),
     );
     addAudit(actor, "REMOVE_STUDENT_FROM_CLASS", "CLASS", classId, {
       studentId,
+      relationshipStatus: "INACTIVE",
     });
   }
 
@@ -150,6 +199,21 @@ export function AcademicDataProvider({ children }) {
       createdBy: actor.id,
     };
     setClasses((current) => [classItem, ...current]);
+
+    if (actor.role === "CS") {
+      setClassAccessScopes((current) => [
+        {
+          id: `class-scope-${Date.now()}`,
+          userId: actor.id,
+          role: "CS",
+          classId: classItem.id,
+          status: "ACTIVE",
+          source: "CREATED_BY_CS",
+        },
+        ...current,
+      ]);
+    }
+
     addAudit(actor, "CREATE_CLASS", "CLASS", classItem.id, {
       classCode: classItem.classCode,
     });
@@ -201,9 +265,42 @@ export function AcademicDataProvider({ children }) {
     return { ok: true };
   }
 
-  function overrideSupport(scheduleId, newCsId, reason, actor) {
+  function overrideSupport(
+    scheduleId,
+    newCsId,
+    reason,
+    actor,
+    allowConflict = false,
+  ) {
     const schedule = staffSchedules.find((item) => item.id === scheduleId);
     if (!schedule) return { ok: false, reason: "Support schedule not found." };
+
+    const overlaps = (aStart, aEnd, bStart, bEnd) =>
+      aStart < bEnd && bStart < aEnd;
+
+    const conflicts = staffSchedules.filter(
+      (item) =>
+        item.id !== scheduleId &&
+        item.userId === newCsId &&
+        item.status === "ASSIGNED" &&
+        item.date === schedule.date &&
+        overlaps(
+          schedule.startTime,
+          schedule.endTime,
+          item.startTime,
+          item.endTime,
+        ),
+    );
+
+    if (conflicts.length && !allowConflict) {
+      return {
+        ok: false,
+        code: "SCHEDULE_CONFLICT",
+        reason:
+          "The replacement CS already has an overlapping assigned shift. Confirm an administrative bypass only when necessary.",
+        conflicts,
+      };
+    }
 
     setStaffSchedules((current) =>
       current.map((item) =>
@@ -303,6 +400,7 @@ export function AcademicDataProvider({ children }) {
       students,
       classes,
       classStudents,
+      classAccessScopes,
       teachingSchedules,
       staffSchedules,
       assignments,
@@ -326,6 +424,7 @@ export function AcademicDataProvider({ children }) {
       students,
       classes,
       classStudents,
+      classAccessScopes,
       teachingSchedules,
       staffSchedules,
       assignments,
