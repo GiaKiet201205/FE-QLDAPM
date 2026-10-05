@@ -11,13 +11,18 @@ export default function StudentResultModal({
   assignments,
   exams,
   existingResults,
+  teacherActorId,
   onClose,
   onSave,
 }) {
   const activities = useMemo(
     () => [
       ...assignments
-        .filter((item) => item.status !== "CANCELLED")
+        .filter(
+          (item) =>
+            item.status !== "CANCELLED" &&
+            (!teacherActorId || item.teacherId === teacherActorId),
+        )
         .map((item) => ({
           value: `assignment:${item.id}`,
           label: `Assignment · ${item.title} · ${item.status.toLowerCase()}`,
@@ -25,7 +30,11 @@ export default function StudentResultModal({
           examId: null,
         })),
       ...exams
-        .filter((item) => item.status === "COMPLETED")
+        .filter(
+          (item) =>
+            item.status === "COMPLETED" &&
+            (!teacherActorId || item.teacherId === teacherActorId),
+        )
         .map((item) => ({
           value: `exam:${item.id}`,
           label: `Exam · ${item.title} · completed`,
@@ -33,7 +42,7 @@ export default function StudentResultModal({
           examId: item.id,
         })),
     ],
-    [assignments, exams],
+    [assignments, exams, teacherActorId],
   );
 
   const [studentId, setStudentId] = useState(students[0]?.id ?? "");
