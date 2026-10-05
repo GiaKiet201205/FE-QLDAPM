@@ -504,7 +504,11 @@ export default function Classes({ role }) {
         studentCount={studentCount}
         supportSchedules={selectedSupportSchedules}
         supportSummary={supportSummary}
-        onOverrideSupport={isAdmin ? setOverrideSchedule : undefined}
+        onOverrideSupport={
+          isAdmin && selected?.status !== "CLOSED"
+            ? setOverrideSchedule
+            : undefined
+        }
         assignments={selectedAssignments}
         exams={selectedExams}
         onCreateAssignment={
@@ -523,10 +527,27 @@ export default function Classes({ role }) {
               }
             : undefined
         }
-        onEditAssignment={canTeach ? editAssignment : undefined}
-        onAssignmentStatus={canTeach ? setAssignmentStatus : undefined}
-        onEditExam={canTeach ? editExam : undefined}
-        onExamStatus={canTeach ? setExamStatus : undefined}
+        teacherActorId={isTeacher ? actor.id : undefined}
+        onEditAssignment={
+          canTeach && selected && ["READY", "RUNNING"].includes(selected.status)
+            ? editAssignment
+            : undefined
+        }
+        onAssignmentStatus={
+          canTeach && selected && ["READY", "RUNNING"].includes(selected.status)
+            ? setAssignmentStatus
+            : undefined
+        }
+        onEditExam={
+          canTeach && selected && ["READY", "RUNNING"].includes(selected.status)
+            ? editExam
+            : undefined
+        }
+        onExamStatus={
+          canTeach && selected && ["READY", "RUNNING"].includes(selected.status)
+            ? setExamStatus
+            : undefined
+        }
         results={selectedResults}
         onRecordResult={
           canTeach &&
