@@ -45,6 +45,30 @@ export function AcademicDataProvider({ children }) {
     ]);
   }
 
+  function canManageClass(actor, classId) {
+    if (actor.role === "ADMIN") return true;
+    if (actor.role !== "CS") return false;
+
+    return classAccessScopes.some(
+      (scope) =>
+        scope.role === "CS" &&
+        scope.userId === actor.id &&
+        scope.classId === classId &&
+        scope.status === "ACTIVE",
+    );
+  }
+
+  function isTeacherAssigned(actor, classId) {
+    if (actor.role !== "TEACHER") return false;
+
+    return teachingSchedules.some(
+      (schedule) =>
+        schedule.teacherId === actor.id &&
+        schedule.classId === classId &&
+        schedule.status === "ASSIGNED",
+    );
+  }
+
   function addStudent(form, actor) {
     if (actor.role !== "ADMIN") {
       return { ok: false, reason: "Only Admin can create student records." };
@@ -121,10 +145,10 @@ export function AcademicDataProvider({ children }) {
   }
 
   function assignStudentsToClass(studentIds, classId, actor) {
-    if (!["ADMIN", "CS"].includes(actor.role)) {
+    if (!canManageClass(actor, classId)) {
       return {
         ok: false,
-        reason: "Only Admin or CS can manage class membership.",
+        reason: "You do not have permission to manage students in this class.",
       };
     }
 
@@ -149,7 +173,6 @@ export function AcademicDataProvider({ children }) {
     }
 
     const timestamp = Date.now();
-    let added = 0;
 
     setClassStudents((current) => {
       const next = [...current];
@@ -174,8 +197,6 @@ export function AcademicDataProvider({ children }) {
             status: "ACTIVE",
           });
         }
-
-        added += 1;
       });
 
       return next;
@@ -184,14 +205,14 @@ export function AcademicDataProvider({ children }) {
     addAudit(actor, "ADD_STUDENTS_TO_CLASS", "CLASS", classId, {
       studentIds: candidateIds,
     });
-    return { ok: true, added };
+    return { ok: true, added: candidateIds.length };
   }
 
   function removeStudentFromClass(studentId, classId, actor) {
-    if (!["ADMIN", "CS"].includes(actor.role)) {
+    if (!canManageClass(actor, classId)) {
       return {
         ok: false,
-        reason: "Only Admin or CS can manage class membership.",
+        reason: "You do not have permission to manage students in this class.",
       };
     }
 
@@ -208,6 +229,7 @@ export function AcademicDataProvider({ children }) {
       studentId,
       relationshipStatus: "INACTIVE",
     });
+    return { ok: true };
   }
 
   function addClass(form, actor) {
@@ -251,8 +273,11 @@ export function AcademicDataProvider({ children }) {
   }
 
   function updateClass(classId, form, actor) {
-    if (!["ADMIN", "CS"].includes(actor.role)) {
-      return { ok: false, reason: "Only Admin or CS can update classes." };
+    if (!canManageClass(actor, classId)) {
+      return {
+        ok: false,
+        reason: "You do not have permission to update this class.",
+      };
     }
 
     const duplicate = classes.some(
@@ -278,10 +303,10 @@ export function AcademicDataProvider({ children }) {
   }
 
   function advanceClassStatus(classId, nextStatus, actor) {
-    if (!["ADMIN", "CS"].includes(actor.role)) {
+    if (!canManageClass(actor, classId)) {
       return {
         ok: false,
-        reason: "Only Admin or CS can change class status.",
+        reason: "You do not have permission to change this class status.",
       };
     }
 
@@ -374,8 +399,11 @@ export function AcademicDataProvider({ children }) {
   }
 
   function addAssignment(data, actor) {
-    if (actor.role !== "TEACHER") {
-      return { ok: false, reason: "Only Teacher can create assignments." };
+    if (!isTeacherAssigned(actor, data.classId)) {
+      return {
+        ok: false,
+        reason: "Teacher can only create assignments for assigned classes.",
+      };
     }
 
     const assignment = {
@@ -393,8 +421,11 @@ export function AcademicDataProvider({ children }) {
   }
 
   function addExam(data, actor) {
-    if (actor.role !== "TEACHER") {
-      return { ok: false, reason: "Only Teacher can create exams." };
+    if (!isTeacherAssigned(actor, data.classId)) {
+      return {
+        ok: false,
+        reason: "Teacher can only create exams for assigned classes.",
+      };
     }
 
     const exam = {
@@ -409,10 +440,24 @@ export function AcademicDataProvider({ children }) {
   }
 
   function upsertStudentResult(data, actor) {
-    if (actor.role !== "TEACHER") {
+    if (!isTeacherAssigned(actor, data.classId)) {
       return {
         ok: false,
-        reason: "Only Teacher can record or update student results.",
+        reason: "Teacher can only evaluate students in assigned classes.",
+      };
+    }
+
+    const studentInClass = classStudents.some(
+      (relation) =>
+        relation.classId === data.classId &&
+        relation.studentId === data.studentId &&
+        relation.status === "ACTIVE",
+    );
+
+    if (!studentInClass) {
+      return {
+        ok: false,
+        reason: "Student is not currently active in this class.",
       };
     }
 
