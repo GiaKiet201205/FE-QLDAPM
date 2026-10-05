@@ -27,6 +27,7 @@ export default function Students({ role }) {
     addStudent,
     updateStudent,
     deleteStudent,
+    changeStudentStatus,
     getStudentClassEligibility,
     assignStudentsToClass,
   } = useAcademicData();
@@ -249,6 +250,17 @@ export default function Students({ role }) {
     setMessage("");
   }
 
+  function handleStatusChange(nextStatus) {
+    if (!selected || !canManage) return;
+    const result = changeStudentStatus(selected.id, nextStatus, actor);
+    if (!result.ok) {
+      setMessage(result.reason);
+      return;
+    }
+
+    setMessage(`Student status changed to ${nextStatus}.`);
+  }
+
   function assignSelected(classId) {
     const ids = checked.length
       ? checked
@@ -324,27 +336,27 @@ export default function Students({ role }) {
         onEdit={
           canManage && selected
             ? () => {
-                const rl = studentTargets.find(
-                  (target) =>
-                    target.studentId === selected.id &&
-                    target.courseId === "course-toeic" &&
-                    target.targetType === "RL",
-                )?.targetValue;
-                const sw = studentTargets.find(
-                  (target) =>
-                    target.studentId === selected.id &&
-                    target.courseId === "course-toeic" &&
-                    target.targetType === "SW",
-                )?.targetValue;
+                const targets = studentTargets
+                  .filter((target) => target.studentId === selected.id)
+                  .reduce((result, target) => {
+                    result[target.courseId] = {
+                      ...(result[target.courseId] ?? {}),
+                      [target.targetType]: target.targetValue,
+                    };
+                    return result;
+                  }, {});
 
                 setEditing({
                   ...selected,
-                  toeicRlTarget: rl ?? "",
-                  toeicSwTarget: sw ?? "",
+                  targets,
                 });
               }
             : undefined
         }
+        onChangeStatus={
+          canManage && selected ? handleStatusChange : undefined
+        }
+        studentTargets={studentTargets}
         onDelete={canManage && selected ? handleDelete : undefined}
       />
 
