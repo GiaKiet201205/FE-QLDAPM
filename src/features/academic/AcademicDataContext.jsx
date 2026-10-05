@@ -670,6 +670,34 @@ export function AcademicDataProvider({ children }) {
       classForm.courseId,
       requiredTargets,
     );
+
+    const currentRequirementSignature = classTargetRequirements
+      .filter((requirement) => requirement.classId === classId)
+      .map((requirement) => [
+        requirement.targetType,
+        Number(requirement.requiredTarget),
+      ])
+      .sort(([a], [b]) => a.localeCompare(b));
+    const proposedRequirementSignature = proposedRequirements
+      .map((requirement) => [
+        requirement.targetType,
+        Number(requirement.requiredTarget),
+      ])
+      .sort(([a], [b]) => a.localeCompare(b));
+
+    if (
+      ["RUNNING", "COMPLETED", "CLOSED"].includes(currentClass.status) &&
+      JSON.stringify(currentRequirementSignature) !==
+        JSON.stringify(proposedRequirementSignature)
+    ) {
+      return {
+        ok: false,
+        code: "CLASS_TARGET_LOCKED",
+        reason:
+          "Class target requirements are locked once the class is running to preserve placement history.",
+      };
+    }
+
     const proposedRequirementState = [
       ...classTargetRequirements.filter(
         (requirement) => requirement.classId !== classId,
