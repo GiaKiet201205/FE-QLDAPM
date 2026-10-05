@@ -3,7 +3,7 @@ export const studentStatuses = ["Active", "On Leave", "Graduated"];
 export const studentStatusTransitions = {
   Active: ["On Leave", "Graduated"],
   "On Leave": ["Active", "Graduated"],
-  Graduated: [],
+  Graduated: ["Active"],
 };
 
 export const initialStudents = [

@@ -19,6 +19,7 @@ import {
   getCsName,
 } from "../features/classes/mockClassOperations";
 import { useAcademicData } from "../features/academic/AcademicDataContext";
+import { assignableClassStatuses } from "../features/academic/targetEligibility";
 
 const actors = {
   ADMIN: { id: "admin-001", fullName: "System Admin", role: "ADMIN" },
@@ -57,7 +58,11 @@ export default function Classes({ role }) {
     advanceClassStatus,
     overrideSupport,
     addAssignment,
+    updateAssignment,
+    changeAssignmentStatus,
     addExam,
+    updateExam,
+    changeExamStatus,
     upsertStudentResult,
   } = useAcademicData();
 
@@ -71,6 +76,7 @@ export default function Classes({ role }) {
   const [overrideSchedule, setOverrideSchedule] = useState(null);
   const [addingStudents, setAddingStudents] = useState(false);
   const [activityType, setActivityType] = useState(null);
+  const [editingActivity, setEditingActivity] = useState(null);
   const [grading, setGrading] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -121,7 +127,11 @@ export default function Classes({ role }) {
 
     return scopedClasses.filter((classItem) => {
       const teacherNames = teachingSchedules
-        .filter((schedule) => schedule.classId === classItem.id)
+        .filter(
+          (schedule) =>
+            schedule.classId === classItem.id &&
+            schedule.status === "ASSIGNED",
+        )
         .map((schedule) => getTeacherName(schedule.teacherId))
         .join(" ");
       const searchable =
@@ -138,6 +148,10 @@ export default function Classes({ role }) {
   const visible = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const selected =
     scopedClasses.find((classItem) => classItem.id === selectedId) ?? null;
+  const canModifySelectedRoster =
+    canManageStudents &&
+    selected &&
+    assignableClassStatuses.includes(selected.status);
 
   const selectedClassStudents = selected
     ? classStudents.filter(
@@ -153,6 +167,7 @@ export default function Classes({ role }) {
     ? teachingSchedules.filter(
         (schedule) =>
           schedule.classId === selected.id &&
+          schedule.status === "ASSIGNED" &&
           (!isTeacher || schedule.teacherId === actor.id),
       )
     : [];
@@ -162,7 +177,8 @@ export default function Classes({ role }) {
         (schedule) =>
           schedule.classId === selected.id &&
           schedule.staffRole === "CS" &&
-          (isAdmin || isCs && schedule.userId === actor.id),
+          schedule.status === "ASSIGNED" &&
+          (isAdmin || (isCs && schedule.userId === actor.id)),
       )
     : [];
 
@@ -202,7 +218,11 @@ export default function Classes({ role }) {
         const teachers = [
           ...new Set(
             teachingSchedules
-              .filter((schedule) => schedule.classId === classItem.id)
+              .filter(
+                (schedule) =>
+                  schedule.classId === classItem.id &&
+                  schedule.status === "ASSIGNED",
+              )
               .map((schedule) => getTeacherName(schedule.teacherId)),
           ),
         ].join("; ");
@@ -259,7 +279,11 @@ export default function Classes({ role }) {
   function advanceStatus(nextStatus) {
     if (!selected || !canManageCore) return;
     const result = advanceClassStatus(selected.id, nextStatus, actor);
-    if (!result.ok) setMessage(result.reason);
+    if (!result.ok) {
+      setMessage(result.reason);
+      return;
+    }
+    setMessage("");
   }
 
   function confirmSupportOverride({
@@ -307,14 +331,63 @@ export default function Classes({ role }) {
 
   function saveActivity(data) {
     if (!canTeach || !selected) return;
-    const result =
-      activityType === "exam" ? addExam(data, actor) : addAssignment(data, actor);
+
+    let result;
+    if (editingActivity?.kind === "assignment") {
+      result = updateAssignment(editingActivity.item.id, data, actor);
+    } else if (editingActivity?.kind === "exam") {
+      result = updateExam(editingActivity.item.id, data, actor);
+    } else {
+      result =
+        activityType === "exam" ? addExam(data, actor) : addAssignment(data, actor);
+    }
+
     if (result?.ok === false) {
       setMessage(result.reason);
       return;
     }
+
+    const kind = editingActivity?.kind ?? activityType;
+    const wasEditing = Boolean(editingActivity);
     setActivityType(null);
-    setMessage(activityType === "exam" ? "Exam created." : "Assignment created.");
+    setEditingActivity(null);
+    setMessage(
+      `${kind === "exam" ? "Exam" : "Assignment"} ${wasEditing ? "updated" : "created"}.`,
+    );
+  }
+
+  function editAssignment(item) {
+    if (!canTeach) return;
+    setEditingActivity({ kind: "assignment", item });
+    setActivityType("assignment");
+    setMessage("");
+  }
+
+  function editExam(item) {
+    if (!canTeach) return;
+    setEditingActivity({ kind: "exam", item });
+    setActivityType("exam");
+    setMessage("");
+  }
+
+  function setAssignmentStatus(item, nextStatus) {
+    if (!canTeach) return;
+    const result = changeAssignmentStatus(item.id, nextStatus, actor);
+    if (!result.ok) {
+      setMessage(result.reason);
+      return;
+    }
+    setMessage(`Assignment marked ${nextStatus.toLowerCase()}.`);
+  }
+
+  function setExamStatus(item, nextStatus) {
+    if (!canTeach) return;
+    const result = changeExamStatus(item.id, nextStatus, actor);
+    if (!result.ok) {
+      setMessage(result.reason);
+      return;
+    }
+    setMessage(`Exam marked ${nextStatus.toLowerCase()}.`);
   }
 
   function saveResult(data) {
@@ -339,7 +412,11 @@ export default function Classes({ role }) {
     return [
       ...new Set(
         teachingSchedules
-          .filter((schedule) => schedule.classId === classId)
+          .filter(
+            (schedule) =>
+              schedule.classId === classId &&
+              schedule.status === "ASSIGNED",
+          )
           .map((schedule) => getTeacherName(schedule.teacherId)),
       ),
     ];
@@ -391,7 +468,7 @@ export default function Classes({ role }) {
         setTab={setTab}
         onCloseDetail={() => setSelectedId(null)}
         onEdit={
-          canManageCore && selected
+          canManageCore && selected && selected.status !== "CLOSED"
             ? () => {
                 const requiredTargets = classTargetRequirements
                   .filter(
@@ -412,24 +489,72 @@ export default function Classes({ role }) {
               }
             : undefined
         }
-        onAdvanceStatus={canManageCore ? advanceStatus : undefined}
+        onAdvanceStatus={
+          canManageCore && selected?.status !== "CLOSED"
+            ? advanceStatus
+            : undefined
+        }
         students={selectedStudents}
         onAddStudents={
-          canManageStudents && selected ? () => setAddingStudents(true) : undefined
+          canModifySelectedRoster ? () => setAddingStudents(true) : undefined
         }
-        onRemoveStudent={canManageStudents ? removeStudent : undefined}
+        onRemoveStudent={canModifySelectedRoster ? removeStudent : undefined}
         teachingSchedules={selectedTeachingSchedules}
         teacherSummary={teacherSummary}
         studentCount={studentCount}
         supportSchedules={selectedSupportSchedules}
         supportSummary={supportSummary}
-        onOverrideSupport={isAdmin ? setOverrideSchedule : undefined}
+        onOverrideSupport={
+          isAdmin && selected?.status !== "CLOSED"
+            ? setOverrideSchedule
+            : undefined
+        }
         assignments={selectedAssignments}
         exams={selectedExams}
-        onCreateAssignment={canTeach ? () => setActivityType("assignment") : undefined}
-        onCreateExam={canTeach ? () => setActivityType("exam") : undefined}
+        onCreateAssignment={
+          canTeach && selected && ["READY", "RUNNING"].includes(selected.status)
+            ? () => {
+                setEditingActivity(null);
+                setActivityType("assignment");
+              }
+            : undefined
+        }
+        onCreateExam={
+          canTeach && selected && ["READY", "RUNNING"].includes(selected.status)
+            ? () => {
+                setEditingActivity(null);
+                setActivityType("exam");
+              }
+            : undefined
+        }
+        onEditAssignment={
+          canTeach && selected && ["READY", "RUNNING"].includes(selected.status)
+            ? editAssignment
+            : undefined
+        }
+        onAssignmentStatus={
+          canTeach && selected && ["READY", "RUNNING"].includes(selected.status)
+            ? setAssignmentStatus
+            : undefined
+        }
+        onEditExam={
+          canTeach && selected && ["READY", "RUNNING"].includes(selected.status)
+            ? editExam
+            : undefined
+        }
+        onExamStatus={
+          canTeach && selected && ["READY", "RUNNING"].includes(selected.status)
+            ? setExamStatus
+            : undefined
+        }
         results={selectedResults}
-        onRecordResult={canTeach ? () => setGrading(true) : undefined}
+        onRecordResult={
+          canTeach &&
+          selected &&
+          ["READY", "RUNNING", "COMPLETED"].includes(selected.status)
+            ? () => setGrading(true)
+            : undefined
+        }
         auditLogs={selectedAuditLogs}
         message={message}
       />
@@ -467,7 +592,11 @@ export default function Classes({ role }) {
         <TeachingActivityModal
           classItem={selected}
           type={activityType}
-          onClose={() => setActivityType(null)}
+          activity={editingActivity?.item}
+          onClose={() => {
+            setActivityType(null);
+            setEditingActivity(null);
+          }}
           onSave={saveActivity}
         />
       )}

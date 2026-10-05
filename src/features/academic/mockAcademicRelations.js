@@ -52,35 +52,39 @@ export const initialClassAccessScopes = [
   },
 ];
 
-export const initialClassStudents = seededStudents.slice(0, 36).map((student, index) => ({
-  id: `class-student-${String(index + 1).padStart(3, "0")}`,
-  classId: classIds[index % classIds.length],
-  studentId: student.id,
-  status: "ACTIVE",
-}));
+export const initialClassStudents = seededStudents.slice(0, 36).map((student, index) => {
+  const classId = classIds[index % classIds.length];
+
+  return {
+    id: `class-student-${String(index + 1).padStart(3, "0")}`,
+    classId,
+    studentId: student.id,
+    status: classId === "class-0005" ? "INACTIVE" : "ACTIVE",
+  };
+});
 
 
 export const initialStudentTargets = seededStudents.flatMap(
   (student, index) => {
     const targets = [];
 
-    const rlValues = [450, 550, 650, 750, 850, 900];
-    const swValues = [150, 200, 250, 300, 350];
+    const toeicLrValues = [450, 550, 650, 750, 850, 900];
+    const toeicSwValues = [120, 180, 220, 280, 320, 360];
 
     targets.push(
       {
-        id: `student-target-toeic-rl-${String(index + 1).padStart(3, "0")}`,
+        id: `student-target-toeic-lr-${String(index + 1).padStart(3, "0")}`,
         studentId: student.id,
         courseId: "course-toeic",
-        targetType: "RL",
-        targetValue: rlValues[index % rlValues.length],
+        targetType: "LR_TOTAL",
+        targetValue: toeicLrValues[index % toeicLrValues.length],
       },
       {
         id: `student-target-toeic-sw-${String(index + 1).padStart(3, "0")}`,
         studentId: student.id,
         courseId: "course-toeic",
-        targetType: "SW",
-        targetValue: swValues[index % swValues.length],
+        targetType: "SW_TOTAL",
+        targetValue: toeicSwValues[index % toeicSwValues.length],
       },
     );
 
@@ -89,8 +93,8 @@ export const initialStudentTargets = seededStudents.flatMap(
         id: `student-target-ielts-${String(index + 1).padStart(3, "0")}`,
         studentId: student.id,
         courseId: "course-ielts",
-        targetType: "TARGET",
-        targetValue: 5.5 + (index % 4) * 0.5,
+        targetType: "OVERALL_BAND",
+        targetValue: 5.5 + (index % 5) * 0.5,
       });
     }
 
@@ -99,8 +103,8 @@ export const initialStudentTargets = seededStudents.flatMap(
         id: `student-target-sat-${String(index + 1).padStart(3, "0")}`,
         studentId: student.id,
         courseId: "course-sat",
-        targetType: "TARGET",
-        targetValue: 1050 + (index % 5) * 100,
+        targetType: "TOTAL",
+        targetValue: 1000 + (index % 6) * 100,
       });
     }
 
@@ -109,8 +113,8 @@ export const initialStudentTargets = seededStudents.flatMap(
         id: `student-target-toefl-${String(index + 1).padStart(3, "0")}`,
         studentId: student.id,
         courseId: "course-toefl",
-        targetType: "TARGET",
-        targetValue: 65 + (index % 5) * 10,
+        targetType: "OVERALL_1_6",
+        targetValue: 3.5 + (index % 5) * 0.5,
       });
     }
 
@@ -122,61 +126,61 @@ export const initialClassTargetRequirements = [
   {
     id: "class-target-001",
     classId: "class-0001",
-    targetType: "TARGET",
+    targetType: "OVERALL_BAND",
     requiredTarget: 7.5,
   },
   {
     id: "class-target-002",
     classId: "class-0002",
-    targetType: "RL",
+    targetType: "LR_TOTAL",
     requiredTarget: 850,
   },
   {
     id: "class-target-003",
     classId: "class-0002",
-    targetType: "SW",
+    targetType: "SW_TOTAL",
     requiredTarget: 300,
   },
   {
     id: "class-target-004",
     classId: "class-0003",
-    targetType: "TARGET",
-    requiredTarget: 80,
+    targetType: "OVERALL_1_6",
+    requiredTarget: 4.5,
   },
   {
     id: "class-target-005",
     classId: "class-0004",
-    targetType: "TARGET",
+    targetType: "TOTAL",
     requiredTarget: 1300,
   },
   {
     id: "class-target-006",
     classId: "class-0005",
-    targetType: "TARGET",
+    targetType: "OVERALL_BAND",
     requiredTarget: 6.5,
   },
   {
     id: "class-target-007",
     classId: "class-0006",
-    targetType: "TARGET",
+    targetType: "OVERALL_BAND",
     requiredTarget: 7,
   },
   {
     id: "class-target-008",
     classId: "class-0007",
-    targetType: "RL",
+    targetType: "LR_TOTAL",
     requiredTarget: 650,
   },
   {
     id: "class-target-009",
     classId: "class-0007",
-    targetType: "SW",
+    targetType: "SW_TOTAL",
     requiredTarget: 200,
   },
   {
     id: "class-target-010",
     classId: "class-0008",
-    targetType: "TARGET",
+    targetType: "TOTAL",
     requiredTarget: 1100,
   },
 ];

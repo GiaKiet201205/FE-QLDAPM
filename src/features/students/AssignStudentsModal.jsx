@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import Button from "../../components/ui/Button";
 import Modal from "../../components/ui/Modal";
+import { assignableClassStatuses } from "../academic/targetEligibility";
 
 const inputClass =
   "h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-[13px] text-slate-800 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100";
@@ -23,8 +24,10 @@ export default function AssignStudentsModal({
 
   const availableClasses = useMemo(
     () =>
-      classes.filter((classItem) =>
-        selectedStudents.some(
+      classes
+        .filter((classItem) => assignableClassStatuses.includes(classItem.status))
+        .filter((classItem) =>
+          selectedStudents.some(
           (student) =>
             !classStudents.some(
               (relation) =>
@@ -33,7 +36,7 @@ export default function AssignStudentsModal({
                 relation.status === "ACTIVE",
             ),
         ),
-      ),
+        ),
     [classes, classStudents, selectedStudents],
   );
 
@@ -167,7 +170,8 @@ export default function AssignStudentsModal({
 
         {!availableClasses.length && (
           <p className="text-xs text-slate-500">
-            All selected students are already active in every available class.
+            No class currently accepts these students. Completed and closed classes
+            cannot receive roster changes.
           </p>
         )}
 
