@@ -393,21 +393,21 @@ export default function Classes({ role }) {
         onEdit={
           canManageCore && selected
             ? () => {
-                const rl = classTargetRequirements.find(
-                  (requirement) =>
-                    requirement.classId === selected.id &&
-                    requirement.targetType === "RL",
-                )?.requiredTarget;
-                const sw = classTargetRequirements.find(
-                  (requirement) =>
-                    requirement.classId === selected.id &&
-                    requirement.targetType === "SW",
-                )?.requiredTarget;
+                const requiredTargets = classTargetRequirements
+                  .filter(
+                    (requirement) => requirement.classId === selected.id,
+                  )
+                  .reduce((result, requirement) => {
+                    result[selected.courseId] = {
+                      ...(result[selected.courseId] ?? {}),
+                      [requirement.targetType]: requirement.requiredTarget,
+                    };
+                    return result;
+                  }, {});
 
                 setEditing({
                   ...selected,
-                  requiredRlTarget: rl ?? "",
-                  requiredSwTarget: sw ?? "",
+                  requiredTargets,
                 });
               }
             : undefined
