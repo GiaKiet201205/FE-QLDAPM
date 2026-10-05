@@ -24,6 +24,28 @@ import {
 
 const AcademicDataContext = createContext(null);
 
+const teachingActivityClassStatuses = ["READY", "RUNNING"];
+const gradingClassStatuses = ["READY", "RUNNING", "COMPLETED"];
+
+function isValidAssignedTeachingSchedule(schedule, classItem) {
+  if (
+    !schedule ||
+    schedule.status !== "ASSIGNED" ||
+    !schedule.teacherId ||
+    !schedule.date ||
+    !schedule.startTime ||
+    !schedule.endTime ||
+    schedule.startTime >= schedule.endTime
+  ) {
+    return false;
+  }
+
+  if (classItem?.startDate && schedule.date < classItem.startDate) return false;
+  if (classItem?.endDate && schedule.date > classItem.endDate) return false;
+
+  return true;
+}
+
 function auditEntry(actor, action, entityType, entityId, details = {}) {
   return {
     id: `audit-${Date.now()}-${Math.random().toString(16).slice(2)}`,
@@ -610,6 +632,14 @@ export function AcademicDataProvider({ children }) {
     const currentClass = classes.find((item) => item.id === classId);
     if (!currentClass) return { ok: false, reason: "Class not found." };
 
+    if (currentClass.status === "CLOSED") {
+      return {
+        ok: false,
+        code: "CLASS_READ_ONLY",
+        reason: "Closed classes are archived and read-only.",
+      };
+    }
+
     const normalizedClassCode = form.classCode?.trim();
     const normalizedClassName = form.name?.trim();
 
@@ -799,6 +829,42 @@ export function AcademicDataProvider({ children }) {
       }
     }
 
+    if (nextStatus === "RUNNING") {
+      const validTeachingSchedules = teachingSchedules.filter(
+        (schedule) =>
+          schedule.classId === classId &&
+          isValidAssignedTeachingSchedule(schedule, classItem),
+      );
+
+      if (!validTeachingSchedules.length) {
+        return {
+          ok: false,
+          code: "TEACHING_SCHEDULE_REQUIRED",
+          reason:
+            "A class cannot start running until TC has assigned at least one valid teaching schedule and teacher.",
+        };
+      }
+    }
+
+    if (nextStatus === "COMPLETED") {
+      const hasOpenAssignment = assignments.some(
+        (assignment) =>
+          assignment.classId === classId && assignment.status === "OPEN",
+      );
+      const hasScheduledExam = exams.some(
+        (exam) => exam.classId === classId && exam.status === "SCHEDULED",
+      );
+
+      if (hasOpenAssignment || hasScheduledExam) {
+        return {
+          ok: false,
+          code: "TEACHING_ACTIVITY_PENDING",
+          reason:
+            "Close or cancel open assignments and complete or cancel scheduled exams before completing the class.",
+        };
+      }
+    }
+
     setClasses((current) =>
       current.map((item) =>
         item.id === classId ? { ...item, status: nextStatus } : item,
@@ -827,6 +893,15 @@ export function AcademicDataProvider({ children }) {
 
     const schedule = staffSchedules.find((item) => item.id === scheduleId);
     if (!schedule) return { ok: false, reason: "Support schedule not found." };
+
+    const supportClass = classes.find((item) => item.id === schedule.classId);
+    if (supportClass?.status === "CLOSED") {
+      return {
+        ok: false,
+        code: "CLASS_READ_ONLY",
+        reason: "Closed classes are archived and read-only.",
+      };
+    }
 
     const overlaps = (aStart, aEnd, bStart, bEnd) =>
       aStart < bEnd && bStart < aEnd;
@@ -878,16 +953,45 @@ export function AcademicDataProvider({ children }) {
     return { ok: true };
   }
 
-  function addAssignment(data, actor) {
-    if (!isTeacherAssigned(actor, data.classId)) {
+  function validateTeacherActivityAccess(actor, classId) {
+    if (!isTeacherAssigned(actor, classId)) {
       return {
         ok: false,
-        reason: "Teacher can only create assignments for assigned classes.",
+        reason: "Teacher can only manage teaching activities for assigned classes.",
+      };
+    }
+
+    const classItem = classes.find((item) => item.id === classId);
+    if (!classItem) return { ok: false, reason: "Class not found." };
+
+    if (!teachingActivityClassStatuses.includes(classItem.status)) {
+      return {
+        ok: false,
+        code: "CLASS_NOT_TEACHABLE",
+        reason:
+          "Assignments and exams can only be created or edited while the class is Ready or Running.",
+      };
+    }
+
+    return { ok: true, classItem };
+  }
+
+  function addAssignment(data, actor) {
+    const access = validateTeacherActivityAccess(actor, data.classId);
+    if (!access.ok) return access;
+
+    const title = data.title?.trim();
+    if (!title || !data.deadline) {
+      return {
+        ok: false,
+        reason: "Assignment title and deadline are required.",
       };
     }
 
     const assignment = {
       ...data,
+      title,
+      description: data.description?.trim() ?? "",
       id: `assignment-${Date.now()}`,
       teacherId: actor.id,
       status: "OPEN",
@@ -897,26 +1001,249 @@ export function AcademicDataProvider({ children }) {
     addAudit(actor, "CREATE_ASSIGNMENT", "CLASS", assignment.classId, {
       assignmentId: assignment.id,
     });
-    return assignment;
+    return { ok: true, assignment };
+  }
+
+  function updateAssignment(assignmentId, data, actor) {
+    const assignment = assignments.find((item) => item.id === assignmentId);
+    if (!assignment) return { ok: false, reason: "Assignment not found." };
+
+    const access = validateTeacherActivityAccess(actor, assignment.classId);
+    if (!access.ok) return access;
+
+    if (assignment.teacherId !== actor.id) {
+      return {
+        ok: false,
+        reason: "Teacher can only edit assignments they created.",
+      };
+    }
+
+    if (assignment.status !== "OPEN") {
+      return {
+        ok: false,
+        reason: "Only open assignments can be edited.",
+      };
+    }
+
+    if (
+      studentResults.some((result) => result.assignmentId === assignmentId)
+    ) {
+      return {
+        ok: false,
+        code: "ASSIGNMENT_HAS_RESULTS",
+        reason:
+          "Assignment details are locked after student results have been recorded.",
+      };
+    }
+
+    const title = data.title?.trim();
+    if (!title || !data.deadline) {
+      return {
+        ok: false,
+        reason: "Assignment title and deadline are required.",
+      };
+    }
+
+    setAssignments((current) =>
+      current.map((item) =>
+        item.id === assignmentId
+          ? {
+              ...item,
+              title,
+              description: data.description?.trim() ?? "",
+              deadline: data.deadline,
+            }
+          : item,
+      ),
+    );
+    addAudit(actor, "UPDATE_ASSIGNMENT", "CLASS", assignment.classId, {
+      assignmentId,
+    });
+    return { ok: true };
+  }
+
+  function changeAssignmentStatus(assignmentId, nextStatus, actor) {
+    const assignment = assignments.find((item) => item.id === assignmentId);
+    if (!assignment) return { ok: false, reason: "Assignment not found." };
+
+    if (!isTeacherAssigned(actor, assignment.classId)) {
+      return {
+        ok: false,
+        reason: "Teacher can only manage assignments for assigned classes.",
+      };
+    }
+
+    const classItem = classes.find((item) => item.id === assignment.classId);
+    if (!classItem || classItem.status === "CLOSED") {
+      return {
+        ok: false,
+        reason: "Closed classes are read-only.",
+      };
+    }
+
+    if (
+      assignment.status !== "OPEN" ||
+      !["CLOSED", "CANCELLED"].includes(nextStatus)
+    ) {
+      return {
+        ok: false,
+        reason: "Invalid assignment status transition.",
+      };
+    }
+
+    if (
+      nextStatus === "CANCELLED" &&
+      studentResults.some((result) => result.assignmentId === assignmentId)
+    ) {
+      return {
+        ok: false,
+        reason: "An assignment with recorded results cannot be cancelled.",
+      };
+    }
+
+    setAssignments((current) =>
+      current.map((item) =>
+        item.id === assignmentId ? { ...item, status: nextStatus } : item,
+      ),
+    );
+    addAudit(actor, "CHANGE_ASSIGNMENT_STATUS", "CLASS", assignment.classId, {
+      assignmentId,
+      from: assignment.status,
+      to: nextStatus,
+    });
+    return { ok: true };
   }
 
   function addExam(data, actor) {
-    if (!isTeacherAssigned(actor, data.classId)) {
+    const access = validateTeacherActivityAccess(actor, data.classId);
+    if (!access.ok) return access;
+
+    const title = data.title?.trim();
+    const duration = Number(data.duration);
+    if (!title || !data.examDate || !Number.isFinite(duration) || duration <= 0) {
       return {
         ok: false,
-        reason: "Teacher can only create exams for assigned classes.",
+        reason: "Exam title, date and a positive duration are required.",
       };
     }
 
     const exam = {
       ...data,
+      title,
+      description: data.description?.trim() ?? "",
+      duration,
       id: `exam-${Date.now()}`,
       teacherId: actor.id,
       status: "SCHEDULED",
     };
     setExams((current) => [exam, ...current]);
     addAudit(actor, "CREATE_EXAM", "CLASS", exam.classId, { examId: exam.id });
-    return exam;
+    return { ok: true, exam };
+  }
+
+  function updateExam(examId, data, actor) {
+    const exam = exams.find((item) => item.id === examId);
+    if (!exam) return { ok: false, reason: "Exam not found." };
+
+    const access = validateTeacherActivityAccess(actor, exam.classId);
+    if (!access.ok) return access;
+
+    if (exam.teacherId !== actor.id) {
+      return {
+        ok: false,
+        reason: "Teacher can only edit exams they created.",
+      };
+    }
+
+    if (exam.status !== "SCHEDULED") {
+      return {
+        ok: false,
+        reason: "Only scheduled exams can be edited.",
+      };
+    }
+
+    if (studentResults.some((result) => result.examId === examId)) {
+      return {
+        ok: false,
+        code: "EXAM_HAS_RESULTS",
+        reason:
+          "Exam details are locked after student results have been recorded.",
+      };
+    }
+
+    const title = data.title?.trim();
+    const duration = Number(data.duration);
+    if (!title || !data.examDate || !Number.isFinite(duration) || duration <= 0) {
+      return {
+        ok: false,
+        reason: "Exam title, date and a positive duration are required.",
+      };
+    }
+
+    setExams((current) =>
+      current.map((item) =>
+        item.id === examId
+          ? {
+              ...item,
+              title,
+              description: data.description?.trim() ?? "",
+              examDate: data.examDate,
+              duration,
+            }
+          : item,
+      ),
+    );
+    addAudit(actor, "UPDATE_EXAM", "CLASS", exam.classId, { examId });
+    return { ok: true };
+  }
+
+  function changeExamStatus(examId, nextStatus, actor) {
+    const exam = exams.find((item) => item.id === examId);
+    if (!exam) return { ok: false, reason: "Exam not found." };
+
+    if (!isTeacherAssigned(actor, exam.classId)) {
+      return {
+        ok: false,
+        reason: "Teacher can only manage exams for assigned classes.",
+      };
+    }
+
+    const classItem = classes.find((item) => item.id === exam.classId);
+    if (!classItem || classItem.status === "CLOSED") {
+      return { ok: false, reason: "Closed classes are read-only." };
+    }
+
+    if (
+      exam.status !== "SCHEDULED" ||
+      !["COMPLETED", "CANCELLED"].includes(nextStatus)
+    ) {
+      return {
+        ok: false,
+        reason: "Invalid exam status transition.",
+      };
+    }
+
+    if (
+      nextStatus === "CANCELLED" &&
+      studentResults.some((result) => result.examId === examId)
+    ) {
+      return {
+        ok: false,
+        reason: "An exam with recorded results cannot be cancelled.",
+      };
+    }
+
+    setExams((current) =>
+      current.map((item) =>
+        item.id === examId ? { ...item, status: nextStatus } : item,
+      ),
+    );
+    addAudit(actor, "CHANGE_EXAM_STATUS", "CLASS", exam.classId, {
+      examId,
+      from: exam.status,
+      to: nextStatus,
+    });
+    return { ok: true };
   }
 
   function upsertStudentResult(data, actor) {
@@ -925,6 +1252,65 @@ export function AcademicDataProvider({ children }) {
         ok: false,
         reason: "Teacher can only evaluate students in assigned classes.",
       };
+    }
+
+    const classItem = classes.find((item) => item.id === data.classId);
+    if (!classItem) return { ok: false, reason: "Class not found." };
+
+    if (!gradingClassStatuses.includes(classItem.status)) {
+      return {
+        ok: false,
+        code: "CLASS_NOT_GRADABLE",
+        reason:
+          "Results can only be recorded while a class is Ready, Running or Completed.",
+      };
+    }
+
+    const hasAssignment = Boolean(data.assignmentId);
+    const hasExam = Boolean(data.examId);
+    if (hasAssignment === hasExam) {
+      return {
+        ok: false,
+        code: "INVALID_RESULT_ACTIVITY",
+        reason:
+          "A student result must reference exactly one assignment or one exam.",
+      };
+    }
+
+    if (hasAssignment) {
+      const assignment = assignments.find(
+        (item) => item.id === data.assignmentId,
+      );
+      if (!assignment || assignment.classId !== data.classId) {
+        return {
+          ok: false,
+          code: "RESULT_ACTIVITY_CLASS_MISMATCH",
+          reason: "The selected assignment does not belong to this class.",
+        };
+      }
+      if (assignment.status === "CANCELLED") {
+        return {
+          ok: false,
+          reason: "Results cannot be recorded for a cancelled assignment.",
+        };
+      }
+    }
+
+    if (hasExam) {
+      const exam = exams.find((item) => item.id === data.examId);
+      if (!exam || exam.classId !== data.classId) {
+        return {
+          ok: false,
+          code: "RESULT_ACTIVITY_CLASS_MISMATCH",
+          reason: "The selected exam does not belong to this class.",
+        };
+      }
+      if (exam.status !== "COMPLETED") {
+        return {
+          ok: false,
+          reason: "Mark the exam as completed before recording results.",
+        };
+      }
     }
 
     const studentInClass = classStudents.some(
@@ -941,6 +1327,11 @@ export function AcademicDataProvider({ children }) {
       };
     }
 
+    const score = String(data.score ?? "").trim();
+    if (!score) {
+      return { ok: false, reason: "Score is required." };
+    }
+
     const existing = studentResults.find(
       (result) =>
         result.studentId === data.studentId &&
@@ -955,8 +1346,8 @@ export function AcademicDataProvider({ children }) {
           result.id === existing.id
             ? {
                 ...result,
-                score: data.score,
-                feedback: data.feedback,
+                score,
+                feedback: data.feedback?.trim() ?? "",
                 evaluatedBy: actor.id,
                 evaluatedAt: new Date().toISOString(),
               }
@@ -971,8 +1362,8 @@ export function AcademicDataProvider({ children }) {
           classId: data.classId,
           assignmentId: data.assignmentId ?? null,
           examId: data.examId ?? null,
-          score: data.score,
-          feedback: data.feedback,
+          score,
+          feedback: data.feedback?.trim() ?? "",
           evaluatedBy: actor.id,
           evaluatedAt: new Date().toISOString(),
         },
@@ -982,7 +1373,10 @@ export function AcademicDataProvider({ children }) {
 
     addAudit(actor, "EVALUATE_STUDENT", "CLASS", data.classId, {
       studentId: data.studentId,
+      assignmentId: data.assignmentId ?? null,
+      examId: data.examId ?? null,
     });
+    return { ok: true };
   }
 
   const value = useMemo(
@@ -1011,7 +1405,11 @@ export function AcademicDataProvider({ children }) {
       advanceClassStatus,
       overrideSupport,
       addAssignment,
+      updateAssignment,
+      changeAssignmentStatus,
       addExam,
+      updateExam,
+      changeExamStatus,
       upsertStudentResult,
     }),
     [
