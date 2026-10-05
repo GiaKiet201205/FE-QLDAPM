@@ -93,7 +93,8 @@ export default function AssignStudentsModal({
             {selectedStudents.length} student
             {selectedStudents.length === 1 ? "" : "s"}
           </strong>{" "}
-          selected. Target eligibility is checked before class membership is created.
+          selected. Each student must have a target for the selected class course
+          and meet that class target before membership can be created.
         </div>
 
         <label className="grid gap-1.5 text-[13px] font-medium">
@@ -159,7 +160,8 @@ export default function AssignStudentsModal({
           <p className="text-xs leading-5 text-red-600">
             The assignment is blocked because {blocked.length} selected student
             {blocked.length === 1 ? "" : "s"} do not meet this class target.
-            Remove them from the selection or choose a class with a suitable requirement.
+            Remove them from the selection, configure the required course target,
+            or choose a suitable class.
           </p>
         )}
 
