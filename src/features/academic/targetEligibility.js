@@ -1,14 +1,38 @@
-export const targetTypeLabels = {
-  RL: "Reading & Listening",
-  SW: "Speaking & Writing",
+export const courseTargetDefinitions = {
+  "course-toeic": {
+    courseLabel: "TOEIC",
+    targets: [
+      { type: "RL", label: "Reading & Listening" },
+      { type: "SW", label: "Speaking & Writing" },
+    ],
+  },
+  "course-ielts": {
+    courseLabel: "IELTS",
+    targets: [{ type: "OVERALL", label: "Overall target" }],
+  },
+  "course-sat": {
+    courseLabel: "SAT",
+    targets: [{ type: "TOTAL", label: "Total target" }],
+  },
+  "course-toefl": {
+    courseLabel: "TOEFL iBT",
+    targets: [{ type: "TOTAL", label: "Total target" }],
+  },
 };
 
-const courseLabels = {
-  "course-ielts": "IELTS",
-  "course-toeic": "TOEIC",
-  "course-sat": "SAT",
-  "course-toefl": "TOEFL iBT",
-};
+export const targetTypeLabels = Object.values(courseTargetDefinitions)
+  .flatMap((definition) => definition.targets)
+  .reduce(
+    (labels, target) => ({
+      ...labels,
+      [target.type]: target.label,
+    }),
+    {},
+  );
+
+export function getCourseTargetDefinition(courseId) {
+  return courseTargetDefinitions[courseId] ?? null;
+}
 
 export function getTargetValue(studentTargets, studentId, courseId, targetType) {
   return studentTargets.find(
@@ -34,10 +58,31 @@ export function evaluateStudentClassTarget({
     };
   }
 
-  const courseLabel = courseLabels[classItem.courseId] ?? classItem.courseId;
+  if (student.status !== "Active") {
+    return {
+      eligible: false,
+      code: "STUDENT_NOT_ACTIVE",
+      reasons: [
+        `${student.fullName} is currently ${student.status}. Only active students can be added to a class.`,
+      ],
+      checks: [],
+    };
+  }
 
-  // A target from another course can never be reused for this class.
-  // Example: TOEIC RL/SW targets do not make a student eligible for IELTS.
+  const definition = getCourseTargetDefinition(classItem.courseId);
+  const courseLabel = definition?.courseLabel ?? classItem.courseId;
+
+  if (!definition) {
+    return {
+      eligible: false,
+      code: "COURSE_TARGET_MODEL_MISSING",
+      reasons: [
+        `Target rules for ${courseLabel} have not been configured in the system.`,
+      ],
+      checks: [],
+    };
+  }
+
   const studentCourseTargets = studentTargets.filter(
     (target) =>
       target.studentId === student.id &&
@@ -59,49 +104,62 @@ export function evaluateStudentClassTarget({
     (requirement) => requirement.classId === classItem.id,
   );
 
-  // Do not silently treat a class without a target threshold as unrestricted.
-  // The class target model must be configured before target-based placement.
-  if (!requirements.length) {
+  const missingRequirementTypes = definition.targets
+    .map((target) => target.type)
+    .filter(
+      (targetType) =>
+        !requirements.some(
+          (requirement) => requirement.targetType === targetType,
+        ),
+    );
+
+  if (!requirements.length || missingRequirementTypes.length) {
     return {
       eligible: false,
       code: "CLASS_TARGET_NOT_CONFIGURED",
       reasons: [
-        `Target requirements for ${classItem.classCode} have not been configured yet.`,
+        `Target requirements for ${classItem.classCode} are incomplete. Configure all ${courseLabel} target requirements before assigning students.`,
       ],
       checks: [],
     };
   }
 
-  const checks = requirements.map((requirement) => {
+  const checks = definition.targets.map((targetDefinition) => {
+    const requirement = requirements.find(
+      (item) => item.targetType === targetDefinition.type,
+    );
     const targetValue = getTargetValue(
       studentTargets,
       student.id,
       classItem.courseId,
-      requirement.targetType,
+      targetDefinition.type,
     );
 
     if (targetValue == null) {
       return {
-        targetType: requirement.targetType,
+        targetType: targetDefinition.type,
+        targetLabel: targetDefinition.label,
         targetValue: null,
         requiredTarget: requirement.requiredTarget,
         eligible: false,
-        reason: `${targetTypeLabels[requirement.targetType] ?? requirement.targetType} target is not configured for ${courseLabel}.`,
+        reason: `${targetDefinition.label} is not configured for ${courseLabel}.`,
       };
     }
 
     if (Number(targetValue) < Number(requirement.requiredTarget)) {
       return {
-        targetType: requirement.targetType,
+        targetType: targetDefinition.type,
+        targetLabel: targetDefinition.label,
         targetValue,
         requiredTarget: requirement.requiredTarget,
         eligible: false,
-        reason: `${targetTypeLabels[requirement.targetType] ?? requirement.targetType} target ${targetValue} is below the class requirement ${requirement.requiredTarget}.`,
+        reason: `${targetDefinition.label} ${targetValue} is below the class requirement ${requirement.requiredTarget}.`,
       };
     }
 
     return {
-      targetType: requirement.targetType,
+      targetType: targetDefinition.type,
+      targetLabel: targetDefinition.label,
       targetValue,
       requiredTarget: requirement.requiredTarget,
       eligible: true,
