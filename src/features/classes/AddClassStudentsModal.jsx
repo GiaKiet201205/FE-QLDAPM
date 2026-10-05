@@ -167,9 +167,10 @@ export default function AddClassStudentsModal({
         </div>
 
         <p className="text-xs leading-5 text-slate-500">
-          A student can be added only when every configured target value is at
-          least the class required target. Classes without a configured target
-          requirement are not restricted by target yet.
+          A student can be added only when they have a target for this class
+          course and every required target meets or exceeds the class threshold.
+          Targets from another course are never reused. If the class target
+          requirement has not been configured, assignment is blocked.
         </p>
 
         <div className="flex items-center justify-between gap-3">
