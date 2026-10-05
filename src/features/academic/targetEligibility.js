@@ -3,6 +3,13 @@ export const targetTypeLabels = {
   SW: "Speaking & Writing",
 };
 
+const courseLabels = {
+  "course-ielts": "IELTS",
+  "course-toeic": "TOEIC",
+  "course-sat": "SAT",
+  "course-toefl": "TOEFL iBT",
+};
+
 export function getTargetValue(studentTargets, studentId, courseId, targetType) {
   return studentTargets.find(
     (target) =>
@@ -27,15 +34,40 @@ export function evaluateStudentClassTarget({
     };
   }
 
+  const courseLabel = courseLabels[classItem.courseId] ?? classItem.courseId;
+
+  // A target from another course can never be reused for this class.
+  // Example: TOEIC RL/SW targets do not make a student eligible for IELTS.
+  const studentCourseTargets = studentTargets.filter(
+    (target) =>
+      target.studentId === student.id &&
+      target.courseId === classItem.courseId,
+  );
+
+  if (!studentCourseTargets.length) {
+    return {
+      eligible: false,
+      code: "COURSE_TARGET_MISSING",
+      reasons: [
+        `${student.fullName} does not have a target configured for ${courseLabel}.`,
+      ],
+      checks: [],
+    };
+  }
+
   const requirements = classTargetRequirements.filter(
     (requirement) => requirement.classId === classItem.id,
   );
 
+  // Do not silently treat a class without a target threshold as unrestricted.
+  // The class target model must be configured before target-based placement.
   if (!requirements.length) {
     return {
-      eligible: true,
-      code: "NO_TARGET_RESTRICTION",
-      reasons: [],
+      eligible: false,
+      code: "CLASS_TARGET_NOT_CONFIGURED",
+      reasons: [
+        `Target requirements for ${classItem.classCode} have not been configured yet.`,
+      ],
       checks: [],
     };
   }
@@ -54,7 +86,7 @@ export function evaluateStudentClassTarget({
         targetValue: null,
         requiredTarget: requirement.requiredTarget,
         eligible: false,
-        reason: `${targetTypeLabels[requirement.targetType] ?? requirement.targetType} target is not configured for this course.`,
+        reason: `${targetTypeLabels[requirement.targetType] ?? requirement.targetType} target is not configured for ${courseLabel}.`,
       };
     }
 
