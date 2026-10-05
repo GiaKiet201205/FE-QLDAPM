@@ -398,7 +398,29 @@ function AssignmentsTab({
   );
 }
 
-function ResultsTab({ students, results, onRecordResult }) {
+function ResultsTab({
+  students,
+  results,
+  assignments,
+  exams,
+  onRecordResult,
+}) {
+  function activityLabel(result) {
+    if (result.assignmentId) {
+      const assignment = assignments.find(
+        (item) => item.id === result.assignmentId,
+      );
+      return assignment ? `Assignment · ${assignment.title}` : "Assignment";
+    }
+
+    if (result.examId) {
+      const exam = exams.find((item) => item.id === result.examId);
+      return exam ? `Exam · ${exam.title}` : "Exam";
+    }
+
+    return "Academic result";
+  }
+
   return (
     <div className="grid gap-3 pt-4">
       {onRecordResult && (
@@ -434,10 +456,16 @@ function ResultsTab({ students, results, onRecordResult }) {
                         {student?.fullName ?? result.studentId}
                       </strong>
                       <span className="mt-1 block text-xs text-slate-500">
+                        {activityLabel(result)}
+                      </span>
+                      <span className="mt-0.5 block text-[11px] text-slate-400">
+                        Evaluated {new Date(result.evaluatedAt).toLocaleString()}
+                      </span>
+                      <span className="mt-1 block text-xs text-slate-500">
                         {result.feedback || "No feedback"}
                       </span>
                     </div>
-                    <strong className="text-sm font-semibold text-[#173557]">
+                    <strong className="shrink-0 text-sm font-semibold text-[#173557]">
                       {result.score}
                     </strong>
                   </div>
@@ -684,6 +712,8 @@ function ClassDetail({
             <ResultsTab
               students={students}
               results={results}
+              assignments={assignments}
+              exams={exams}
               onRecordResult={onRecordResult}
             />
           )}
