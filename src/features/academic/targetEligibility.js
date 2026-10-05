@@ -108,6 +108,19 @@ export function validateCourseTargetValues(
     };
   }
 
+  const allowedTypes = new Set(definition.targets.map((target) => target.type));
+  const unsupportedTypes = Object.keys(values ?? {}).filter(
+    (targetType) =>
+      isProvided(values?.[targetType]) && !allowedTypes.has(targetType),
+  );
+
+  if (unsupportedTypes.length) {
+    return {
+      ok: false,
+      reason: `${definition.courseLabel} contains unsupported target fields: ${unsupportedTypes.join(", ")}.`,
+    };
+  }
+
   const providedTargets = definition.targets.filter((target) =>
     isProvided(values?.[target.type]),
   );
