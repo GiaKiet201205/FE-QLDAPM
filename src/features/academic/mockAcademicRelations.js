@@ -59,6 +59,129 @@ export const initialClassStudents = seededStudents.slice(0, 36).map((student, in
   status: "ACTIVE",
 }));
 
+
+export const initialStudentTargets = seededStudents.flatMap(
+  (student, index) => {
+    const targets = [];
+
+    const rlValues = [450, 550, 650, 750, 850, 900];
+    const swValues = [150, 200, 250, 300, 350];
+
+    targets.push(
+      {
+        id: `student-target-toeic-rl-${String(index + 1).padStart(3, "0")}`,
+        studentId: student.id,
+        courseId: "course-toeic",
+        targetType: "RL",
+        targetValue: rlValues[index % rlValues.length],
+      },
+      {
+        id: `student-target-toeic-sw-${String(index + 1).padStart(3, "0")}`,
+        studentId: student.id,
+        courseId: "course-toeic",
+        targetType: "SW",
+        targetValue: swValues[index % swValues.length],
+      },
+    );
+
+    if (index % 2 === 0) {
+      targets.push({
+        id: `student-target-ielts-${String(index + 1).padStart(3, "0")}`,
+        studentId: student.id,
+        courseId: "course-ielts",
+        targetType: "TARGET",
+        targetValue: 5.5 + (index % 4) * 0.5,
+      });
+    }
+
+    if (index % 3 === 0) {
+      targets.push({
+        id: `student-target-sat-${String(index + 1).padStart(3, "0")}`,
+        studentId: student.id,
+        courseId: "course-sat",
+        targetType: "TARGET",
+        targetValue: 1050 + (index % 5) * 100,
+      });
+    }
+
+    if (index % 4 === 0) {
+      targets.push({
+        id: `student-target-toefl-${String(index + 1).padStart(3, "0")}`,
+        studentId: student.id,
+        courseId: "course-toefl",
+        targetType: "TARGET",
+        targetValue: 65 + (index % 5) * 10,
+      });
+    }
+
+    return targets;
+  },
+);
+
+export const initialClassTargetRequirements = [
+  {
+    id: "class-target-001",
+    classId: "class-0001",
+    targetType: "TARGET",
+    requiredTarget: 7.5,
+  },
+  {
+    id: "class-target-002",
+    classId: "class-0002",
+    targetType: "RL",
+    requiredTarget: 850,
+  },
+  {
+    id: "class-target-003",
+    classId: "class-0002",
+    targetType: "SW",
+    requiredTarget: 300,
+  },
+  {
+    id: "class-target-004",
+    classId: "class-0003",
+    targetType: "TARGET",
+    requiredTarget: 80,
+  },
+  {
+    id: "class-target-005",
+    classId: "class-0004",
+    targetType: "TARGET",
+    requiredTarget: 1300,
+  },
+  {
+    id: "class-target-006",
+    classId: "class-0005",
+    targetType: "TARGET",
+    requiredTarget: 6.5,
+  },
+  {
+    id: "class-target-007",
+    classId: "class-0006",
+    targetType: "TARGET",
+    requiredTarget: 7,
+  },
+  {
+    id: "class-target-008",
+    classId: "class-0007",
+    targetType: "RL",
+    requiredTarget: 650,
+  },
+  {
+    id: "class-target-009",
+    classId: "class-0007",
+    targetType: "SW",
+    requiredTarget: 200,
+  },
+  {
+    id: "class-target-010",
+    classId: "class-0008",
+    targetType: "TARGET",
+    requiredTarget: 1100,
+  },
+];
+
+
 export const initialAssignments = [
   { id: "assignment-001", teacherId: "teacher-001", classId: "class-0001", title: "Writing Task 2 Practice", description: "Opinion essay practice.", deadline: "2026-10-18", status: "OPEN", createdAt: "2026-10-05T09:00:00.000Z" },
   { id: "assignment-002", teacherId: "teacher-001", classId: "class-0006", title: "Coherence and Cohesion Drill", description: "Paragraph organization exercise.", deadline: "2026-10-28", status: "OPEN", createdAt: "2026-10-05T10:00:00.000Z" },

@@ -41,6 +41,7 @@ export default function Classes({ role }) {
     students,
     classes,
     classStudents,
+    classTargetRequirements,
     classAccessScopes,
     teachingSchedules,
     staffSchedules,
@@ -48,6 +49,7 @@ export default function Classes({ role }) {
     exams,
     studentResults,
     auditLogs,
+    getStudentClassEligibility,
     assignStudentsToClass,
     removeStudentFromClass,
     addClass,
@@ -388,7 +390,28 @@ export default function Classes({ role }) {
         tab={tab}
         setTab={setTab}
         onCloseDetail={() => setSelectedId(null)}
-        onEdit={canManageCore && selected ? () => setEditing(selected) : undefined}
+        onEdit={
+          canManageCore && selected
+            ? () => {
+                const requiredTargets = classTargetRequirements
+                  .filter(
+                    (requirement) => requirement.classId === selected.id,
+                  )
+                  .reduce((result, requirement) => {
+                    result[selected.courseId] = {
+                      ...(result[selected.courseId] ?? {}),
+                      [requirement.targetType]: requirement.requiredTarget,
+                    };
+                    return result;
+                  }, {});
+
+                setEditing({
+                  ...selected,
+                  requiredTargets,
+                });
+              }
+            : undefined
+        }
         onAdvanceStatus={canManageCore ? advanceStatus : undefined}
         students={selectedStudents}
         onAddStudents={
@@ -434,6 +457,7 @@ export default function Classes({ role }) {
           classItem={selected}
           students={students}
           classStudents={classStudents}
+          getEligibility={getStudentClassEligibility}
           onClose={() => setAddingStudents(false)}
           onAdd={addStudents}
         />

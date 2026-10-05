@@ -21,11 +21,14 @@ export default function Students({ role }) {
     students,
     classes,
     classStudents,
+    studentTargets,
     teachingSchedules,
     studentResults,
     addStudent,
     updateStudent,
     deleteStudent,
+    changeStudentStatus,
+    getStudentClassEligibility,
     assignStudentsToClass,
   } = useAcademicData();
 
@@ -247,6 +250,17 @@ export default function Students({ role }) {
     setMessage("");
   }
 
+  function handleStatusChange(nextStatus) {
+    if (!selected || !canManage) return;
+    const result = changeStudentStatus(selected.id, nextStatus, actor);
+    if (!result.ok) {
+      setMessage(result.reason);
+      return;
+    }
+
+    setMessage(`Student status changed to ${nextStatus}.`);
+  }
+
   function assignSelected(classId) {
     const ids = checked.length
       ? checked
@@ -319,7 +333,30 @@ export default function Students({ role }) {
         tab={tab}
         setTab={setTab}
         onCloseDetail={() => setSelectedId(null)}
-        onEdit={canManage && selected ? () => setEditing(selected) : undefined}
+        onEdit={
+          canManage && selected
+            ? () => {
+                const targets = studentTargets
+                  .filter((target) => target.studentId === selected.id)
+                  .reduce((result, target) => {
+                    result[target.courseId] = {
+                      ...(result[target.courseId] ?? {}),
+                      [target.targetType]: target.targetValue,
+                    };
+                    return result;
+                  }, {});
+
+                setEditing({
+                  ...selected,
+                  targets,
+                });
+              }
+            : undefined
+        }
+        onChangeStatus={
+          canManage && selected ? handleStatusChange : undefined
+        }
+        studentTargets={studentTargets}
         onDelete={canManage && selected ? handleDelete : undefined}
       />
 
@@ -341,6 +378,7 @@ export default function Students({ role }) {
           students={students}
           classes={classes}
           classStudents={classStudents}
+          getEligibility={getStudentClassEligibility}
           onClose={() => setAssigning(false)}
           onAssign={assignSelected}
         />

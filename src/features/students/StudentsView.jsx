@@ -9,6 +9,7 @@ import {
 import Button from "../../components/ui/Button";
 import EntityTable from "../../components/ui/EntityTable";
 import DetailPanel from "../../components/ui/DetailPanel";
+import { courseTargetDefinitions } from "../academic/targetEligibility";
 
 const labelClass =
   "mb-1 block text-[11px] font-medium uppercase tracking-wide text-slate-400";
@@ -88,6 +89,8 @@ function StudentDetail({
   setTab,
   onClose,
   onEdit,
+  onChangeStatus,
+  studentTargets,
   onDelete,
 }) {
   return (
@@ -106,13 +109,42 @@ function StudentDetail({
       onTabChange={setTab}
       onClose={onClose}
       footer={
-        student && (onEdit || onDelete) ? (
+        student && (onEdit || onChangeStatus || onDelete) ? (
           <div className="grid gap-2">
             {onEdit && (
               <Button variant="primary" className="w-full" onClick={onEdit}>
                 Edit Student
               </Button>
             )}
+
+            {onChangeStatus && student.status === "Active" && (
+              <div className="grid grid-cols-2 gap-2">
+                <Button onClick={() => onChangeStatus("On Leave")}>
+                  Put On Leave
+                </Button>
+                <Button onClick={() => onChangeStatus("Graduated")}>
+                  Mark Graduated
+                </Button>
+              </div>
+            )}
+
+            {onChangeStatus && student.status === "On Leave" && (
+              <div className="grid grid-cols-2 gap-2">
+                <Button onClick={() => onChangeStatus("Active")}>
+                  Reactivate
+                </Button>
+                <Button onClick={() => onChangeStatus("Graduated")}>
+                  Mark Graduated
+                </Button>
+              </div>
+            )}
+
+            {student.status === "Graduated" && onChangeStatus && (
+              <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-500">
+                Graduated is a terminal status in the current workflow.
+              </div>
+            )}
+
             {onDelete && (
               <button
                 type="button"
@@ -164,6 +196,56 @@ function StudentDetail({
                 <div className="min-w-0">
                   <span className={labelClass}>Email</span>
                   <span className="break-all">{student.email || "—"}</span>
+                </div>
+              </div>
+
+              <div className="border-b border-slate-100 py-3.5 text-[13px]">
+                <span className={labelClass}>Course targets</span>
+                <div className="grid gap-2">
+                  {Object.entries(courseTargetDefinitions).map(
+                    ([courseId, definition]) => {
+                      const targets = studentTargets.filter(
+                        (target) =>
+                          target.studentId === student.id &&
+                          target.courseId === courseId,
+                      );
+
+                      if (!targets.length) return null;
+
+                      return (
+                        <div
+                          key={courseId}
+                          className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2"
+                        >
+                          <strong className="block text-xs font-medium text-slate-700">
+                            {definition.courseLabel}
+                          </strong>
+                          <span className="mt-1 block text-xs text-slate-500">
+                            {definition.targets
+                              .map((targetDefinition) => {
+                                const value = targets.find(
+                                  (target) =>
+                                    target.targetType === targetDefinition.type,
+                                )?.targetValue;
+                                return value == null
+                                  ? null
+                                  : `${targetDefinition.label}: ${value}`;
+                              })
+                              .filter(Boolean)
+                              .join(" · ") || "Target not configured"}
+                          </span>
+                        </div>
+                      );
+                    },
+                  )}
+
+                  {!studentTargets.some(
+                    (target) => target.studentId === student.id,
+                  ) && (
+                    <span className="text-xs text-slate-400">
+                      No course target has been configured.
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -289,6 +371,8 @@ export default function StudentsView({
   setTab,
   onCloseDetail,
   onEdit,
+  onChangeStatus,
+  studentTargets,
   onDelete,
 }) {
   function classSummary(studentId) {
@@ -466,6 +550,8 @@ export default function StudentsView({
           setTab={setTab}
           onClose={onCloseDetail}
           onEdit={onEdit}
+          onChangeStatus={onChangeStatus}
+          studentTargets={studentTargets}
           onDelete={onDelete}
         />
       </div>

@@ -1,13 +1,19 @@
 import { createContext, useContext, useMemo, useState } from "react";
-import { seededStudents } from "../students/mockStudents";
+import {
+  seededStudents,
+  studentStatusTransitions,
+} from "../students/mockStudents";
 import { initialClasses, classStatuses } from "../classes/mockClasses";
 import { initialAuditLogs, initialStaffSchedules } from "../classes/mockClassOperations";
+import { evaluateStudentClassTarget } from "./targetEligibility";
 import {
   initialAssignments,
   initialClassAccessScopes,
   initialClassStudents,
+  initialClassTargetRequirements,
   initialExams,
   initialStudentResults,
+  initialStudentTargets,
   initialTeachingSchedules,
 } from "./mockAcademicRelations";
 
@@ -30,6 +36,10 @@ export function AcademicDataProvider({ children }) {
   const [students, setStudents] = useState(seededStudents);
   const [classes, setClasses] = useState(initialClasses);
   const [classStudents, setClassStudents] = useState(initialClassStudents);
+  const [studentTargets, setStudentTargets] = useState(initialStudentTargets);
+  const [classTargetRequirements, setClassTargetRequirements] = useState(
+    initialClassTargetRequirements,
+  );
   const [classAccessScopes, setClassAccessScopes] = useState(initialClassAccessScopes);
   const [teachingSchedules] = useState(initialTeachingSchedules);
   const [staffSchedules, setStaffSchedules] = useState(initialStaffSchedules);
@@ -69,6 +79,53 @@ export function AcademicDataProvider({ children }) {
     );
   }
 
+  function syncStudentTargets(studentId, targets = {}) {
+    setStudentTargets((current) => {
+      const withoutStudent = current.filter(
+        (target) => target.studentId !== studentId,
+      );
+
+      const nextTargets = Object.entries(targets).flatMap(
+        ([courseId, courseTargets]) =>
+          Object.entries(courseTargets ?? {})
+            .filter(([, value]) => value !== "" && value != null)
+            .map(([targetType, value]) => ({
+              id: `student-target-${studentId}-${courseId}-${targetType.toLowerCase()}`,
+              studentId,
+              courseId,
+              targetType,
+              targetValue: Number(value),
+            })),
+      );
+
+      return [...withoutStudent, ...nextTargets];
+    });
+  }
+
+  function syncClassTargetRequirements(
+    classId,
+    courseId,
+    requiredTargets = {},
+  ) {
+    setClassTargetRequirements((current) => {
+      const withoutClass = current.filter(
+        (requirement) => requirement.classId !== classId,
+      );
+
+      const courseTargets = requiredTargets[courseId] ?? {};
+      const nextRequirements = Object.entries(courseTargets)
+        .filter(([, value]) => value !== "" && value != null)
+        .map(([targetType, value]) => ({
+          id: `class-target-${classId}-${targetType.toLowerCase()}`,
+          classId,
+          targetType,
+          requiredTarget: Number(value),
+        }));
+
+      return [...withoutClass, ...nextRequirements];
+    });
+  }
+
   function addStudent(form, actor) {
     if (actor.role !== "ADMIN") {
       return { ok: false, reason: "Only Admin can create student records." };
@@ -81,12 +138,16 @@ export function AcademicDataProvider({ children }) {
     );
     if (duplicate) return { ok: false, reason: "Student code already exists." };
 
+    const { targets, ...studentForm } = form;
+
     const student = {
-      ...form,
+      ...studentForm,
+      status: "Active",
       id: `student-${Date.now()}`,
       tone: "navy",
     };
     setStudents((current) => [student, ...current]);
+    syncStudentTargets(student.id, targets);
     addAudit(actor, "CREATE_STUDENT", "STUDENT", student.id, {
       studentCode: student.studentCode,
     });
@@ -106,13 +167,16 @@ export function AcademicDataProvider({ children }) {
     );
     if (duplicate) return { ok: false, reason: "Student code already exists." };
 
+    const { targets, status: _ignoredStatus, ...studentForm } = form;
+
     setStudents((current) =>
       current.map((student) =>
-        student.id === studentId ? { ...student, ...form } : student,
+        student.id === studentId ? { ...student, ...studentForm } : student,
       ),
     );
+    syncStudentTargets(studentId, targets);
     addAudit(actor, "UPDATE_STUDENT", "STUDENT", studentId, {
-      studentCode: form.studentCode,
+      studentCode: studentForm.studentCode,
     });
     return { ok: true };
   }
@@ -144,6 +208,51 @@ export function AcademicDataProvider({ children }) {
     return { ok: true };
   }
 
+  function changeStudentStatus(studentId, nextStatus, actor) {
+    if (actor.role !== "ADMIN") {
+      return {
+        ok: false,
+        reason: "Only Admin can change student status.",
+      };
+    }
+
+    const student = students.find((item) => item.id === studentId);
+    if (!student) return { ok: false, reason: "Student not found." };
+
+    const allowed = studentStatusTransitions[student.status] ?? [];
+    if (!allowed.includes(nextStatus)) {
+      return {
+        ok: false,
+        reason: `Cannot change student status from ${student.status} to ${nextStatus}.`,
+      };
+    }
+
+    setStudents((current) =>
+      current.map((item) =>
+        item.id === studentId ? { ...item, status: nextStatus } : item,
+      ),
+    );
+
+    addAudit(actor, "CHANGE_STUDENT_STATUS", "STUDENT", studentId, {
+      from: student.status,
+      to: nextStatus,
+    });
+
+    return { ok: true };
+  }
+
+  function getStudentClassEligibility(studentId, classId) {
+    const student = students.find((item) => item.id === studentId);
+    const classItem = classes.find((item) => item.id === classId);
+
+    return evaluateStudentClassTarget({
+      student,
+      classItem,
+      studentTargets,
+      classTargetRequirements,
+    });
+  }
+
   function assignStudentsToClass(studentIds, classId, actor) {
     if (!canManageClass(actor, classId)) {
       return {
@@ -169,6 +278,22 @@ export function AcademicDataProvider({ children }) {
       return {
         ok: false,
         reason: "Selected students are already active in this class.",
+      };
+    }
+
+    const eligibilityResults = candidateIds.map((studentId) => ({
+      studentId,
+      ...getStudentClassEligibility(studentId, classId),
+    }));
+    const blocked = eligibilityResults.filter((result) => !result.eligible);
+
+    if (blocked.length) {
+      return {
+        ok: false,
+        code: "TARGET_MISMATCH",
+        reason:
+          "One or more selected students do not meet the target requirement for this class.",
+        blocked,
       };
     }
 
@@ -244,13 +369,20 @@ export function AcademicDataProvider({ children }) {
     );
     if (duplicate) return { ok: false, reason: "Class code already exists." };
 
+    const { requiredTargets, ...classForm } = form;
+
     const classItem = {
-      ...form,
+      ...classForm,
       status: "DRAFT",
       id: `class-${Date.now()}`,
       createdBy: actor.id,
     };
     setClasses((current) => [classItem, ...current]);
+    syncClassTargetRequirements(
+      classItem.id,
+      classItem.courseId,
+      requiredTargets,
+    );
 
     if (actor.role === "CS") {
       setClassAccessScopes((current) => [
@@ -288,16 +420,23 @@ export function AcademicDataProvider({ children }) {
     );
     if (duplicate) return { ok: false, reason: "Class code already exists." };
 
+    const { requiredTargets, ...classForm } = form;
+
     setClasses((current) =>
       current.map((classItem) =>
         classItem.id === classId
-          ? { ...classItem, ...form, status: classItem.status }
+          ? { ...classItem, ...classForm, status: classItem.status }
           : classItem,
       ),
     );
+    syncClassTargetRequirements(
+      classId,
+      classForm.courseId,
+      requiredTargets,
+    );
     addAudit(actor, "UPDATE_CLASS", "CLASS", classId, {
-      classCode: form.classCode,
-      name: form.name,
+      classCode: classForm.classCode,
+      name: classForm.name,
     });
     return { ok: true };
   }
@@ -510,6 +649,8 @@ export function AcademicDataProvider({ children }) {
       students,
       classes,
       classStudents,
+      studentTargets,
+      classTargetRequirements,
       classAccessScopes,
       teachingSchedules,
       staffSchedules,
@@ -520,6 +661,8 @@ export function AcademicDataProvider({ children }) {
       addStudent,
       updateStudent,
       deleteStudent,
+      changeStudentStatus,
+      getStudentClassEligibility,
       assignStudentsToClass,
       removeStudentFromClass,
       addClass,
@@ -534,6 +677,8 @@ export function AcademicDataProvider({ children }) {
       students,
       classes,
       classStudents,
+      studentTargets,
+      classTargetRequirements,
       classAccessScopes,
       teachingSchedules,
       staffSchedules,

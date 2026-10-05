@@ -1,3 +1,11 @@
+export const studentStatuses = ["Active", "On Leave", "Graduated"];
+
+export const studentStatusTransitions = {
+  Active: ["On Leave", "Graduated"],
+  "On Leave": ["Active", "Graduated"],
+  Graduated: [],
+};
+
 export const initialStudents = [
   {
     id: "student-0001",
@@ -103,5 +111,6 @@ export const emptyForm = {
   fullName: "",
   email: "",
   phone: "",
+  targets: {},
   status: "Active",
 };

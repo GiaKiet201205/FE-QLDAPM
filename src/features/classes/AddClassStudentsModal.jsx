@@ -7,6 +7,7 @@ export default function AddClassStudentsModal({
   classItem,
   students,
   classStudents,
+  getEligibility,
   onClose,
   onAdd,
 }) {
@@ -26,13 +27,24 @@ export default function AddClassStudentsModal({
     [classStudents, classItem.id],
   );
 
-  const candidates = students.filter((student) => {
-    if (currentIds.has(student.id)) return false;
+  const candidates = useMemo(() => {
     const keyword = search.trim().toLowerCase();
-    const haystack =
-      `${student.fullName} ${student.studentCode} ${student.email ?? ""}`.toLowerCase();
-    return haystack.includes(keyword);
-  });
+
+    return students
+      .filter((student) => !currentIds.has(student.id))
+      .filter((student) => {
+        const haystack =
+          `${student.fullName} ${student.studentCode} ${student.email ?? ""}`.toLowerCase();
+        return haystack.includes(keyword);
+      })
+      .map((student) => ({
+        student,
+        eligibility: getEligibility(student.id, classItem.id),
+      }));
+  }, [students, currentIds, search, getEligibility, classItem.id]);
+
+  const eligible = candidates.filter((item) => item.eligibility.eligible);
+  const blocked = candidates.filter((item) => !item.eligibility.eligible);
 
   function toggle(id) {
     setSelectedIds((current) =>
@@ -48,11 +60,70 @@ export default function AddClassStudentsModal({
     onAdd(selectedIds);
   }
 
+  function StudentRow({ item, disabled = false }) {
+    const { student, eligibility } = item;
+
+    return (
+      <label
+        className={`flex items-start gap-3 border-b border-slate-100 px-3 py-2.5 last:border-0 ${
+          disabled ? "cursor-not-allowed bg-slate-50" : "cursor-pointer hover:bg-slate-50"
+        }`}
+      >
+        <input
+          type="checkbox"
+          className="mt-0.5 h-4 w-4 accent-[#173557]"
+          checked={selectedIds.includes(student.id)}
+          onChange={() => toggle(student.id)}
+          disabled={disabled}
+        />
+        <span className="min-w-0 flex-1">
+          <span className="flex items-start justify-between gap-3">
+            <span className="min-w-0">
+              <strong className="block truncate text-[13px] font-medium text-slate-800">
+                {student.fullName}
+              </strong>
+              <span className="font-mono text-xs text-slate-400">
+                {student.studentCode}
+              </span>
+            </span>
+            <span
+              className={
+                disabled
+                  ? "shrink-0 text-xs font-medium text-red-600"
+                  : "shrink-0 text-xs font-medium text-emerald-700"
+              }
+            >
+              {disabled ? "Not eligible" : "Eligible"}
+            </span>
+          </span>
+
+          {eligibility.checks.length > 0 && (
+            <span className="mt-1 block text-[11px] text-slate-500">
+              {eligibility.checks
+                .map((check) =>
+                  check.targetValue == null
+                    ? `${check.targetType}: not set / required ${check.requiredTarget}`
+                    : `${check.targetType}: ${check.targetValue} / required ${check.requiredTarget}`,
+                )
+                .join(" · ")}
+            </span>
+          )}
+
+          {disabled && eligibility.reasons.length > 0 && (
+            <span className="mt-1 block text-xs leading-5 text-red-600">
+              {eligibility.reasons.join(" ")}
+            </span>
+          )}
+        </span>
+      </label>
+    );
+  }
+
   return (
     <Modal
       title={`Add students · ${classItem.classCode}`}
       onClose={onClose}
-      maxWidth="max-w-xl"
+      maxWidth="max-w-2xl"
     >
       <form onSubmit={submit} className="grid gap-4">
         <div className="flex h-9 items-center gap-2 rounded-md border border-slate-300 bg-slate-50 px-3 text-slate-400">
@@ -65,42 +136,51 @@ export default function AddClassStudentsModal({
           />
         </div>
 
-        <div className="max-h-72 overflow-auto rounded-md border border-slate-200">
-          {candidates.length ? (
-            candidates.map((student) => (
-              <label
-                key={student.id}
-                className="flex cursor-pointer items-center gap-3 border-b border-slate-100 px-3 py-2.5 last:border-0 hover:bg-slate-50"
-              >
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 accent-[#173557]"
-                  checked={selectedIds.includes(student.id)}
-                  onChange={() => toggle(student.id)}
-                />
-                <span className="min-w-0">
-                  <strong className="block truncate text-[13px] font-medium text-slate-800">
-                    {student.fullName}
-                  </strong>
-                  <span className="font-mono text-xs text-slate-400">
-                    {student.studentCode}
-                  </span>
-                </span>
-              </label>
-            ))
-          ) : (
+        <div className="max-h-80 overflow-auto rounded-md border border-slate-200">
+          {eligible.length > 0 && (
+            <>
+              <div className="sticky top-0 z-10 border-b border-slate-200 bg-white px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                Eligible · {eligible.length}
+              </div>
+              {eligible.map((item) => (
+                <StudentRow key={item.student.id} item={item} />
+              ))}
+            </>
+          )}
+
+          {blocked.length > 0 && (
+            <>
+              <div className="border-y border-slate-200 bg-slate-50 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                Not eligible · {blocked.length}
+              </div>
+              {blocked.map((item) => (
+                <StudentRow key={item.student.id} item={item} disabled />
+              ))}
+            </>
+          )}
+
+          {!candidates.length && (
             <p className="p-5 text-center text-xs text-slate-400">
-              No eligible students found.
+              No students are available for this class.
             </p>
           )}
         </div>
+
+        <p className="text-xs leading-5 text-slate-500">
+          A student can be added only when they have a target for this class
+          course and every required target meets or exceeds the class threshold.
+          Targets from another course are never reused. If the class target
+          requirement has not been configured, assignment is blocked.
+        </p>
 
         <div className="flex items-center justify-between gap-3">
           <span className="text-xs text-slate-500">
             {selectedIds.length} selected
           </span>
           <div className="flex gap-2">
-            <Button type="button" onClick={onClose}>Cancel</Button>
+            <Button type="button" onClick={onClose}>
+              Cancel
+            </Button>
             <Button type="submit" variant="primary" disabled={!selectedIds.length}>
               Add Students
             </Button>
