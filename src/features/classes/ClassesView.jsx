@@ -249,6 +249,7 @@ function AssignmentsTab({
   exams,
   onCreateAssignment,
   onCreateExam,
+  teacherActorId,
   onEditAssignment,
   onAssignmentStatus,
   onEditExam,
@@ -295,6 +296,7 @@ function AssignmentsTab({
                 </div>
 
                 {item.status === "OPEN" &&
+                  item.teacherId === teacherActorId &&
                   (onEditAssignment || onAssignmentStatus) && (
                     <div className="mt-3 flex flex-wrap gap-2 border-t border-slate-100 pt-2">
                       {onEditAssignment && (
@@ -356,6 +358,7 @@ function AssignmentsTab({
                 </div>
 
                 {item.status === "SCHEDULED" &&
+                  item.teacherId === teacherActorId &&
                   (onEditExam || onExamStatus) && (
                     <div className="mt-3 flex flex-wrap gap-2 border-t border-slate-100 pt-2">
                       {onEditExam && (
@@ -503,6 +506,7 @@ function ClassDetail({
   exams,
   onCreateAssignment,
   onCreateExam,
+  teacherActorId,
   onEditAssignment,
   onAssignmentStatus,
   onEditExam,
@@ -673,6 +677,7 @@ function ClassDetail({
               exams={exams}
               onCreateAssignment={onCreateAssignment}
               onCreateExam={onCreateExam}
+              teacherActorId={teacherActorId}
               onEditAssignment={onEditAssignment}
               onAssignmentStatus={onAssignmentStatus}
               onEditExam={onEditExam}
@@ -738,6 +743,7 @@ export default function ClassesView({
   exams,
   onCreateAssignment,
   onCreateExam,
+  teacherActorId,
   onEditAssignment,
   onAssignmentStatus,
   onEditExam,
@@ -888,6 +894,7 @@ export default function ClassesView({
           exams={exams}
           onCreateAssignment={onCreateAssignment}
           onCreateExam={onCreateExam}
+          teacherActorId={teacherActorId}
           onEditAssignment={onEditAssignment}
           onAssignmentStatus={onAssignmentStatus}
           onEditExam={onEditExam}
