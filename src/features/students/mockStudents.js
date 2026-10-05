@@ -103,5 +103,7 @@ export const emptyForm = {
   fullName: "",
   email: "",
   phone: "",
+  toeicRlTarget: "",
+  toeicSwTarget: "",
   status: "Active",
 };
