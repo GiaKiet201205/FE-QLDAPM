@@ -169,22 +169,6 @@ export function AcademicDataProvider({ children }) {
       };
     }
 
-    const eligibilityResults = studentIds.map((studentId) => ({
-      studentId,
-      ...getStudentClassEligibility(studentId, classId),
-    }));
-    const blocked = eligibilityResults.filter((result) => !result.eligible);
-
-    if (blocked.length) {
-      return {
-        ok: false,
-        code: "TARGET_MISMATCH",
-        reason:
-          "One or more selected students do not meet the target requirement for this class.",
-        blocked,
-      };
-    }
-
     const activeIds = new Set(
       classStudents
         .filter(
@@ -202,6 +186,22 @@ export function AcademicDataProvider({ children }) {
       return {
         ok: false,
         reason: "Selected students are already active in this class.",
+      };
+    }
+
+    const eligibilityResults = candidateIds.map((studentId) => ({
+      studentId,
+      ...getStudentClassEligibility(studentId, classId),
+    }));
+    const blocked = eligibilityResults.filter((result) => !result.eligible);
+
+    if (blocked.length) {
+      return {
+        ok: false,
+        code: "TARGET_MISMATCH",
+        reason:
+          "One or more selected students do not meet the target requirement for this class.",
+        blocked,
       };
     }
 
