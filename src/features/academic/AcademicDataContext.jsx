@@ -1093,11 +1093,19 @@ export function AcademicDataProvider({ children }) {
       };
     }
 
-    const classItem = classes.find((item) => item.id === assignment.classId);
-    if (!classItem || classItem.status === "CLOSED") {
+    if (assignment.teacherId !== actor.id) {
       return {
         ok: false,
-        reason: "Closed classes are read-only.",
+        reason: "Teacher can only manage assignments they created.",
+      };
+    }
+
+    const classItem = classes.find((item) => item.id === assignment.classId);
+    if (!classItem || !teachingActivityClassStatuses.includes(classItem.status)) {
+      return {
+        ok: false,
+        reason:
+          "Assignment status can only be changed while the class is Ready or Running.",
       };
     }
 
@@ -1248,9 +1256,20 @@ export function AcademicDataProvider({ children }) {
       };
     }
 
+    if (exam.teacherId !== actor.id) {
+      return {
+        ok: false,
+        reason: "Teacher can only manage exams they created.",
+      };
+    }
+
     const classItem = classes.find((item) => item.id === exam.classId);
-    if (!classItem || classItem.status === "CLOSED") {
-      return { ok: false, reason: "Closed classes are read-only." };
+    if (!classItem || !teachingActivityClassStatuses.includes(classItem.status)) {
+      return {
+        ok: false,
+        reason:
+          "Exam status can only be changed while the class is Ready or Running.",
+      };
     }
 
     if (
