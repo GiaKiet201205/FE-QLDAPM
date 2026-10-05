@@ -59,6 +59,57 @@ export const initialClassStudents = seededStudents.slice(0, 36).map((student, in
   status: "ACTIVE",
 }));
 
+
+export const initialStudentTargets = seededStudents.flatMap((student, index) => {
+  const rlValues = [450, 550, 650, 750, 850, 900];
+  const swValues = [150, 200, 250, 300, 350];
+
+  return [
+    {
+      id: `student-target-rl-${String(index + 1).padStart(3, "0")}`,
+      studentId: student.id,
+      courseId: "course-toeic",
+      targetType: "RL",
+      targetValue: rlValues[index % rlValues.length],
+    },
+    {
+      id: `student-target-sw-${String(index + 1).padStart(3, "0")}`,
+      studentId: student.id,
+      courseId: "course-toeic",
+      targetType: "SW",
+      targetValue: swValues[index % swValues.length],
+    },
+  ];
+});
+
+export const initialClassTargetRequirements = [
+  {
+    id: "class-target-001",
+    classId: "class-0002",
+    targetType: "RL",
+    requiredTarget: 850,
+  },
+  {
+    id: "class-target-002",
+    classId: "class-0002",
+    targetType: "SW",
+    requiredTarget: 300,
+  },
+  {
+    id: "class-target-003",
+    classId: "class-0007",
+    targetType: "RL",
+    requiredTarget: 650,
+  },
+  {
+    id: "class-target-004",
+    classId: "class-0007",
+    targetType: "SW",
+    requiredTarget: 200,
+  },
+];
+
+
 export const initialAssignments = [
   { id: "assignment-001", teacherId: "teacher-001", classId: "class-0001", title: "Writing Task 2 Practice", description: "Opinion essay practice.", deadline: "2026-10-18", status: "OPEN", createdAt: "2026-10-05T09:00:00.000Z" },
   { id: "assignment-002", teacherId: "teacher-001", classId: "class-0006", title: "Coherence and Cohesion Drill", description: "Paragraph organization exercise.", deadline: "2026-10-28", status: "OPEN", createdAt: "2026-10-05T10:00:00.000Z" },
