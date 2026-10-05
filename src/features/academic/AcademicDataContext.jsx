@@ -1032,13 +1032,6 @@ export function AcademicDataProvider({ children }) {
     const access = validateTeacherActivityAccess(actor, assignment.classId);
     if (!access.ok) return access;
 
-    if (assignment.teacherId !== actor.id) {
-      return {
-        ok: false,
-        reason: "Teacher can only edit assignments they created.",
-      };
-    }
-
     if (assignment.status !== "OPEN") {
       return {
         ok: false,
@@ -1101,13 +1094,6 @@ export function AcademicDataProvider({ children }) {
       return {
         ok: false,
         reason: "Teacher can only manage assignments for assigned classes.",
-      };
-    }
-
-    if (assignment.teacherId !== actor.id) {
-      return {
-        ok: false,
-        reason: "Teacher can only manage assignments they created.",
       };
     }
 
@@ -1197,13 +1183,6 @@ export function AcademicDataProvider({ children }) {
     const access = validateTeacherActivityAccess(actor, exam.classId);
     if (!access.ok) return access;
 
-    if (exam.teacherId !== actor.id) {
-      return {
-        ok: false,
-        reason: "Teacher can only edit exams they created.",
-      };
-    }
-
     if (exam.status !== "SCHEDULED") {
       return {
         ok: false,
@@ -1264,13 +1243,6 @@ export function AcademicDataProvider({ children }) {
       return {
         ok: false,
         reason: "Teacher can only manage exams for assigned classes.",
-      };
-    }
-
-    if (exam.teacherId !== actor.id) {
-      return {
-        ok: false,
-        reason: "Teacher can only manage exams they created.",
       };
     }
 
@@ -1358,13 +1330,6 @@ export function AcademicDataProvider({ children }) {
           reason: "The selected assignment does not belong to this class.",
         };
       }
-      if (assignment.teacherId !== actor.id) {
-        return {
-          ok: false,
-          code: "RESULT_ACTIVITY_NOT_OWNED",
-          reason: "Teacher can only grade assignments they created.",
-        };
-      }
       if (assignment.status === "CANCELLED") {
         return {
           ok: false,
@@ -1380,13 +1345,6 @@ export function AcademicDataProvider({ children }) {
           ok: false,
           code: "RESULT_ACTIVITY_CLASS_MISMATCH",
           reason: "The selected exam does not belong to this class.",
-        };
-      }
-      if (exam.teacherId !== actor.id) {
-        return {
-          ok: false,
-          code: "RESULT_ACTIVITY_NOT_OWNED",
-          reason: "Teacher can only grade exams they created.",
         };
       }
       if (exam.status !== "COMPLETED") {
