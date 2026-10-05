@@ -304,6 +304,13 @@ export default function Classes({ role }) {
     setMessage("Student result and feedback saved.");
   }
 
+  function studentCount(classId) {
+    return classStudents.filter(
+      (relation) =>
+        relation.classId === classId && relation.status === "ACTIVE",
+    ).length;
+  }
+
   function teacherSummary(classId) {
     return [
       ...new Set(
@@ -368,6 +375,7 @@ export default function Classes({ role }) {
         onRemoveStudent={canManageStudents ? removeStudent : undefined}
         teachingSchedules={selectedTeachingSchedules}
         teacherSummary={teacherSummary}
+        studentCount={studentCount}
         supportSchedules={selectedSupportSchedules}
         supportSummary={supportSummary}
         onOverrideSupport={isAdmin ? setOverrideSchedule : undefined}
