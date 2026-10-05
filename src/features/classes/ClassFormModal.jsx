@@ -2,6 +2,10 @@ import { useMemo, useState } from "react";
 import Button from "../../components/ui/Button";
 import Modal from "../../components/ui/Modal";
 import { courses } from "./mockClasses";
+import {
+  courseTargetDefinitions,
+  getCourseTargetDefinition,
+} from "../academic/targetEligibility";
 
 const inputClass =
   "h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-[13px] font-normal text-slate-800 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100";
@@ -16,13 +20,12 @@ export default function ClassFormModal({
     classItem
       ? {
           ...classItem,
-          requiredRlTarget: classItem.requiredRlTarget ?? "",
-          requiredSwTarget: classItem.requiredSwTarget ?? "",
+          requiredTargets: classItem.requiredTargets ?? {},
         }
       : { ...emptyForm, status: "DRAFT" },
   );
   const isEditing = Boolean(classItem);
-  const isToeic = form.courseId === "course-toeic";
+  const definition = getCourseTargetDefinition(form.courseId);
 
   const invalidDateRange = useMemo(
     () =>
@@ -34,8 +37,13 @@ export default function ClassFormModal({
     [form.startDate, form.endDate],
   );
 
-  const missingToeicTarget =
-    isToeic && (!form.requiredRlTarget || !form.requiredSwTarget);
+  const missingRequiredTarget =
+    !definition ||
+    definition.targets.some(
+      (target) =>
+        form.requiredTargets?.[form.courseId]?.[target.type] === "" ||
+        form.requiredTargets?.[form.courseId]?.[target.type] == null,
+    );
 
   function update(event) {
     setForm((current) => ({
@@ -44,9 +52,22 @@ export default function ClassFormModal({
     }));
   }
 
+  function updateRequiredTarget(targetType, value) {
+    setForm((current) => ({
+      ...current,
+      requiredTargets: {
+        ...(current.requiredTargets ?? {}),
+        [current.courseId]: {
+          ...(current.requiredTargets?.[current.courseId] ?? {}),
+          [targetType]: value,
+        },
+      },
+    }));
+  }
+
   function submit(event) {
     event.preventDefault();
-    if (invalidDateRange || missingToeicTarget) return;
+    if (invalidDateRange || missingRequiredTarget) return;
     onSave({
       ...form,
       status: isEditing ? classItem.status : "DRAFT",
@@ -103,49 +124,51 @@ export default function ClassFormModal({
           />
         </label>
 
-        {isToeic && (
-          <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-            <div className="mb-2">
-              <strong className="block text-[13px] font-medium text-slate-800">
-                Required TOEIC target
-              </strong>
-              <span className="text-xs leading-5 text-slate-500">
-                Students must have targets greater than or equal to both
-                requirements before they can be added to this class.
-              </span>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              <label className="grid gap-1.5 text-[13px] font-medium">
-                Reading & Listening
-                <input
-                  className={inputClass}
-                  type="number"
-                  min="0"
-                  name="requiredRlTarget"
-                  value={form.requiredRlTarget}
-                  onChange={update}
-                  required
-                  placeholder="e.g. 850"
-                />
-              </label>
-
-              <label className="grid gap-1.5 text-[13px] font-medium">
-                Speaking & Writing
-                <input
-                  className={inputClass}
-                  type="number"
-                  min="0"
-                  name="requiredSwTarget"
-                  value={form.requiredSwTarget}
-                  onChange={update}
-                  required
-                  placeholder="e.g. 300"
-                />
-              </label>
-            </div>
+        <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+          <div className="mb-2">
+            <strong className="block text-[13px] font-medium text-slate-800">
+              Required {definition?.courseLabel ?? "course"} target
+            </strong>
+            <span className="text-xs leading-5 text-slate-500">
+              A student must have a target for this same course and meet every
+              required threshold before being added to the class.
+            </span>
           </div>
-        )}
+
+          {definition ? (
+            <div
+              className={`grid gap-3 ${
+                definition.targets.length > 1 ? "sm:grid-cols-2" : ""
+              }`}
+            >
+              {definition.targets.map((target) => (
+                <label
+                  key={target.type}
+                  className="grid gap-1.5 text-[13px] font-medium"
+                >
+                  {target.label}
+                  <input
+                    className={inputClass}
+                    type="number"
+                    min="0"
+                    value={
+                      form.requiredTargets?.[form.courseId]?.[target.type] ?? ""
+                    }
+                    onChange={(event) =>
+                      updateRequiredTarget(target.type, event.target.value)
+                    }
+                    required
+                    placeholder="Required target"
+                  />
+                </label>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-red-600">
+              No target model is configured for this course.
+            </p>
+          )}
+        </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="grid gap-1.5 text-[13px] font-medium">
@@ -181,15 +204,8 @@ export default function ClassFormModal({
 
         <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-500">
           Status is managed by the class workflow. New classes start as
-          <strong className="ml-1 text-slate-700">Draft</strong>; status changes
-          are performed from the class detail panel.
+          <strong className="ml-1 text-slate-700">Draft</strong>.
         </div>
-
-        <p className="rounded-md bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-500">
-          Teacher assignment, students and CS support are linked through
-          TeachingSchedule, ClassStudent and StaffSchedule instead of being
-          stored directly on the Class record.
-        </p>
 
         <div className="flex justify-end gap-2 pt-2">
           <Button type="button" onClick={onClose}>
@@ -198,7 +214,7 @@ export default function ClassFormModal({
           <Button
             type="submit"
             variant="primary"
-            disabled={invalidDateRange || missingToeicTarget}
+            disabled={invalidDateRange || missingRequiredTarget}
           >
             {isEditing ? "Save Changes" : "Create Class"}
           </Button>
