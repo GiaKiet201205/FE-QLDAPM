@@ -63,6 +63,19 @@ export const initialClassStudents = seededStudents.slice(0, 36).map((student, in
 export const initialStudentTargets = seededStudents.flatMap((student, index) => {
   const rlValues = [450, 550, 650, 750, 850, 900];
   const swValues = [150, 200, 250, 300, 350];
+  const seededClassId = classIds[index % classIds.length];
+
+  // Keep existing demo memberships coherent: students already seeded into the
+  // TOEIC 850 class meet that class target, while the rest still provide a mix
+  // of eligible and ineligible candidates for the assignment flow.
+  const rlTarget =
+    seededClassId === "class-0002"
+      ? 900
+      : rlValues[index % rlValues.length];
+  const swTarget =
+    seededClassId === "class-0002"
+      ? 350
+      : swValues[index % swValues.length];
 
   return [
     {
@@ -70,14 +83,14 @@ export const initialStudentTargets = seededStudents.flatMap((student, index) => 
       studentId: student.id,
       courseId: "course-toeic",
       targetType: "RL",
-      targetValue: rlValues[index % rlValues.length],
+      targetValue: rlTarget,
     },
     {
       id: `student-target-sw-${String(index + 1).padStart(3, "0")}`,
       studentId: student.id,
       courseId: "course-toeic",
       targetType: "SW",
-      targetValue: swValues[index % swValues.length],
+      targetValue: swTarget,
     },
   ];
 });
