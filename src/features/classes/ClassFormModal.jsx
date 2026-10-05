@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import Button from "../../components/ui/Button";
 import Modal from "../../components/ui/Modal";
-import { classStatuses, courses } from "./mockClasses";
+import { courses } from "./mockClasses";
 
 const inputClass =
   "h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-[13px] font-normal text-slate-800 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100";
@@ -12,7 +12,9 @@ export default function ClassFormModal({
   onClose,
   onSave,
 }) {
-  const [form, setForm] = useState(classItem ? { ...classItem } : emptyForm);
+  const [form, setForm] = useState(
+    classItem ? { ...classItem } : { ...emptyForm, status: "DRAFT" },
+  );
   const isEditing = Boolean(classItem);
 
   const invalidDateRange = useMemo(
@@ -35,7 +37,10 @@ export default function ClassFormModal({
   function submit(event) {
     event.preventDefault();
     if (invalidDateRange) return;
-    onSave(form);
+    onSave({
+      ...form,
+      status: isEditing ? classItem.status : "DRAFT",
+    });
   }
 
   return (
@@ -120,24 +125,16 @@ export default function ClassFormModal({
           </p>
         )}
 
-        <label className="grid gap-1.5 text-[13px] font-medium">
-          Status
-          <select
-            className={inputClass}
-            name="status"
-            value={form.status}
-            onChange={update}
-          >
-            {classStatuses.map((status) => (
-              <option key={status}>{status}</option>
-            ))}
-          </select>
-        </label>
+        <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-500">
+          Status is managed by the class workflow. New classes start as
+          <strong className="ml-1 text-slate-700">Draft</strong>; status changes
+          are performed from the class detail panel.
+        </div>
 
         <p className="rounded-md bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-500">
-          Teacher assignment, students, schedules and assignments are linked
-          through their own modules and are not stored directly on the Class
-          record.
+          Teacher assignment, students and CS support are linked through
+          TeachingSchedule, ClassStudent and StaffSchedule instead of being
+          stored directly on the Class record.
         </p>
 
         <div className="flex justify-end gap-2 pt-2">
