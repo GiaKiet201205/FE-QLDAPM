@@ -428,9 +428,12 @@ export function AcademicDataProvider({ children }) {
     if (blocked.length) {
       return {
         ok: false,
-        code: "TARGET_MISMATCH",
+        code: blocked[0].code ?? "TARGET_MISMATCH",
         reason:
-          "One or more selected students do not meet the target requirement for this class.",
+          blocked.length === 1
+            ? blocked[0].reasons?.[0] ??
+              "The selected student is not eligible for this class."
+            : "One or more selected students are not eligible for this class. Review the target and status checks.",
         blocked,
       };
     }
