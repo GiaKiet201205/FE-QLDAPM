@@ -11,7 +11,15 @@ export default function StudentFormModal({
   onSave,
   emptyForm,
 }) {
-  const [form, setForm] = useState(student ? { ...student } : emptyForm);
+  const [form, setForm] = useState(
+    student
+      ? {
+          ...student,
+          toeicRlTarget: student.toeicRlTarget ?? "",
+          toeicSwTarget: student.toeicSwTarget ?? "",
+        }
+      : emptyForm,
+  );
 
   function update(event) {
     setForm((current) => ({
@@ -72,6 +80,47 @@ export default function StudentFormModal({
             onChange={update}
           />
         </label>
+
+        <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+          <div className="mb-2">
+            <strong className="block text-[13px] font-medium text-slate-800">
+              TOEIC target
+            </strong>
+            <span className="text-xs leading-5 text-slate-500">
+              These targets belong to TOEIC only and are stored separately from
+              the core student record. They are required before the student can
+              join a TOEIC class with target requirements.
+            </span>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="grid gap-1.5 text-[13px] font-medium">
+              Reading & Listening
+              <input
+                className={inputClass}
+                type="number"
+                min="0"
+                name="toeicRlTarget"
+                value={form.toeicRlTarget}
+                onChange={update}
+                placeholder="e.g. 750"
+              />
+            </label>
+
+            <label className="grid gap-1.5 text-[13px] font-medium">
+              Speaking & Writing
+              <input
+                className={inputClass}
+                type="number"
+                min="0"
+                name="toeicSwTarget"
+                value={form.toeicSwTarget}
+                onChange={update}
+                placeholder="e.g. 300"
+              />
+            </label>
+          </div>
+        </div>
 
         <label className="grid gap-1.5 text-[13px] font-medium">
           Status
