@@ -6,6 +6,7 @@ import {
 import { initialClasses, classStatuses } from "../classes/mockClasses";
 import { initialAuditLogs, initialStaffSchedules } from "../classes/mockClassOperations";
 import {
+  assignableClassStatuses,
   evaluateStudentClassTarget,
   validateCourseTargetValues,
   validateStudentTargets,
@@ -135,10 +136,20 @@ export function AcademicDataProvider({ children }) {
       return { ok: false, reason: "Only Admin can create student records." };
     }
 
+    const normalizedStudentCode = form.studentCode?.trim();
+    const normalizedFullName = form.fullName?.trim();
+
+    if (!normalizedStudentCode || !normalizedFullName) {
+      return {
+        ok: false,
+        reason: "Student code and full name are required.",
+      };
+    }
+
     const duplicate = students.some(
       (student) =>
         student.studentCode.trim().toLowerCase() ===
-        form.studentCode.trim().toLowerCase(),
+        normalizedStudentCode.toLowerCase(),
     );
     if (duplicate) return { ok: false, reason: "Student code already exists." };
 
@@ -149,6 +160,10 @@ export function AcademicDataProvider({ children }) {
 
     const student = {
       ...studentForm,
+      studentCode: normalizedStudentCode,
+      fullName: normalizedFullName,
+      email: studentForm.email?.trim() ?? "",
+      phone: studentForm.phone?.trim() ?? "",
       status: "Active",
       id: `student-${Date.now()}`,
       tone: "navy",
@@ -166,11 +181,21 @@ export function AcademicDataProvider({ children }) {
       return { ok: false, reason: "Only Admin can update student records." };
     }
 
+    const normalizedStudentCode = form.studentCode?.trim();
+    const normalizedFullName = form.fullName?.trim();
+
+    if (!normalizedStudentCode || !normalizedFullName) {
+      return {
+        ok: false,
+        reason: "Student code and full name are required.",
+      };
+    }
+
     const duplicate = students.some(
       (student) =>
         student.id !== studentId &&
         student.studentCode.trim().toLowerCase() ===
-          form.studentCode.trim().toLowerCase(),
+          normalizedStudentCode.toLowerCase(),
     );
     if (duplicate) return { ok: false, reason: "Student code already exists." };
 
@@ -181,12 +206,21 @@ export function AcademicDataProvider({ children }) {
 
     setStudents((current) =>
       current.map((student) =>
-        student.id === studentId ? { ...student, ...studentForm } : student,
+        student.id === studentId
+          ? {
+              ...student,
+              ...studentForm,
+              studentCode: normalizedStudentCode,
+              fullName: normalizedFullName,
+              email: studentForm.email?.trim() ?? "",
+              phone: studentForm.phone?.trim() ?? "",
+            }
+          : student,
       ),
     );
     syncStudentTargets(studentId, targets);
     addAudit(actor, "UPDATE_STUDENT", "STUDENT", studentId, {
-      studentCode: studentForm.studentCode,
+      studentCode: normalizedStudentCode,
     });
     return { ok: true };
   }
@@ -381,12 +415,38 @@ export function AcademicDataProvider({ children }) {
       };
     }
 
-    setClassStudents((current) =>
-      current.map((relation) =>
+    const classItem = classes.find((item) => item.id === classId);
+    if (!classItem) return { ok: false, reason: "Class not found." };
+
+    if (!assignableClassStatuses.includes(classItem.status)) {
+      return {
+        ok: false,
+        reason: `Cannot change the roster of a ${classItem.status.toLowerCase()} class.`,
+      };
+    }
+
+    const activeRelation = classStudents.find(
+      (relation) =>
         relation.studentId === studentId &&
         relation.classId === classId &&
-        relation.status === "ACTIVE"
-          ? { ...relation, status: "INACTIVE" }
+        relation.status === "ACTIVE",
+    );
+
+    if (!activeRelation) {
+      return {
+        ok: false,
+        reason: "Student is not currently active in this class.",
+      };
+    }
+
+    setClassStudents((current) =>
+      current.map((relation) =>
+        relation.id === activeRelation.id
+          ? {
+              ...relation,
+              status: "INACTIVE",
+              inactiveReason: "REMOVED_FROM_CLASS",
+            }
           : relation,
       ),
     );
