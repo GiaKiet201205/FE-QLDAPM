@@ -368,13 +368,24 @@ export function AcademicDataProvider({ children }) {
                 relation.studentId === studentId &&
                 relation.status === "ACTIVE",
             )
+            .filter((relation) => {
+              const classItem = classes.find(
+                (item) => item.id === relation.classId,
+              );
+              return (
+                classItem &&
+                assignableClassStatuses.includes(classItem.status)
+              );
+            })
             .map((relation) => relation.classId);
 
     if (deactivatedClassIds.length) {
+      const deactivatedClassSet = new Set(deactivatedClassIds);
       setClassStudents((current) =>
         current.map((relation) =>
           relation.studentId === studentId &&
-          relation.status === "ACTIVE"
+          relation.status === "ACTIVE" &&
+          deactivatedClassSet.has(relation.classId)
             ? {
                 ...relation,
                 status: "INACTIVE",
