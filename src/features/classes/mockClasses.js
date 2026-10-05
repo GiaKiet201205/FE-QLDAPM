@@ -102,6 +102,8 @@ export const emptyClassForm = {
   courseId: courses[0].id,
   classCode: "",
   name: "",
+  requiredRlTarget: "",
+  requiredSwTarget: "",
   startDate: "",
   endDate: "",
   status: "DRAFT",
