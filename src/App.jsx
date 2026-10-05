@@ -8,11 +8,9 @@ import PlaceholderPage from './pages/PlaceholderPage'
 import { ROLES } from './config/roles'
 
 function App() {
-  // Demo: chon role de xem giao dien tuong ung (thay bang thong tin dang nhap that khi noi BE)
   const [roleKey, setRoleKey] = useState('ADMIN')
   const role = ROLES[roleKey]
 
-  // Gom toan bo path tu tat ca section cua role hien tai, tranh trung route
   const allItems = useMemo(() => {
     const items = []
     const seen = new Set()
@@ -40,7 +38,7 @@ function App() {
               <Route
                 key={item.path}
                 path={item.path.slice(1)}
-                element={<Classes />}
+                element={<Classes role={role} />}
               />
             ) : (
               <Route
