@@ -33,8 +33,10 @@ export function AcademicDataProvider({ children }) {
   const [students, setStudents] = useState(seededStudents);
   const [classes, setClasses] = useState(initialClasses);
   const [classStudents, setClassStudents] = useState(initialClassStudents);
-  const [studentTargets] = useState(initialStudentTargets);
-  const [classTargetRequirements] = useState(initialClassTargetRequirements);
+  const [studentTargets, setStudentTargets] = useState(initialStudentTargets);
+  const [classTargetRequirements, setClassTargetRequirements] = useState(
+    initialClassTargetRequirements,
+  );
   const [classAccessScopes, setClassAccessScopes] = useState(initialClassAccessScopes);
   const [teachingSchedules] = useState(initialTeachingSchedules);
   const [staffSchedules, setStaffSchedules] = useState(initialStaffSchedules);
@@ -74,6 +76,68 @@ export function AcademicDataProvider({ children }) {
     );
   }
 
+  function syncToeicStudentTargets(studentId, form) {
+    const values = [
+      { targetType: "RL", value: form.toeicRlTarget },
+      { targetType: "SW", value: form.toeicSwTarget },
+    ];
+
+    setStudentTargets((current) => {
+      const withoutToeic = current.filter(
+        (target) =>
+          !(
+            target.studentId === studentId &&
+            target.courseId === "course-toeic" &&
+            ["RL", "SW"].includes(target.targetType)
+          ),
+      );
+
+      const nextTargets = values
+        .filter(({ value }) => value !== "" && value != null)
+        .map(({ targetType, value }) => ({
+          id: `student-target-${studentId}-${targetType.toLowerCase()}`,
+          studentId,
+          courseId: "course-toeic",
+          targetType,
+          targetValue: Number(value),
+        }));
+
+      return [...withoutToeic, ...nextTargets];
+    });
+  }
+
+  function syncToeicClassRequirements(classId, form) {
+    const values = [
+      { targetType: "RL", value: form.requiredRlTarget },
+      { targetType: "SW", value: form.requiredSwTarget },
+    ];
+
+    setClassTargetRequirements((current) => {
+      const withoutToeic = current.filter(
+        (requirement) =>
+          !(
+            requirement.classId === classId &&
+            ["RL", "SW"].includes(requirement.targetType)
+          ),
+      );
+
+      if (form.courseId !== "course-toeic") {
+        return withoutToeic;
+      }
+
+      const nextRequirements = values
+        .filter(({ value }) => value !== "" && value != null)
+        .map(({ targetType, value }) => ({
+          id: `class-target-${classId}-${targetType.toLowerCase()}`,
+          classId,
+          targetType,
+          requiredTarget: Number(value),
+        }));
+
+      return [...withoutToeic, ...nextRequirements];
+    });
+  }
+
   function addStudent(form, actor) {
     if (actor.role !== "ADMIN") {
       return { ok: false, reason: "Only Admin can create student records." };
@@ -86,12 +150,22 @@ export function AcademicDataProvider({ children }) {
     );
     if (duplicate) return { ok: false, reason: "Student code already exists." };
 
+    const {
+      toeicRlTarget,
+      toeicSwTarget,
+      ...studentForm
+    } = form;
+
     const student = {
-      ...form,
+      ...studentForm,
       id: `student-${Date.now()}`,
       tone: "navy",
     };
     setStudents((current) => [student, ...current]);
+    syncToeicStudentTargets(student.id, {
+      toeicRlTarget,
+      toeicSwTarget,
+    });
     addAudit(actor, "CREATE_STUDENT", "STUDENT", student.id, {
       studentCode: student.studentCode,
     });
@@ -111,13 +185,23 @@ export function AcademicDataProvider({ children }) {
     );
     if (duplicate) return { ok: false, reason: "Student code already exists." };
 
+    const {
+      toeicRlTarget,
+      toeicSwTarget,
+      ...studentForm
+    } = form;
+
     setStudents((current) =>
       current.map((student) =>
-        student.id === studentId ? { ...student, ...form } : student,
+        student.id === studentId ? { ...student, ...studentForm } : student,
       ),
     );
+    syncToeicStudentTargets(studentId, {
+      toeicRlTarget,
+      toeicSwTarget,
+    });
     addAudit(actor, "UPDATE_STUDENT", "STUDENT", studentId, {
-      studentCode: form.studentCode,
+      studentCode: studentForm.studentCode,
     });
     return { ok: true };
   }
@@ -277,13 +361,24 @@ export function AcademicDataProvider({ children }) {
     );
     if (duplicate) return { ok: false, reason: "Class code already exists." };
 
+    const {
+      requiredRlTarget,
+      requiredSwTarget,
+      ...classForm
+    } = form;
+
     const classItem = {
-      ...form,
+      ...classForm,
       status: "DRAFT",
       id: `class-${Date.now()}`,
       createdBy: actor.id,
     };
     setClasses((current) => [classItem, ...current]);
+    syncToeicClassRequirements(classItem.id, {
+      ...classForm,
+      requiredRlTarget,
+      requiredSwTarget,
+    });
 
     if (actor.role === "CS") {
       setClassAccessScopes((current) => [
@@ -321,16 +416,27 @@ export function AcademicDataProvider({ children }) {
     );
     if (duplicate) return { ok: false, reason: "Class code already exists." };
 
+    const {
+      requiredRlTarget,
+      requiredSwTarget,
+      ...classForm
+    } = form;
+
     setClasses((current) =>
       current.map((classItem) =>
         classItem.id === classId
-          ? { ...classItem, ...form, status: classItem.status }
+          ? { ...classItem, ...classForm, status: classItem.status }
           : classItem,
       ),
     );
+    syncToeicClassRequirements(classId, {
+      ...classForm,
+      requiredRlTarget,
+      requiredSwTarget,
+    });
     addAudit(actor, "UPDATE_CLASS", "CLASS", classId, {
-      classCode: form.classCode,
-      name: form.name,
+      classCode: classForm.classCode,
+      name: classForm.name,
     });
     return { ok: true };
   }
