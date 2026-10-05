@@ -41,6 +41,7 @@ export default function Classes({ role }) {
     students,
     classes,
     classStudents,
+    classTargetRequirements,
     classAccessScopes,
     teachingSchedules,
     staffSchedules,
@@ -389,7 +390,28 @@ export default function Classes({ role }) {
         tab={tab}
         setTab={setTab}
         onCloseDetail={() => setSelectedId(null)}
-        onEdit={canManageCore && selected ? () => setEditing(selected) : undefined}
+        onEdit={
+          canManageCore && selected
+            ? () => {
+                const rl = classTargetRequirements.find(
+                  (requirement) =>
+                    requirement.classId === selected.id &&
+                    requirement.targetType === "RL",
+                )?.requiredTarget;
+                const sw = classTargetRequirements.find(
+                  (requirement) =>
+                    requirement.classId === selected.id &&
+                    requirement.targetType === "SW",
+                )?.requiredTarget;
+
+                setEditing({
+                  ...selected,
+                  requiredRlTarget: rl ?? "",
+                  requiredSwTarget: sw ?? "",
+                });
+              }
+            : undefined
+        }
         onAdvanceStatus={canManageCore ? advanceStatus : undefined}
         students={selectedStudents}
         onAddStudents={
