@@ -21,6 +21,7 @@ export default function Students({ role }) {
     students,
     classes,
     classStudents,
+    studentTargets,
     teachingSchedules,
     studentResults,
     addStudent,
@@ -320,7 +321,30 @@ export default function Students({ role }) {
         tab={tab}
         setTab={setTab}
         onCloseDetail={() => setSelectedId(null)}
-        onEdit={canManage && selected ? () => setEditing(selected) : undefined}
+        onEdit={
+          canManage && selected
+            ? () => {
+                const rl = studentTargets.find(
+                  (target) =>
+                    target.studentId === selected.id &&
+                    target.courseId === "course-toeic" &&
+                    target.targetType === "RL",
+                )?.targetValue;
+                const sw = studentTargets.find(
+                  (target) =>
+                    target.studentId === selected.id &&
+                    target.courseId === "course-toeic" &&
+                    target.targetType === "SW",
+                )?.targetValue;
+
+                setEditing({
+                  ...selected,
+                  toeicRlTarget: rl ?? "",
+                  toeicSwTarget: sw ?? "",
+                });
+              }
+            : undefined
+        }
         onDelete={canManage && selected ? handleDelete : undefined}
       />
 
