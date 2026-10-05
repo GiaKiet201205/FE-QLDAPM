@@ -26,6 +26,7 @@ export default function Students({ role }) {
     addStudent,
     updateStudent,
     deleteStudent,
+    getStudentClassEligibility,
     assignStudentsToClass,
   } = useAcademicData();
 
@@ -341,6 +342,7 @@ export default function Students({ role }) {
           students={students}
           classes={classes}
           classStudents={classStudents}
+          getEligibility={getStudentClassEligibility}
           onClose={() => setAssigning(false)}
           onAssign={assignSelected}
         />
