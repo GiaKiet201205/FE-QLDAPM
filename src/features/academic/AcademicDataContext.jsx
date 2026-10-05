@@ -5,7 +5,11 @@ import {
 } from "../students/mockStudents";
 import { initialClasses, classStatuses } from "../classes/mockClasses";
 import { initialAuditLogs, initialStaffSchedules } from "../classes/mockClassOperations";
-import { evaluateStudentClassTarget } from "./targetEligibility";
+import {
+  evaluateStudentClassTarget,
+  validateCourseTargetValues,
+  validateStudentTargets,
+} from "./targetEligibility";
 import {
   initialAssignments,
   initialClassAccessScopes,
@@ -138,6 +142,9 @@ export function AcademicDataProvider({ children }) {
     );
     if (duplicate) return { ok: false, reason: "Student code already exists." };
 
+    const targetValidation = validateStudentTargets(form.targets ?? {});
+    if (!targetValidation.ok) return targetValidation;
+
     const { targets, ...studentForm } = form;
 
     const student = {
@@ -166,6 +173,9 @@ export function AcademicDataProvider({ children }) {
           form.studentCode.trim().toLowerCase(),
     );
     if (duplicate) return { ok: false, reason: "Student code already exists." };
+
+    const targetValidation = validateStudentTargets(form.targets ?? {});
+    if (!targetValidation.ok) return targetValidation;
 
     const { targets, status: _ignoredStatus, ...studentForm } = form;
 
@@ -204,6 +214,9 @@ export function AcademicDataProvider({ children }) {
     setStudents((current) =>
       current.filter((student) => student.id !== studentId),
     );
+    setStudentTargets((current) =>
+      current.filter((target) => target.studentId !== studentId),
+    );
     addAudit(actor, "DELETE_STUDENT", "STUDENT", studentId);
     return { ok: true };
   }
@@ -233,12 +246,39 @@ export function AcademicDataProvider({ children }) {
       ),
     );
 
+    const deactivatedClassIds =
+      nextStatus === "Active"
+        ? []
+        : classStudents
+            .filter(
+              (relation) =>
+                relation.studentId === studentId &&
+                relation.status === "ACTIVE",
+            )
+            .map((relation) => relation.classId);
+
+    if (deactivatedClassIds.length) {
+      setClassStudents((current) =>
+        current.map((relation) =>
+          relation.studentId === studentId &&
+          relation.status === "ACTIVE"
+            ? {
+                ...relation,
+                status: "INACTIVE",
+                inactiveReason: `STUDENT_${nextStatus.toUpperCase().replaceAll(" ", "_")}`,
+              }
+            : relation,
+        ),
+      );
+    }
+
     addAudit(actor, "CHANGE_STUDENT_STATUS", "STUDENT", studentId, {
       from: student.status,
       to: nextStatus,
+      deactivatedClassIds,
     });
 
-    return { ok: true };
+    return { ok: true, deactivatedClassIds };
   }
 
   function getStudentClassEligibility(studentId, classId) {
@@ -371,6 +411,13 @@ export function AcademicDataProvider({ children }) {
 
     const { requiredTargets, ...classForm } = form;
 
+    const classTargetValidation = validateCourseTargetValues(
+      classForm.courseId,
+      requiredTargets?.[classForm.courseId] ?? {},
+      { required: true },
+    );
+    if (!classTargetValidation.ok) return classTargetValidation;
+
     const classItem = {
       ...classForm,
       status: "DRAFT",
@@ -421,6 +468,13 @@ export function AcademicDataProvider({ children }) {
     if (duplicate) return { ok: false, reason: "Class code already exists." };
 
     const { requiredTargets, ...classForm } = form;
+
+    const classTargetValidation = validateCourseTargetValues(
+      classForm.courseId,
+      requiredTargets?.[classForm.courseId] ?? {},
+      { required: true },
+    );
+    if (!classTargetValidation.ok) return classTargetValidation;
 
     setClasses((current) =>
       current.map((classItem) =>
