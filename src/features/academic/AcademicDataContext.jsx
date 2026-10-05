@@ -369,6 +369,13 @@ export function AcademicDataProvider({ children }) {
       deactivatedClassIds,
     });
 
+    deactivatedClassIds.forEach((classId) => {
+      addAudit(actor, "DEACTIVATE_STUDENT_MEMBERSHIP", "CLASS", classId, {
+        studentId,
+        reason: `STUDENT_${nextStatus.toUpperCase().replaceAll(" ", "_")}`,
+      });
+    });
+
     return { ok: true, deactivatedClassIds };
   }
 
@@ -401,7 +408,7 @@ export function AcademicDataProvider({ children }) {
         .map((relation) => relation.studentId),
     );
 
-    const candidateIds = studentIds.filter(
+    const candidateIds = [...new Set(studentIds)].filter(
       (studentId) => !activeIds.has(studentId),
     );
 
@@ -444,6 +451,7 @@ export function AcademicDataProvider({ children }) {
           next[historicalIndex] = {
             ...next[historicalIndex],
             status: "ACTIVE",
+            inactiveReason: null,
           };
         } else {
           next.push({
