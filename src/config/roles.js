@@ -162,11 +162,7 @@ export const ROLES = {
       {
         title: 'Vận hành lớp',
         items: [
-          { label: 'Thêm lớp học', path: '/classes/create', icon: 'FolderPlus' },
-          { label: 'Cập nhật lớp học', path: '/classes/update', icon: 'FileEdit' },
-          { label: 'Danh sách lớp', path: '/classes', icon: 'School' },
-          { label: 'Quản lý trạng thái lớp', path: '/classes/status', icon: 'ToggleLeft' },
-          { label: 'Hỗ trợ dữ liệu lớp', path: '/classes/support-data', icon: 'Database' },
+          { label: 'Quản lý lớp học', path: '/classes', icon: 'School' },
         ],
       },
     ],
