@@ -2,12 +2,15 @@ import { createContext, useContext, useMemo, useState } from "react";
 import { seededStudents } from "../students/mockStudents";
 import { initialClasses, classStatuses } from "../classes/mockClasses";
 import { initialAuditLogs, initialStaffSchedules } from "../classes/mockClassOperations";
+import { evaluateStudentClassTarget } from "./targetEligibility";
 import {
   initialAssignments,
   initialClassAccessScopes,
   initialClassStudents,
+  initialClassTargetRequirements,
   initialExams,
   initialStudentResults,
+  initialStudentTargets,
   initialTeachingSchedules,
 } from "./mockAcademicRelations";
 
@@ -30,6 +33,8 @@ export function AcademicDataProvider({ children }) {
   const [students, setStudents] = useState(seededStudents);
   const [classes, setClasses] = useState(initialClasses);
   const [classStudents, setClassStudents] = useState(initialClassStudents);
+  const [studentTargets] = useState(initialStudentTargets);
+  const [classTargetRequirements] = useState(initialClassTargetRequirements);
   const [classAccessScopes, setClassAccessScopes] = useState(initialClassAccessScopes);
   const [teachingSchedules] = useState(initialTeachingSchedules);
   const [staffSchedules, setStaffSchedules] = useState(initialStaffSchedules);
@@ -144,11 +149,39 @@ export function AcademicDataProvider({ children }) {
     return { ok: true };
   }
 
+  function getStudentClassEligibility(studentId, classId) {
+    const student = students.find((item) => item.id === studentId);
+    const classItem = classes.find((item) => item.id === classId);
+
+    return evaluateStudentClassTarget({
+      student,
+      classItem,
+      studentTargets,
+      classTargetRequirements,
+    });
+  }
+
   function assignStudentsToClass(studentIds, classId, actor) {
     if (!canManageClass(actor, classId)) {
       return {
         ok: false,
         reason: "You do not have permission to manage students in this class.",
+      };
+    }
+
+    const eligibilityResults = studentIds.map((studentId) => ({
+      studentId,
+      ...getStudentClassEligibility(studentId, classId),
+    }));
+    const blocked = eligibilityResults.filter((result) => !result.eligible);
+
+    if (blocked.length) {
+      return {
+        ok: false,
+        code: "TARGET_MISMATCH",
+        reason:
+          "One or more selected students do not meet the target requirement for this class.",
+        blocked,
       };
     }
 
@@ -510,6 +543,8 @@ export function AcademicDataProvider({ children }) {
       students,
       classes,
       classStudents,
+      studentTargets,
+      classTargetRequirements,
       classAccessScopes,
       teachingSchedules,
       staffSchedules,
@@ -520,6 +555,7 @@ export function AcademicDataProvider({ children }) {
       addStudent,
       updateStudent,
       deleteStudent,
+      getStudentClassEligibility,
       assignStudentsToClass,
       removeStudentFromClass,
       addClass,
@@ -534,6 +570,8 @@ export function AcademicDataProvider({ children }) {
       students,
       classes,
       classStudents,
+      studentTargets,
+      classTargetRequirements,
       classAccessScopes,
       teachingSchedules,
       staffSchedules,
