@@ -212,6 +212,55 @@ export function AcademicDataProvider({ children }) {
 
     const { targets, status: _ignoredStatus, ...studentForm } = form;
 
+    const currentStudent = students.find((student) => student.id === studentId);
+    if (!currentStudent) return { ok: false, reason: "Student not found." };
+
+    const proposedStudent = {
+      ...currentStudent,
+      ...studentForm,
+      studentCode: normalizedStudentCode,
+      fullName: normalizedFullName,
+      email: studentForm.email?.trim() ?? "",
+      phone: studentForm.phone?.trim() ?? "",
+    };
+    const proposedTargetRecords = buildStudentTargetRecords(studentId, targets);
+    const proposedTargetState = [
+      ...studentTargets.filter((target) => target.studentId !== studentId),
+      ...proposedTargetRecords,
+    ];
+
+    const incompatibleClasses = classStudents
+      .filter(
+        (relation) =>
+          relation.studentId === studentId && relation.status === "ACTIVE",
+      )
+      .map((relation) => classes.find((item) => item.id === relation.classId))
+      .filter(
+        (classItem) =>
+          classItem && assignableClassStatuses.includes(classItem.status),
+      )
+      .map((classItem) => ({
+        classItem,
+        eligibility: evaluateStudentClassTarget({
+          student: proposedStudent,
+          classItem,
+          studentTargets: proposedTargetState,
+          classTargetRequirements,
+        }),
+      }))
+      .filter(({ eligibility }) => !eligibility.eligible);
+
+    if (incompatibleClasses.length) {
+      const first = incompatibleClasses[0];
+      return {
+        ok: false,
+        code: "ACTIVE_CLASS_TARGET_CONFLICT",
+        reason:
+          `Target changes would make this student ineligible for active class ${first.classItem.classCode}. Remove the student from that class first or keep a compatible target.`,
+        conflicts: incompatibleClasses,
+      };
+    }
+
     setStudents((current) =>
       current.map((student) =>
         student.id === studentId
