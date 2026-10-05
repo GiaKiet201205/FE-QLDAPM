@@ -21,9 +21,9 @@ import {
 import { useAcademicData } from "../features/academic/AcademicDataContext";
 
 const actors = {
-  ADMIN: { id: "admin-001", fullName: "System Admin" },
-  CS: { id: "cs-001", fullName: "Current CS" },
-  TEACHER: { id: demoTeacherId, fullName: "David Miller" },
+  ADMIN: { id: "admin-001", fullName: "System Admin", role: "ADMIN" },
+  CS: { id: "cs-001", fullName: "Current CS", role: "CS" },
+  TEACHER: { id: demoTeacherId, fullName: "David Miller", role: "TEACHER" },
 };
 
 export default function Classes({ role }) {
@@ -40,6 +40,7 @@ export default function Classes({ role }) {
     students,
     classes,
     classStudents,
+    classAccessScopes,
     teachingSchedules,
     staffSchedules,
     assignments,
@@ -86,22 +87,18 @@ export default function Classes({ role }) {
     }
 
     if (isCs) {
-      const supportIds = new Set(
-        staffSchedules
+      const allowedClassIds = new Set(
+        classAccessScopes
           .filter(
-            (schedule) =>
-              schedule.staffRole === "CS" &&
-              schedule.userId === actor.id &&
-              schedule.status === "ASSIGNED" &&
-              schedule.classId,
+            (scope) =>
+              scope.role === "CS" &&
+              scope.userId === actor.id &&
+              scope.status === "ACTIVE",
           )
-          .map((schedule) => schedule.classId),
+          .map((scope) => scope.classId),
       );
 
-      return classes.filter(
-        (classItem) =>
-          supportIds.has(classItem.id) || classItem.createdBy === actor.id,
-      );
+      return classes.filter((classItem) => allowedClassIds.has(classItem.id));
     }
 
     return [];
@@ -109,6 +106,7 @@ export default function Classes({ role }) {
     classes,
     teachingSchedules,
     staffSchedules,
+    classAccessScopes,
     isAdmin,
     isTeacher,
     isCs,
@@ -261,9 +259,20 @@ export default function Classes({ role }) {
     if (!result.ok) setMessage(result.reason);
   }
 
-  function confirmSupportOverride({ scheduleId, newCsId, reason }) {
+  function confirmSupportOverride({
+    scheduleId,
+    newCsId,
+    reason,
+    allowConflict,
+  }) {
     if (!isAdmin) return;
-    const result = overrideSupport(scheduleId, newCsId, reason, actor);
+    const result = overrideSupport(
+      scheduleId,
+      newCsId,
+      reason,
+      actor,
+      allowConflict,
+    );
     if (!result.ok) {
       setMessage(result.reason);
       return;
@@ -401,6 +410,7 @@ export default function Classes({ role }) {
       {overrideSchedule && isAdmin && (
         <SupportOverrideModal
           schedule={overrideSchedule}
+          staffSchedules={staffSchedules}
           onClose={() => setOverrideSchedule(null)}
           onConfirm={confirmSupportOverride}
         />
