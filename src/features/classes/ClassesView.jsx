@@ -228,11 +228,31 @@ function SupportTab({ schedules, canOverride, onOverride }) {
   );
 }
 
+function ActivityStatus({ status }) {
+  const labels = {
+    OPEN: "Open",
+    CLOSED: "Closed",
+    CANCELLED: "Cancelled",
+    SCHEDULED: "Scheduled",
+    COMPLETED: "Completed",
+  };
+
+  return (
+    <span className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
+      {labels[status] ?? status}
+    </span>
+  );
+}
+
 function AssignmentsTab({
   assignments,
   exams,
   onCreateAssignment,
   onCreateExam,
+  onEditAssignment,
+  onAssignmentStatus,
+  onEditExam,
+  onExamStatus,
 }) {
   return (
     <div className="grid gap-4 pt-4">
@@ -262,12 +282,50 @@ function AssignmentsTab({
                 key={item.id}
                 className="rounded-md border border-slate-200 bg-white p-3"
               >
-                <strong className="block text-[13px] font-medium text-slate-800">
-                  {item.title}
-                </strong>
-                <span className="mt-1 block text-xs text-slate-500">
-                  Deadline {formatDate(item.deadline)}
-                </span>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <strong className="block truncate text-[13px] font-medium text-slate-800">
+                      {item.title}
+                    </strong>
+                    <span className="mt-1 block text-xs text-slate-500">
+                      Deadline {formatDate(item.deadline)}
+                    </span>
+                  </div>
+                  <ActivityStatus status={item.status} />
+                </div>
+
+                {item.status === "OPEN" &&
+                  (onEditAssignment || onAssignmentStatus) && (
+                    <div className="mt-3 flex flex-wrap gap-2 border-t border-slate-100 pt-2">
+                      {onEditAssignment && (
+                        <button
+                          type="button"
+                          className="text-xs font-medium text-[#173557] hover:underline"
+                          onClick={() => onEditAssignment(item)}
+                        >
+                          Edit
+                        </button>
+                      )}
+                      {onAssignmentStatus && (
+                        <>
+                          <button
+                            type="button"
+                            className="text-xs font-medium text-slate-600 hover:underline"
+                            onClick={() => onAssignmentStatus(item, "CLOSED")}
+                          >
+                            Close
+                          </button>
+                          <button
+                            type="button"
+                            className="text-xs font-medium text-red-600 hover:underline"
+                            onClick={() => onAssignmentStatus(item, "CANCELLED")}
+                          >
+                            Cancel
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  )}
               </div>
             ))}
           </div>
@@ -285,12 +343,50 @@ function AssignmentsTab({
                 key={item.id}
                 className="rounded-md border border-slate-200 bg-white p-3"
               >
-                <strong className="block text-[13px] font-medium text-slate-800">
-                  {item.title}
-                </strong>
-                <span className="mt-1 block text-xs text-slate-500">
-                  {formatDate(item.examDate)} · {item.duration} minutes
-                </span>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <strong className="block truncate text-[13px] font-medium text-slate-800">
+                      {item.title}
+                    </strong>
+                    <span className="mt-1 block text-xs text-slate-500">
+                      {formatDate(item.examDate)} · {item.duration} minutes
+                    </span>
+                  </div>
+                  <ActivityStatus status={item.status} />
+                </div>
+
+                {item.status === "SCHEDULED" &&
+                  (onEditExam || onExamStatus) && (
+                    <div className="mt-3 flex flex-wrap gap-2 border-t border-slate-100 pt-2">
+                      {onEditExam && (
+                        <button
+                          type="button"
+                          className="text-xs font-medium text-[#173557] hover:underline"
+                          onClick={() => onEditExam(item)}
+                        >
+                          Edit
+                        </button>
+                      )}
+                      {onExamStatus && (
+                        <>
+                          <button
+                            type="button"
+                            className="text-xs font-medium text-emerald-700 hover:underline"
+                            onClick={() => onExamStatus(item, "COMPLETED")}
+                          >
+                            Mark Completed
+                          </button>
+                          <button
+                            type="button"
+                            className="text-xs font-medium text-red-600 hover:underline"
+                            onClick={() => onExamStatus(item, "CANCELLED")}
+                          >
+                            Cancel
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  )}
               </div>
             ))}
           </div>
@@ -302,7 +398,29 @@ function AssignmentsTab({
   );
 }
 
-function ResultsTab({ students, results, onRecordResult }) {
+function ResultsTab({
+  students,
+  results,
+  assignments,
+  exams,
+  onRecordResult,
+}) {
+  function activityLabel(result) {
+    if (result.assignmentId) {
+      const assignment = assignments.find(
+        (item) => item.id === result.assignmentId,
+      );
+      return assignment ? `Assignment · ${assignment.title}` : "Assignment";
+    }
+
+    if (result.examId) {
+      const exam = exams.find((item) => item.id === result.examId);
+      return exam ? `Exam · ${exam.title}` : "Exam";
+    }
+
+    return "Academic result";
+  }
+
   return (
     <div className="grid gap-3 pt-4">
       {onRecordResult && (
@@ -338,10 +456,16 @@ function ResultsTab({ students, results, onRecordResult }) {
                         {student?.fullName ?? result.studentId}
                       </strong>
                       <span className="mt-1 block text-xs text-slate-500">
+                        {activityLabel(result)}
+                      </span>
+                      <span className="mt-0.5 block text-[11px] text-slate-400">
+                        Evaluated {new Date(result.evaluatedAt).toLocaleString()}
+                      </span>
+                      <span className="mt-1 block text-xs text-slate-500">
                         {result.feedback || "No feedback"}
                       </span>
                     </div>
-                    <strong className="text-sm font-semibold text-[#173557]">
+                    <strong className="shrink-0 text-sm font-semibold text-[#173557]">
                       {result.score}
                     </strong>
                   </div>
@@ -407,6 +531,10 @@ function ClassDetail({
   exams,
   onCreateAssignment,
   onCreateExam,
+  onEditAssignment,
+  onAssignmentStatus,
+  onEditExam,
+  onExamStatus,
   results,
   onRecordResult,
   auditLogs,
@@ -458,6 +586,11 @@ function ClassDetail({
               >
                 Move to {statusLabel(nextStatus)}
               </Button>
+            )}
+            {classItem.status === "CLOSED" && (
+              <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-500">
+                Closed classes are archived and read-only.
+              </div>
             )}
           </div>
         ) : null
@@ -568,6 +701,10 @@ function ClassDetail({
               exams={exams}
               onCreateAssignment={onCreateAssignment}
               onCreateExam={onCreateExam}
+              onEditAssignment={onEditAssignment}
+              onAssignmentStatus={onAssignmentStatus}
+              onEditExam={onEditExam}
+              onExamStatus={onExamStatus}
             />
           )}
 
@@ -575,6 +712,8 @@ function ClassDetail({
             <ResultsTab
               students={students}
               results={results}
+              assignments={assignments}
+              exams={exams}
               onRecordResult={onRecordResult}
             />
           )}
@@ -629,6 +768,11 @@ export default function ClassesView({
   exams,
   onCreateAssignment,
   onCreateExam,
+  teacherActorId,
+  onEditAssignment,
+  onAssignmentStatus,
+  onEditExam,
+  onExamStatus,
   results,
   onRecordResult,
   auditLogs,
@@ -775,6 +919,10 @@ export default function ClassesView({
           exams={exams}
           onCreateAssignment={onCreateAssignment}
           onCreateExam={onCreateExam}
+          onEditAssignment={onEditAssignment}
+          onAssignmentStatus={onAssignmentStatus}
+          onEditExam={onEditExam}
+          onExamStatus={onExamStatus}
           results={results}
           onRecordResult={onRecordResult}
           auditLogs={auditLogs}

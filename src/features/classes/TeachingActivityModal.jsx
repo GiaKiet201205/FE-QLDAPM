@@ -8,24 +8,26 @@ const inputClass =
 export default function TeachingActivityModal({
   classItem,
   type,
+  activity,
   onClose,
   onSave,
 }) {
   const isExam = type === "exam";
+  const isEditing = Boolean(activity);
   const [form, setForm] = useState(
     isExam
       ? {
           classId: classItem.id,
-          title: "",
-          description: "",
-          duration: 60,
-          examDate: "",
+          title: activity?.title ?? "",
+          description: activity?.description ?? "",
+          duration: activity?.duration ?? 60,
+          examDate: activity?.examDate ?? "",
         }
       : {
           classId: classItem.id,
-          title: "",
-          description: "",
-          deadline: "",
+          title: activity?.title ?? "",
+          description: activity?.description ?? "",
+          deadline: activity?.deadline ?? "",
         },
   );
 
@@ -46,11 +48,15 @@ export default function TeachingActivityModal({
 
   return (
     <Modal
-      title={isExam ? "Create Exam" : "Create Assignment"}
+      title={`${isEditing ? "Edit" : "Create"} ${isExam ? "Exam" : "Assignment"}`}
       onClose={onClose}
       maxWidth="max-w-lg"
     >
       <form onSubmit={submit} className="grid gap-3.5">
+        <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500">
+          {classItem.classCode} · {classItem.name}
+        </div>
+
         <label className="grid gap-1.5 text-[13px] font-medium">
           Title
           <input
@@ -113,10 +119,21 @@ export default function TeachingActivityModal({
           </label>
         )}
 
+        {isEditing && (
+          <p className="text-xs leading-5 text-slate-500">
+            Teaching activity details can be edited only while the activity is
+            still open/scheduled and before student results are recorded.
+          </p>
+        )}
+
         <div className="flex justify-end gap-2 pt-2">
-          <Button type="button" onClick={onClose}>Cancel</Button>
+          <Button type="button" onClick={onClose}>
+            Cancel
+          </Button>
           <Button type="submit" variant="primary">
-            {isExam ? "Create Exam" : "Create Assignment"}
+            {isEditing
+              ? `Save ${isExam ? "Exam" : "Assignment"}`
+              : `Create ${isExam ? "Exam" : "Assignment"}`}
           </Button>
         </div>
       </form>

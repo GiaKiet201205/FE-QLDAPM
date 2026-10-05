@@ -112,6 +112,24 @@ export default function Students({ role }) {
     [roleKey, teachingSchedules, actor.id],
   );
 
+  const teacherCourseIds = useMemo(() => {
+    if (roleKey !== "TEACHER") return null;
+
+    return new Set(
+      classes
+        .filter((classItem) => teacherClassIds?.has(classItem.id))
+        .map((classItem) => classItem.courseId),
+    );
+  }, [roleKey, classes, teacherClassIds]);
+
+  const visibleStudentTargets = useMemo(() => {
+    if (roleKey !== "TEACHER") return studentTargets;
+
+    return studentTargets.filter((target) =>
+      teacherCourseIds?.has(target.courseId),
+    );
+  }, [roleKey, studentTargets, teacherCourseIds]);
+
   const visible = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const selected =
     scopedStudents.find((student) => student.id === selectedId) ?? null;
@@ -179,7 +197,10 @@ export default function Students({ role }) {
         const classCodes = classStudents
           .filter(
             (relation) =>
-              relation.studentId === student.id && relation.status === "ACTIVE",
+              relation.studentId === student.id &&
+              relation.status === "ACTIVE" &&
+              (roleKey !== "TEACHER" ||
+                teacherClassIds?.has(relation.classId)),
           )
           .map(
             (relation) =>
@@ -258,7 +279,12 @@ export default function Students({ role }) {
       return;
     }
 
-    setMessage(`Student status changed to ${nextStatus}.`);
+    const affected = result.deactivatedClassIds?.length ?? 0;
+    setMessage(
+      affected
+        ? `Student status changed to ${nextStatus}. ${affected} active class membership(s) were deactivated and will not be restored automatically.`
+        : `Student status changed to ${nextStatus}.`,
+    );
   }
 
   function assignSelected(classId) {
@@ -356,7 +382,7 @@ export default function Students({ role }) {
         onChangeStatus={
           canManage && selected ? handleStatusChange : undefined
         }
-        studentTargets={studentTargets}
+        studentTargets={visibleStudentTargets}
         onDelete={canManage && selected ? handleDelete : undefined}
       />
 
