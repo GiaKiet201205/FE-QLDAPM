@@ -46,6 +46,10 @@ export function AcademicDataProvider({ children }) {
   }
 
   function addStudent(form, actor) {
+    if (actor.role !== "ADMIN") {
+      return { ok: false, reason: "Only Admin can create student records." };
+    }
+
     const duplicate = students.some(
       (student) =>
         student.studentCode.trim().toLowerCase() ===
@@ -66,6 +70,10 @@ export function AcademicDataProvider({ children }) {
   }
 
   function updateStudent(studentId, form, actor) {
+    if (actor.role !== "ADMIN") {
+      return { ok: false, reason: "Only Admin can update student records." };
+    }
+
     const duplicate = students.some(
       (student) =>
         student.id !== studentId &&
@@ -86,6 +94,10 @@ export function AcademicDataProvider({ children }) {
   }
 
   function deleteStudent(studentId, actor) {
+    if (actor.role !== "ADMIN") {
+      return { ok: false, reason: "Only Admin can delete student records." };
+    }
+
     const hasClassHistory = classStudents.some(
       (relation) => relation.studentId === studentId,
     );
@@ -109,6 +121,13 @@ export function AcademicDataProvider({ children }) {
   }
 
   function assignStudentsToClass(studentIds, classId, actor) {
+    if (!["ADMIN", "CS"].includes(actor.role)) {
+      return {
+        ok: false,
+        reason: "Only Admin or CS can manage class membership.",
+      };
+    }
+
     const activeIds = new Set(
       classStudents
         .filter(
@@ -169,6 +188,13 @@ export function AcademicDataProvider({ children }) {
   }
 
   function removeStudentFromClass(studentId, classId, actor) {
+    if (!["ADMIN", "CS"].includes(actor.role)) {
+      return {
+        ok: false,
+        reason: "Only Admin or CS can manage class membership.",
+      };
+    }
+
     setClassStudents((current) =>
       current.map((relation) =>
         relation.studentId === studentId &&
@@ -185,6 +211,10 @@ export function AcademicDataProvider({ children }) {
   }
 
   function addClass(form, actor) {
+    if (!["ADMIN", "CS"].includes(actor.role)) {
+      return { ok: false, reason: "Only Admin or CS can create classes." };
+    }
+
     const duplicate = classes.some(
       (classItem) =>
         classItem.classCode.trim().toLowerCase() ===
@@ -221,6 +251,10 @@ export function AcademicDataProvider({ children }) {
   }
 
   function updateClass(classId, form, actor) {
+    if (!["ADMIN", "CS"].includes(actor.role)) {
+      return { ok: false, reason: "Only Admin or CS can update classes." };
+    }
+
     const duplicate = classes.some(
       (classItem) =>
         classItem.id !== classId &&
@@ -244,6 +278,13 @@ export function AcademicDataProvider({ children }) {
   }
 
   function advanceClassStatus(classId, nextStatus, actor) {
+    if (!["ADMIN", "CS"].includes(actor.role)) {
+      return {
+        ok: false,
+        reason: "Only Admin or CS can change class status.",
+      };
+    }
+
     const classItem = classes.find((item) => item.id === classId);
     if (!classItem) return { ok: false, reason: "Class not found." };
 
@@ -272,6 +313,13 @@ export function AcademicDataProvider({ children }) {
     actor,
     allowConflict = false,
   ) {
+    if (actor.role !== "ADMIN") {
+      return {
+        ok: false,
+        reason: "Only Admin can perform an administrative override.",
+      };
+    }
+
     const schedule = staffSchedules.find((item) => item.id === scheduleId);
     if (!schedule) return { ok: false, reason: "Support schedule not found." };
 
@@ -319,11 +367,17 @@ export function AcademicDataProvider({ children }) {
       fromCs: schedule.userId,
       toCs: newCsId,
       reason,
+      conflictBypass: allowConflict,
+      conflictCount: conflicts.length,
     });
     return { ok: true };
   }
 
   function addAssignment(data, actor) {
+    if (actor.role !== "TEACHER") {
+      return { ok: false, reason: "Only Teacher can create assignments." };
+    }
+
     const assignment = {
       ...data,
       id: `assignment-${Date.now()}`,
@@ -339,6 +393,10 @@ export function AcademicDataProvider({ children }) {
   }
 
   function addExam(data, actor) {
+    if (actor.role !== "TEACHER") {
+      return { ok: false, reason: "Only Teacher can create exams." };
+    }
+
     const exam = {
       ...data,
       id: `exam-${Date.now()}`,
@@ -351,6 +409,13 @@ export function AcademicDataProvider({ children }) {
   }
 
   function upsertStudentResult(data, actor) {
+    if (actor.role !== "TEACHER") {
+      return {
+        ok: false,
+        reason: "Only Teacher can record or update student results.",
+      };
+    }
+
     const existing = studentResults.find(
       (result) =>
         result.studentId === data.studentId &&
