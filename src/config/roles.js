@@ -27,16 +27,6 @@ export const ROLES = {
           { label: 'Danh sách học viên', path: '/students', icon: 'Users' },
         ],
       },
-      {
-        title: 'Giảng dạy',
-        items: [
-          { label: 'Giao bài tập', path: '/assignments', icon: 'FileEdit' },
-          { label: 'Giao bài kiểm tra', path: '/tests', icon: 'ClipboardList' },
-          { label: 'Chấm điểm', path: '/grading', icon: 'CheckSquare' },
-          { label: 'Đánh giá học viên', path: '/student-reviews', icon: 'Star' },
-          { label: 'Theo dõi kết quả lớp', path: '/class-results', icon: 'BarChart3' },
-        ],
-      },
     ],
   },
 
@@ -162,11 +152,7 @@ export const ROLES = {
       {
         title: 'Vận hành lớp',
         items: [
-          { label: 'Thêm lớp học', path: '/classes/create', icon: 'FolderPlus' },
-          { label: 'Cập nhật lớp học', path: '/classes/update', icon: 'FileEdit' },
-          { label: 'Danh sách lớp', path: '/classes', icon: 'School' },
-          { label: 'Quản lý trạng thái lớp', path: '/classes/status', icon: 'ToggleLeft' },
-          { label: 'Hỗ trợ dữ liệu lớp', path: '/classes/support-data', icon: 'Database' },
+          { label: 'Quản lý lớp học', path: '/classes', icon: 'School' },
         ],
       },
     ],
