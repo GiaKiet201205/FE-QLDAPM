@@ -1,21 +1,26 @@
 import { useMemo, useState } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
+
 import Layout from './components/layout/Layout'
 import Dashboard from './pages/Dashboard'
 import Students from './pages/Students'
+import Classes from './pages/Classes'
 import AvailabilityRegister from './pages/AvailabilityRegister'
 import PlaceholderPage from './pages/PlaceholderPage'
+
+import { AcademicDataProvider } from './features/academic/AcademicDataContext'
 import { ROLES } from './config/roles'
 
 function App() {
-  // Demo: chon role de xem giao dien tuong ung (thay bang thong tin dang nhap that khi noi BE)
+  // Demo role - sau này thay bằng role từ tài khoản đăng nhập
   const [roleKey, setRoleKey] = useState('TEACHER')
+
   const role = ROLES[roleKey]
 
-  // Gom toan bo path tu tat ca section cua role hien tai, tranh trung route
   const allItems = useMemo(() => {
     const items = []
     const seen = new Set()
+
     role.sections.forEach((section) =>
       section.items.forEach((item) => {
         if (!seen.has(item.path)) {
@@ -24,35 +29,61 @@ function App() {
         }
       })
     )
+
     return items
   }, [role])
 
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Layout role={role} onChangeRole={setRoleKey} />}>
-          {allItems.map((item) =>
-            item.path === '/' ? (
-              <Route key={item.path} index element={<Dashboard role={role} />} />
-            ) : item.path === '/students' ? (
-              <Route key={item.path} path="students" element={<Students />} />
-            ) : item.path === '/availability/register' ? (
-              <Route
-                key={item.path}
-                path="availability/register"
-                element={<AvailabilityRegister />}
+    <AcademicDataProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route
+            path="/"
+            element={
+              <Layout
+                role={role}
+                onChangeRole={setRoleKey}
               />
-            ) : (
-              <Route
-                key={item.path}
-                path={item.path.slice(1)}
-                element={<PlaceholderPage title={item.label} />}
-              />
-            )
-          )}
-        </Route>
-      </Routes>
-    </BrowserRouter>
+            }
+          >
+            {allItems.map((item) =>
+              item.path === '/' ? (
+                <Route
+                  key={item.path}
+                  index
+                  element={<Dashboard role={role} />}
+                />
+              ) : item.path === '/students' ? (
+                <Route
+                  key={item.path}
+                  path="students"
+                  element={<Students role={role} />}
+                />
+              ) : item.path.startsWith('/classes') ||
+                item.path === '/my-classes' ? (
+                <Route
+                  key={item.path}
+                  path={item.path.slice(1)}
+                  element={<Classes role={role} />}
+                />
+              ) : item.path === '/availability/register' ? (
+                <Route
+                  key={item.path}
+                  path="availability/register"
+                  element={<AvailabilityRegister />}
+                />
+              ) : (
+                <Route
+                  key={item.path}
+                  path={item.path.slice(1)}
+                  element={<PlaceholderPage title={item.label} />}
+                />
+              )
+            )}
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </AcademicDataProvider>
   )
 }
 
