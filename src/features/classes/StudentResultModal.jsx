@@ -16,18 +16,22 @@ export default function StudentResultModal({
 }) {
   const activities = useMemo(
     () => [
-      ...assignments.map((item) => ({
-        value: `assignment:${item.id}`,
-        label: `Assignment · ${item.title}`,
-        assignmentId: item.id,
-        examId: null,
-      })),
-      ...exams.map((item) => ({
-        value: `exam:${item.id}`,
-        label: `Exam · ${item.title}`,
-        assignmentId: null,
-        examId: item.id,
-      })),
+      ...assignments
+        .filter((item) => item.status !== "CANCELLED")
+        .map((item) => ({
+          value: `assignment:${item.id}`,
+          label: `Assignment · ${item.title} · ${item.status.toLowerCase()}`,
+          assignmentId: item.id,
+          examId: null,
+        })),
+      ...exams
+        .filter((item) => item.status === "COMPLETED")
+        .map((item) => ({
+          value: `exam:${item.id}`,
+          label: `Exam · ${item.title} · completed`,
+          assignmentId: null,
+          examId: item.id,
+        })),
     ],
     [assignments, exams],
   );
@@ -131,7 +135,8 @@ export default function StudentResultModal({
 
         {!activities.length && (
           <p className="text-xs text-amber-700">
-            Create an assignment or exam before recording results.
+            No gradable activity is available. Assignments must not be cancelled,
+            and exams must be marked completed before results can be recorded.
           </p>
         )}
 
