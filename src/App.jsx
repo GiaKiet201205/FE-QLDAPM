@@ -3,12 +3,13 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import Layout from './components/layout/Layout'
 import Dashboard from './pages/Dashboard'
 import Students from './pages/Students'
+import AvailabilityRegister from './pages/AvailabilityRegister'
 import PlaceholderPage from './pages/PlaceholderPage'
 import { ROLES } from './config/roles'
 
 function App() {
   // Demo: chon role de xem giao dien tuong ung (thay bang thong tin dang nhap that khi noi BE)
-  const [roleKey, setRoleKey] = useState('ADMIN')
+  const [roleKey, setRoleKey] = useState('TEACHER')
   const role = ROLES[roleKey]
 
   // Gom toan bo path tu tat ca section cua role hien tai, tranh trung route
@@ -35,6 +36,12 @@ function App() {
               <Route key={item.path} index element={<Dashboard role={role} />} />
             ) : item.path === '/students' ? (
               <Route key={item.path} path="students" element={<Students />} />
+            ) : item.path === '/availability/register' ? (
+              <Route
+                key={item.path}
+                path="availability/register"
+                element={<AvailabilityRegister />}
+              />
             ) : (
               <Route
                 key={item.path}
