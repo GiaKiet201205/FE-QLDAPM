@@ -19,6 +19,7 @@ import {
   getCsName,
 } from "../features/classes/mockClassOperations";
 import { useAcademicData } from "../features/academic/AcademicDataContext";
+import { assignableClassStatuses } from "../features/academic/targetEligibility";
 
 const actors = {
   ADMIN: { id: "admin-001", fullName: "System Admin", role: "ADMIN" },
@@ -138,6 +139,10 @@ export default function Classes({ role }) {
   const visible = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const selected =
     scopedClasses.find((classItem) => classItem.id === selectedId) ?? null;
+  const canModifySelectedRoster =
+    canManageStudents &&
+    selected &&
+    assignableClassStatuses.includes(selected.status);
 
   const selectedClassStudents = selected
     ? classStudents.filter(
@@ -415,9 +420,9 @@ export default function Classes({ role }) {
         onAdvanceStatus={canManageCore ? advanceStatus : undefined}
         students={selectedStudents}
         onAddStudents={
-          canManageStudents && selected ? () => setAddingStudents(true) : undefined
+          canModifySelectedRoster ? () => setAddingStudents(true) : undefined
         }
-        onRemoveStudent={canManageStudents ? removeStudent : undefined}
+        onRemoveStudent={canModifySelectedRoster ? removeStudent : undefined}
         teachingSchedules={selectedTeachingSchedules}
         teacherSummary={teacherSummary}
         studentCount={studentCount}
