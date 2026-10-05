@@ -28,7 +28,8 @@ const actors = {
 
 export default function Classes({ role }) {
   const roleKey = role?.key ?? "ADMIN";
-  const actor = actors[roleKey] ?? { id: "staff-demo", fullName: roleKey };
+  const actor =
+    actors[roleKey] ?? { id: "staff-demo", fullName: roleKey, role: roleKey };
   const isAdmin = roleKey === "ADMIN";
   const isCs = roleKey === "CS";
   const isTeacher = roleKey === "TEACHER";
@@ -294,21 +295,33 @@ export default function Classes({ role }) {
 
   function removeStudent(studentId) {
     if (!selected || !canManageStudents) return;
-    removeStudentFromClass(studentId, selected.id, actor);
-    setMessage("Student removed from class.");
+    const result = removeStudentFromClass(studentId, selected.id, actor);
+    if (!result?.ok) {
+      setMessage(result?.reason ?? "Unable to remove student from class.");
+      return;
+    }
+    setMessage("Student removed from the active roster. Membership history was preserved.");
   }
 
   function saveActivity(data) {
     if (!canTeach || !selected) return;
-    if (activityType === "exam") addExam(data, actor);
-    else addAssignment(data, actor);
+    const result =
+      activityType === "exam" ? addExam(data, actor) : addAssignment(data, actor);
+    if (result?.ok === false) {
+      setMessage(result.reason);
+      return;
+    }
     setActivityType(null);
     setMessage(activityType === "exam" ? "Exam created." : "Assignment created.");
   }
 
   function saveResult(data) {
     if (!canTeach) return;
-    upsertStudentResult(data, actor);
+    const result = upsertStudentResult(data, actor);
+    if (result?.ok === false) {
+      setMessage(result.reason);
+      return;
+    }
     setGrading(false);
     setMessage("Student result and feedback saved.");
   }
