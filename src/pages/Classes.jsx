@@ -48,6 +48,7 @@ export default function Classes({ role }) {
     exams,
     studentResults,
     auditLogs,
+    getStudentClassEligibility,
     assignStudentsToClass,
     removeStudentFromClass,
     addClass,
@@ -434,6 +435,7 @@ export default function Classes({ role }) {
           classItem={selected}
           students={students}
           classStudents={classStudents}
+          getEligibility={getStudentClassEligibility}
           onClose={() => setAddingStudents(false)}
           onAdd={addStudents}
         />
