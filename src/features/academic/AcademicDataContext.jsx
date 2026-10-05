@@ -988,6 +988,16 @@ export function AcademicDataProvider({ children }) {
       };
     }
 
+    if (
+      (access.classItem.startDate && data.deadline < access.classItem.startDate) ||
+      (access.classItem.endDate && data.deadline > access.classItem.endDate)
+    ) {
+      return {
+        ok: false,
+        reason: "Assignment deadline must be within the class date range.",
+      };
+    }
+
     const assignment = {
       ...data,
       title,
@@ -1041,6 +1051,16 @@ export function AcademicDataProvider({ children }) {
       return {
         ok: false,
         reason: "Assignment title and deadline are required.",
+      };
+    }
+
+    if (
+      (access.classItem.startDate && data.deadline < access.classItem.startDate) ||
+      (access.classItem.endDate && data.deadline > access.classItem.endDate)
+    ) {
+      return {
+        ok: false,
+        reason: "Assignment deadline must be within the class date range.",
       };
     }
 
@@ -1127,6 +1147,16 @@ export function AcademicDataProvider({ children }) {
       };
     }
 
+    if (
+      (access.classItem.startDate && data.examDate < access.classItem.startDate) ||
+      (access.classItem.endDate && data.examDate > access.classItem.endDate)
+    ) {
+      return {
+        ok: false,
+        reason: "Exam date must be within the class date range.",
+      };
+    }
+
     const exam = {
       ...data,
       title,
@@ -1177,6 +1207,16 @@ export function AcademicDataProvider({ children }) {
       return {
         ok: false,
         reason: "Exam title, date and a positive duration are required.",
+      };
+    }
+
+    if (
+      (access.classItem.startDate && data.examDate < access.classItem.startDate) ||
+      (access.classItem.endDate && data.examDate > access.classItem.endDate)
+    ) {
+      return {
+        ok: false,
+        reason: "Exam date must be within the class date range.",
       };
     }
 
@@ -1288,6 +1328,13 @@ export function AcademicDataProvider({ children }) {
           reason: "The selected assignment does not belong to this class.",
         };
       }
+      if (assignment.teacherId !== actor.id) {
+        return {
+          ok: false,
+          code: "RESULT_ACTIVITY_NOT_OWNED",
+          reason: "Teacher can only grade assignments they created.",
+        };
+      }
       if (assignment.status === "CANCELLED") {
         return {
           ok: false,
@@ -1303,6 +1350,13 @@ export function AcademicDataProvider({ children }) {
           ok: false,
           code: "RESULT_ACTIVITY_CLASS_MISMATCH",
           reason: "The selected exam does not belong to this class.",
+        };
+      }
+      if (exam.teacherId !== actor.id) {
+        return {
+          ok: false,
+          code: "RESULT_ACTIVITY_NOT_OWNED",
+          reason: "Teacher can only grade exams they created.",
         };
       }
       if (exam.status !== "COMPLETED") {
