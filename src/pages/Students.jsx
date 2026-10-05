@@ -92,6 +92,22 @@ export default function Students({ role }) {
     });
   }, [scopedStudents, search, status, classFilter, classStudents]);
 
+  const teacherClassIds = useMemo(
+    () =>
+      roleKey === "TEACHER"
+        ? new Set(
+            teachingSchedules
+              .filter(
+                (schedule) =>
+                  schedule.teacherId === actor.id &&
+                  schedule.status === "ASSIGNED",
+              )
+              .map((schedule) => schedule.classId),
+          )
+        : null,
+    [roleKey, teachingSchedules, actor.id],
+  );
+
   const visible = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const selected =
     scopedStudents.find((student) => student.id === selectedId) ?? null;
@@ -101,11 +117,19 @@ export default function Students({ role }) {
           (relation) =>
             relation.studentId === selected.id && relation.status === "ACTIVE",
         )
+        .filter(
+          (relation) =>
+            roleKey !== "TEACHER" || teacherClassIds?.has(relation.classId),
+        )
         .map((relation) => classes.find((item) => item.id === relation.classId))
         .filter(Boolean)
     : [];
   const selectedResults = selected
-    ? studentResults.filter((result) => result.studentId === selected.id)
+    ? studentResults.filter(
+        (result) =>
+          result.studentId === selected.id &&
+          (roleKey !== "TEACHER" || teacherClassIds?.has(result.classId)),
+      )
     : [];
 
   const allVisibleChecked =
