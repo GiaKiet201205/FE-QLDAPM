@@ -1,6 +1,7 @@
 import { useState } from "react";
 import Button from "../../components/ui/Button";
 import Modal from "../../components/ui/Modal";
+import { courseTargetDefinitions } from "../academic/targetEligibility";
 
 const inputClass =
   "h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-[13px] font-normal text-slate-800 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100";
@@ -15,8 +16,7 @@ export default function StudentFormModal({
     student
       ? {
           ...student,
-          toeicRlTarget: student.toeicRlTarget ?? "",
-          toeicSwTarget: student.toeicSwTarget ?? "",
+          targets: student.targets ?? {},
         }
       : emptyForm,
   );
@@ -28,13 +28,30 @@ export default function StudentFormModal({
     }));
   }
 
+  function updateTarget(courseId, targetType, value) {
+    setForm((current) => ({
+      ...current,
+      targets: {
+        ...(current.targets ?? {}),
+        [courseId]: {
+          ...(current.targets?.[courseId] ?? {}),
+          [targetType]: value,
+        },
+      },
+    }));
+  }
+
   function submit(event) {
     event.preventDefault();
     onSave(form);
   }
 
   return (
-    <Modal title={student ? "Edit Student" : "Add Student"} onClose={onClose}>
+    <Modal
+      title={student ? "Edit Student" : "Add Student"}
+      onClose={onClose}
+      maxWidth="max-w-2xl"
+    >
       <form onSubmit={submit} className="grid gap-3.5">
         <label className="grid gap-1.5 text-[13px] font-medium">
           Student code
@@ -60,81 +77,90 @@ export default function StudentFormModal({
           />
         </label>
 
-        <label className="grid gap-1.5 text-[13px] font-medium">
-          Email <span className="text-slate-400">(optional)</span>
-          <input
-            className={inputClass}
-            name="email"
-            type="email"
-            value={form.email}
-            onChange={update}
-          />
-        </label>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="grid gap-1.5 text-[13px] font-medium">
+            Email <span className="text-slate-400">(optional)</span>
+            <input
+              className={inputClass}
+              name="email"
+              type="email"
+              value={form.email}
+              onChange={update}
+            />
+          </label>
 
-        <label className="grid gap-1.5 text-[13px] font-medium">
-          Phone <span className="text-slate-400">(optional)</span>
-          <input
-            className={inputClass}
-            name="phone"
-            value={form.phone}
-            onChange={update}
-          />
-        </label>
+          <label className="grid gap-1.5 text-[13px] font-medium">
+            Phone <span className="text-slate-400">(optional)</span>
+            <input
+              className={inputClass}
+              name="phone"
+              value={form.phone}
+              onChange={update}
+            />
+          </label>
+        </div>
 
         <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-          <div className="mb-2">
+          <div className="mb-3">
             <strong className="block text-[13px] font-medium text-slate-800">
-              TOEIC target
+              Course targets
             </strong>
             <span className="text-xs leading-5 text-slate-500">
-              These targets belong to TOEIC only and are stored separately from
-              the core student record. They are required before the student can
-              join a TOEIC class with target requirements.
+              Targets are stored by course. A target from one course cannot be
+              used to qualify the student for another course.
             </span>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className="grid gap-1.5 text-[13px] font-medium">
-              Reading & Listening
-              <input
-                className={inputClass}
-                type="number"
-                min="0"
-                name="toeicRlTarget"
-                value={form.toeicRlTarget}
-                onChange={update}
-                placeholder="e.g. 750"
-              />
-            </label>
-
-            <label className="grid gap-1.5 text-[13px] font-medium">
-              Speaking & Writing
-              <input
-                className={inputClass}
-                type="number"
-                min="0"
-                name="toeicSwTarget"
-                value={form.toeicSwTarget}
-                onChange={update}
-                placeholder="e.g. 300"
-              />
-            </label>
+          <div className="grid gap-3">
+            {Object.entries(courseTargetDefinitions).map(
+              ([courseId, definition]) => (
+                <div
+                  key={courseId}
+                  className="rounded-md border border-slate-200 bg-white p-3"
+                >
+                  <strong className="block text-[13px] font-medium text-slate-700">
+                    {definition.courseLabel}
+                  </strong>
+                  <div
+                    className={`mt-2 grid gap-3 ${
+                      definition.targets.length > 1 ? "sm:grid-cols-2" : ""
+                    }`}
+                  >
+                    {definition.targets.map((target) => (
+                      <label
+                        key={target.type}
+                        className="grid gap-1.5 text-[13px] font-medium"
+                      >
+                        {target.label}
+                        <input
+                          className={inputClass}
+                          type="number"
+                          min="0"
+                          value={
+                            form.targets?.[courseId]?.[target.type] ?? ""
+                          }
+                          onChange={(event) =>
+                            updateTarget(
+                              courseId,
+                              target.type,
+                              event.target.value,
+                            )
+                          }
+                          placeholder="Enter target"
+                        />
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              ),
+            )}
           </div>
         </div>
 
-        <label className="grid gap-1.5 text-[13px] font-medium">
-          Status
-          <select
-            className={inputClass}
-            name="status"
-            value={form.status}
-            onChange={update}
-          >
-            <option>Active</option>
-            <option>On Leave</option>
-            <option>Graduated</option>
-          </select>
-        </label>
+        <div className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs leading-5 text-slate-500">
+          Student status is managed from Student Detail so status changes follow
+          the workflow and are audited separately.
+        </div>
 
         <div className="flex justify-end gap-2 pt-2">
           <Button type="button" onClick={onClose}>
