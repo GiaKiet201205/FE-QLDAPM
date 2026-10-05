@@ -84,27 +84,42 @@ export function AcademicDataProvider({ children }) {
     );
   }
 
+  function buildStudentTargetRecords(studentId, targets = {}) {
+    return Object.entries(targets).flatMap(([courseId, courseTargets]) =>
+      Object.entries(courseTargets ?? {})
+        .filter(([, value]) => value !== "" && value != null)
+        .map(([targetType, value]) => ({
+          id: `student-target-${studentId}-${courseId}-${targetType.toLowerCase()}`,
+          studentId,
+          courseId,
+          targetType,
+          targetValue: Number(value),
+        })),
+    );
+  }
+
+  function buildClassTargetRequirementRecords(
+    classId,
+    courseId,
+    requiredTargets = {},
+  ) {
+    return Object.entries(requiredTargets[courseId] ?? {})
+      .filter(([, value]) => value !== "" && value != null)
+      .map(([targetType, value]) => ({
+        id: `class-target-${classId}-${targetType.toLowerCase()}`,
+        classId,
+        targetType,
+        requiredTarget: Number(value),
+      }));
+  }
+
   function syncStudentTargets(studentId, targets = {}) {
-    setStudentTargets((current) => {
-      const withoutStudent = current.filter(
-        (target) => target.studentId !== studentId,
-      );
+    const nextTargets = buildStudentTargetRecords(studentId, targets);
 
-      const nextTargets = Object.entries(targets).flatMap(
-        ([courseId, courseTargets]) =>
-          Object.entries(courseTargets ?? {})
-            .filter(([, value]) => value !== "" && value != null)
-            .map(([targetType, value]) => ({
-              id: `student-target-${studentId}-${courseId}-${targetType.toLowerCase()}`,
-              studentId,
-              courseId,
-              targetType,
-              targetValue: Number(value),
-            })),
-      );
-
-      return [...withoutStudent, ...nextTargets];
-    });
+    setStudentTargets((current) => [
+      ...current.filter((target) => target.studentId !== studentId),
+      ...nextTargets,
+    ]);
   }
 
   function syncClassTargetRequirements(
@@ -112,23 +127,16 @@ export function AcademicDataProvider({ children }) {
     courseId,
     requiredTargets = {},
   ) {
-    setClassTargetRequirements((current) => {
-      const withoutClass = current.filter(
-        (requirement) => requirement.classId !== classId,
-      );
+    const nextRequirements = buildClassTargetRequirementRecords(
+      classId,
+      courseId,
+      requiredTargets,
+    );
 
-      const courseTargets = requiredTargets[courseId] ?? {};
-      const nextRequirements = Object.entries(courseTargets)
-        .filter(([, value]) => value !== "" && value != null)
-        .map(([targetType, value]) => ({
-          id: `class-target-${classId}-${targetType.toLowerCase()}`,
-          classId,
-          targetType,
-          requiredTarget: Number(value),
-        }));
-
-      return [...withoutClass, ...nextRequirements];
-    });
+    setClassTargetRequirements((current) => [
+      ...current.filter((requirement) => requirement.classId !== classId),
+      ...nextRequirements,
+    ]);
   }
 
   function addStudent(form, actor) {
