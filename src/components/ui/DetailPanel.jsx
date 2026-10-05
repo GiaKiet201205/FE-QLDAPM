@@ -11,7 +11,7 @@ export default function DetailPanel({
 }) {
   return (
     <aside
-      className="flex min-h-[560px] flex-col rounded-lg border border-slate-200 bg-white text-slate-800 shadow-sm"
+      className="flex min-h-[560px] min-w-0 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white text-slate-800 shadow-sm"
       aria-label={title}
     >
       <div className="flex min-h-12 items-center justify-between border-b border-slate-200 px-4">
@@ -27,9 +27,10 @@ export default function DetailPanel({
           </button>
         )}
       </div>
+
       {tabs.length > 0 && (
         <div
-          className="flex gap-5 border-b border-slate-200 px-4"
+          className="flex min-w-0 flex-wrap items-center gap-x-4 border-b border-slate-200 px-4 py-1"
           role="tablist"
           aria-label={`${title} sections`}
         >
@@ -39,7 +40,7 @@ export default function DetailPanel({
               type="button"
               role="tab"
               aria-selected={activeTab === tab.key}
-              className={`min-h-10 border-b-2 text-xs font-medium ${activeTab === tab.key ? "border-[#173557] text-[#173557]" : "border-transparent text-slate-500 hover:text-slate-700"}`}
+              className={`min-h-9 shrink-0 border-b-2 text-xs font-medium ${activeTab === tab.key ? "border-[#173557] text-[#173557]" : "border-transparent text-slate-500 hover:text-slate-700"}`}
               onClick={() => onTabChange(tab.key)}
             >
               {tab.label}
@@ -47,7 +48,9 @@ export default function DetailPanel({
           ))}
         </div>
       )}
-      <div className="flex-1 p-4">{children}</div>
+
+      <div className="min-w-0 flex-1 p-4">{children}</div>
+
       {footer && (
         <div className="border-t border-slate-200 bg-slate-50/70 p-3">
           {footer}
