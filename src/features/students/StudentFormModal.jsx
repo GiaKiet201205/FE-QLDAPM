@@ -121,6 +121,9 @@ export default function StudentFormModal({
                   <strong className="block text-[13px] font-medium text-slate-700">
                     {definition.courseLabel}
                   </strong>
+                  <span className="mt-0.5 block text-[11px] text-slate-400">
+                    {definition.scaleNote}
+                  </span>
                   <div
                     className={`mt-2 grid gap-3 ${
                       definition.targets.length > 1 ? "sm:grid-cols-2" : ""
@@ -135,7 +138,9 @@ export default function StudentFormModal({
                         <input
                           className={inputClass}
                           type="number"
-                          min="0"
+                          min={target.min}
+                          max={target.max}
+                          step={target.step}
                           value={
                             form.targets?.[courseId]?.[target.type] ?? ""
                           }
@@ -146,7 +151,7 @@ export default function StudentFormModal({
                               event.target.value,
                             )
                           }
-                          placeholder="Enter target"
+                          placeholder={`${target.min}–${target.max}`}
                         />
                       </label>
                     ))}

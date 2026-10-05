@@ -5,7 +5,12 @@ import {
 } from "../students/mockStudents";
 import { initialClasses, classStatuses } from "../classes/mockClasses";
 import { initialAuditLogs, initialStaffSchedules } from "../classes/mockClassOperations";
-import { evaluateStudentClassTarget } from "./targetEligibility";
+import {
+  assignableClassStatuses,
+  evaluateStudentClassTarget,
+  validateCourseTargetValues,
+  validateStudentTargets,
+} from "./targetEligibility";
 import {
   initialAssignments,
   initialClassAccessScopes,
@@ -79,27 +84,42 @@ export function AcademicDataProvider({ children }) {
     );
   }
 
+  function buildStudentTargetRecords(studentId, targets = {}) {
+    return Object.entries(targets).flatMap(([courseId, courseTargets]) =>
+      Object.entries(courseTargets ?? {})
+        .filter(([, value]) => value !== "" && value != null)
+        .map(([targetType, value]) => ({
+          id: `student-target-${studentId}-${courseId}-${targetType.toLowerCase()}`,
+          studentId,
+          courseId,
+          targetType,
+          targetValue: Number(value),
+        })),
+    );
+  }
+
+  function buildClassTargetRequirementRecords(
+    classId,
+    courseId,
+    requiredTargets = {},
+  ) {
+    return Object.entries(requiredTargets[courseId] ?? {})
+      .filter(([, value]) => value !== "" && value != null)
+      .map(([targetType, value]) => ({
+        id: `class-target-${classId}-${targetType.toLowerCase()}`,
+        classId,
+        targetType,
+        requiredTarget: Number(value),
+      }));
+  }
+
   function syncStudentTargets(studentId, targets = {}) {
-    setStudentTargets((current) => {
-      const withoutStudent = current.filter(
-        (target) => target.studentId !== studentId,
-      );
+    const nextTargets = buildStudentTargetRecords(studentId, targets);
 
-      const nextTargets = Object.entries(targets).flatMap(
-        ([courseId, courseTargets]) =>
-          Object.entries(courseTargets ?? {})
-            .filter(([, value]) => value !== "" && value != null)
-            .map(([targetType, value]) => ({
-              id: `student-target-${studentId}-${courseId}-${targetType.toLowerCase()}`,
-              studentId,
-              courseId,
-              targetType,
-              targetValue: Number(value),
-            })),
-      );
-
-      return [...withoutStudent, ...nextTargets];
-    });
+    setStudentTargets((current) => [
+      ...current.filter((target) => target.studentId !== studentId),
+      ...nextTargets,
+    ]);
   }
 
   function syncClassTargetRequirements(
@@ -107,23 +127,16 @@ export function AcademicDataProvider({ children }) {
     courseId,
     requiredTargets = {},
   ) {
-    setClassTargetRequirements((current) => {
-      const withoutClass = current.filter(
-        (requirement) => requirement.classId !== classId,
-      );
+    const nextRequirements = buildClassTargetRequirementRecords(
+      classId,
+      courseId,
+      requiredTargets,
+    );
 
-      const courseTargets = requiredTargets[courseId] ?? {};
-      const nextRequirements = Object.entries(courseTargets)
-        .filter(([, value]) => value !== "" && value != null)
-        .map(([targetType, value]) => ({
-          id: `class-target-${classId}-${targetType.toLowerCase()}`,
-          classId,
-          targetType,
-          requiredTarget: Number(value),
-        }));
-
-      return [...withoutClass, ...nextRequirements];
-    });
+    setClassTargetRequirements((current) => [
+      ...current.filter((requirement) => requirement.classId !== classId),
+      ...nextRequirements,
+    ]);
   }
 
   function addStudent(form, actor) {
@@ -131,17 +144,34 @@ export function AcademicDataProvider({ children }) {
       return { ok: false, reason: "Only Admin can create student records." };
     }
 
+    const normalizedStudentCode = form.studentCode?.trim();
+    const normalizedFullName = form.fullName?.trim();
+
+    if (!normalizedStudentCode || !normalizedFullName) {
+      return {
+        ok: false,
+        reason: "Student code and full name are required.",
+      };
+    }
+
     const duplicate = students.some(
       (student) =>
         student.studentCode.trim().toLowerCase() ===
-        form.studentCode.trim().toLowerCase(),
+        normalizedStudentCode.toLowerCase(),
     );
     if (duplicate) return { ok: false, reason: "Student code already exists." };
+
+    const targetValidation = validateStudentTargets(form.targets ?? {});
+    if (!targetValidation.ok) return targetValidation;
 
     const { targets, ...studentForm } = form;
 
     const student = {
       ...studentForm,
+      studentCode: normalizedStudentCode,
+      fullName: normalizedFullName,
+      email: studentForm.email?.trim() ?? "",
+      phone: studentForm.phone?.trim() ?? "",
       status: "Active",
       id: `student-${Date.now()}`,
       tone: "navy",
@@ -159,24 +189,95 @@ export function AcademicDataProvider({ children }) {
       return { ok: false, reason: "Only Admin can update student records." };
     }
 
+    const normalizedStudentCode = form.studentCode?.trim();
+    const normalizedFullName = form.fullName?.trim();
+
+    if (!normalizedStudentCode || !normalizedFullName) {
+      return {
+        ok: false,
+        reason: "Student code and full name are required.",
+      };
+    }
+
     const duplicate = students.some(
       (student) =>
         student.id !== studentId &&
         student.studentCode.trim().toLowerCase() ===
-          form.studentCode.trim().toLowerCase(),
+          normalizedStudentCode.toLowerCase(),
     );
     if (duplicate) return { ok: false, reason: "Student code already exists." };
 
+    const targetValidation = validateStudentTargets(form.targets ?? {});
+    if (!targetValidation.ok) return targetValidation;
+
     const { targets, status: _ignoredStatus, ...studentForm } = form;
+
+    const currentStudent = students.find((student) => student.id === studentId);
+    if (!currentStudent) return { ok: false, reason: "Student not found." };
+
+    const proposedStudent = {
+      ...currentStudent,
+      ...studentForm,
+      studentCode: normalizedStudentCode,
+      fullName: normalizedFullName,
+      email: studentForm.email?.trim() ?? "",
+      phone: studentForm.phone?.trim() ?? "",
+    };
+    const proposedTargetRecords = buildStudentTargetRecords(studentId, targets);
+    const proposedTargetState = [
+      ...studentTargets.filter((target) => target.studentId !== studentId),
+      ...proposedTargetRecords,
+    ];
+
+    const incompatibleClasses = classStudents
+      .filter(
+        (relation) =>
+          relation.studentId === studentId && relation.status === "ACTIVE",
+      )
+      .map((relation) => classes.find((item) => item.id === relation.classId))
+      .filter(
+        (classItem) =>
+          classItem && assignableClassStatuses.includes(classItem.status),
+      )
+      .map((classItem) => ({
+        classItem,
+        eligibility: evaluateStudentClassTarget({
+          student: proposedStudent,
+          classItem,
+          studentTargets: proposedTargetState,
+          classTargetRequirements,
+        }),
+      }))
+      .filter(({ eligibility }) => !eligibility.eligible);
+
+    if (incompatibleClasses.length) {
+      const first = incompatibleClasses[0];
+      return {
+        ok: false,
+        code: "ACTIVE_CLASS_TARGET_CONFLICT",
+        reason:
+          `Target changes would make this student ineligible for active class ${first.classItem.classCode}. Remove the student from that class first or keep a compatible target.`,
+        conflicts: incompatibleClasses,
+      };
+    }
 
     setStudents((current) =>
       current.map((student) =>
-        student.id === studentId ? { ...student, ...studentForm } : student,
+        student.id === studentId
+          ? {
+              ...student,
+              ...studentForm,
+              studentCode: normalizedStudentCode,
+              fullName: normalizedFullName,
+              email: studentForm.email?.trim() ?? "",
+              phone: studentForm.phone?.trim() ?? "",
+            }
+          : student,
       ),
     );
     syncStudentTargets(studentId, targets);
     addAudit(actor, "UPDATE_STUDENT", "STUDENT", studentId, {
-      studentCode: studentForm.studentCode,
+      studentCode: normalizedStudentCode,
     });
     return { ok: true };
   }
@@ -203,6 +304,9 @@ export function AcademicDataProvider({ children }) {
 
     setStudents((current) =>
       current.filter((student) => student.id !== studentId),
+    );
+    setStudentTargets((current) =>
+      current.filter((target) => target.studentId !== studentId),
     );
     addAudit(actor, "DELETE_STUDENT", "STUDENT", studentId);
     return { ok: true };
@@ -233,12 +337,46 @@ export function AcademicDataProvider({ children }) {
       ),
     );
 
+    const deactivatedClassIds =
+      nextStatus === "Active"
+        ? []
+        : classStudents
+            .filter(
+              (relation) =>
+                relation.studentId === studentId &&
+                relation.status === "ACTIVE",
+            )
+            .map((relation) => relation.classId);
+
+    if (deactivatedClassIds.length) {
+      setClassStudents((current) =>
+        current.map((relation) =>
+          relation.studentId === studentId &&
+          relation.status === "ACTIVE"
+            ? {
+                ...relation,
+                status: "INACTIVE",
+                inactiveReason: `STUDENT_${nextStatus.toUpperCase().replaceAll(" ", "_")}`,
+              }
+            : relation,
+        ),
+      );
+    }
+
     addAudit(actor, "CHANGE_STUDENT_STATUS", "STUDENT", studentId, {
       from: student.status,
       to: nextStatus,
+      deactivatedClassIds,
     });
 
-    return { ok: true };
+    deactivatedClassIds.forEach((classId) => {
+      addAudit(actor, "DEACTIVATE_STUDENT_MEMBERSHIP", "CLASS", classId, {
+        studentId,
+        reason: `STUDENT_${nextStatus.toUpperCase().replaceAll(" ", "_")}`,
+      });
+    });
+
+    return { ok: true, deactivatedClassIds };
   }
 
   function getStudentClassEligibility(studentId, classId) {
@@ -270,7 +408,7 @@ export function AcademicDataProvider({ children }) {
         .map((relation) => relation.studentId),
     );
 
-    const candidateIds = studentIds.filter(
+    const candidateIds = [...new Set(studentIds)].filter(
       (studentId) => !activeIds.has(studentId),
     );
 
@@ -290,9 +428,12 @@ export function AcademicDataProvider({ children }) {
     if (blocked.length) {
       return {
         ok: false,
-        code: "TARGET_MISMATCH",
+        code: blocked[0].code ?? "TARGET_MISMATCH",
         reason:
-          "One or more selected students do not meet the target requirement for this class.",
+          blocked.length === 1
+            ? blocked[0].reasons?.[0] ??
+              "The selected student is not eligible for this class."
+            : "One or more selected students are not eligible for this class. Review the target and status checks.",
         blocked,
       };
     }
@@ -313,6 +454,7 @@ export function AcademicDataProvider({ children }) {
           next[historicalIndex] = {
             ...next[historicalIndex],
             status: "ACTIVE",
+            inactiveReason: null,
           };
         } else {
           next.push({
@@ -341,12 +483,38 @@ export function AcademicDataProvider({ children }) {
       };
     }
 
-    setClassStudents((current) =>
-      current.map((relation) =>
+    const classItem = classes.find((item) => item.id === classId);
+    if (!classItem) return { ok: false, reason: "Class not found." };
+
+    if (!assignableClassStatuses.includes(classItem.status)) {
+      return {
+        ok: false,
+        reason: `Cannot change the roster of a ${classItem.status.toLowerCase()} class.`,
+      };
+    }
+
+    const activeRelation = classStudents.find(
+      (relation) =>
         relation.studentId === studentId &&
         relation.classId === classId &&
-        relation.status === "ACTIVE"
-          ? { ...relation, status: "INACTIVE" }
+        relation.status === "ACTIVE",
+    );
+
+    if (!activeRelation) {
+      return {
+        ok: false,
+        reason: "Student is not currently active in this class.",
+      };
+    }
+
+    setClassStudents((current) =>
+      current.map((relation) =>
+        relation.id === activeRelation.id
+          ? {
+              ...relation,
+              status: "INACTIVE",
+              inactiveReason: "REMOVED_FROM_CLASS",
+            }
           : relation,
       ),
     );
@@ -362,14 +530,41 @@ export function AcademicDataProvider({ children }) {
       return { ok: false, reason: "Only Admin or CS can create classes." };
     }
 
+    const normalizedClassCode = form.classCode?.trim();
+    const normalizedClassName = form.name?.trim();
+
+    if (!normalizedClassCode || !normalizedClassName) {
+      return { ok: false, reason: "Class code and class name are required." };
+    }
+
+    if (
+      form.startDate &&
+      form.endDate &&
+      new Date(form.startDate) > new Date(form.endDate)
+    ) {
+      return {
+        ok: false,
+        reason: "Class end date must be on or after the start date.",
+      };
+    }
+
     const duplicate = classes.some(
       (classItem) =>
         classItem.classCode.trim().toLowerCase() ===
-        form.classCode.trim().toLowerCase(),
+        normalizedClassCode.toLowerCase(),
     );
     if (duplicate) return { ok: false, reason: "Class code already exists." };
 
     const { requiredTargets, ...classForm } = form;
+    classForm.classCode = normalizedClassCode;
+    classForm.name = normalizedClassName;
+
+    const classTargetValidation = validateCourseTargetValues(
+      classForm.courseId,
+      requiredTargets?.[classForm.courseId] ?? {},
+      { required: true },
+    );
+    if (!classTargetValidation.ok) return classTargetValidation;
 
     const classItem = {
       ...classForm,
@@ -412,15 +607,138 @@ export function AcademicDataProvider({ children }) {
       };
     }
 
+    const currentClass = classes.find((item) => item.id === classId);
+    if (!currentClass) return { ok: false, reason: "Class not found." };
+
+    const normalizedClassCode = form.classCode?.trim();
+    const normalizedClassName = form.name?.trim();
+
+    if (!normalizedClassCode || !normalizedClassName) {
+      return { ok: false, reason: "Class code and class name are required." };
+    }
+
+    if (
+      form.startDate &&
+      form.endDate &&
+      new Date(form.startDate) > new Date(form.endDate)
+    ) {
+      return {
+        ok: false,
+        reason: "Class end date must be on or after the start date.",
+      };
+    }
+
     const duplicate = classes.some(
       (classItem) =>
         classItem.id !== classId &&
         classItem.classCode.trim().toLowerCase() ===
-          form.classCode.trim().toLowerCase(),
+          normalizedClassCode.toLowerCase(),
     );
     if (duplicate) return { ok: false, reason: "Class code already exists." };
 
     const { requiredTargets, ...classForm } = form;
+    classForm.classCode = normalizedClassCode;
+    classForm.name = normalizedClassName;
+
+    const classHasHistory =
+      classStudents.some((relation) => relation.classId === classId) ||
+      teachingSchedules.some((schedule) => schedule.classId === classId) ||
+      assignments.some((assignment) => assignment.classId === classId) ||
+      exams.some((exam) => exam.classId === classId) ||
+      studentResults.some((result) => result.classId === classId);
+
+    if (classForm.courseId !== currentClass.courseId && classHasHistory) {
+      return {
+        ok: false,
+        code: "CLASS_COURSE_LOCKED",
+        reason:
+          "Course cannot be changed after the class has roster, schedule, teaching activity or academic history.",
+      };
+    }
+
+    const classTargetValidation = validateCourseTargetValues(
+      classForm.courseId,
+      requiredTargets?.[classForm.courseId] ?? {},
+      { required: true },
+    );
+    if (!classTargetValidation.ok) return classTargetValidation;
+
+    const proposedClass = {
+      ...currentClass,
+      ...classForm,
+      status: currentClass.status,
+    };
+    const proposedRequirements = buildClassTargetRequirementRecords(
+      classId,
+      classForm.courseId,
+      requiredTargets,
+    );
+
+    const currentRequirementSignature = classTargetRequirements
+      .filter((requirement) => requirement.classId === classId)
+      .map((requirement) => [
+        requirement.targetType,
+        Number(requirement.requiredTarget),
+      ])
+      .sort(([a], [b]) => a.localeCompare(b));
+    const proposedRequirementSignature = proposedRequirements
+      .map((requirement) => [
+        requirement.targetType,
+        Number(requirement.requiredTarget),
+      ])
+      .sort(([a], [b]) => a.localeCompare(b));
+
+    if (
+      ["RUNNING", "COMPLETED", "CLOSED"].includes(currentClass.status) &&
+      JSON.stringify(currentRequirementSignature) !==
+        JSON.stringify(proposedRequirementSignature)
+    ) {
+      return {
+        ok: false,
+        code: "CLASS_TARGET_LOCKED",
+        reason:
+          "Class target requirements are locked once the class is running to preserve placement history.",
+      };
+    }
+
+    const proposedRequirementState = [
+      ...classTargetRequirements.filter(
+        (requirement) => requirement.classId !== classId,
+      ),
+      ...proposedRequirements,
+    ];
+
+    const incompatibleStudents = classStudents
+      .filter(
+        (relation) =>
+          relation.classId === classId && relation.status === "ACTIVE",
+      )
+      .map((relation) => students.find((student) => student.id === relation.studentId))
+      .filter(Boolean)
+      .map((student) => ({
+        student,
+        eligibility: evaluateStudentClassTarget({
+          student,
+          classItem: proposedClass,
+          studentTargets,
+          classTargetRequirements: proposedRequirementState,
+        }),
+      }))
+      .filter(({ eligibility }) => !eligibility.eligible);
+
+    if (
+      assignableClassStatuses.includes(currentClass.status) &&
+      incompatibleStudents.length
+    ) {
+      const first = incompatibleStudents[0];
+      return {
+        ok: false,
+        code: "CLASS_TARGET_ROSTER_CONFLICT",
+        reason:
+          `The new class target would make ${first.student.fullName} and possibly other active students ineligible. Adjust the threshold or roster first.`,
+        conflicts: incompatibleStudents,
+      };
+    }
 
     setClasses((current) =>
       current.map((classItem) =>
@@ -456,6 +774,29 @@ export function AcademicDataProvider({ children }) {
     const expected = classStatuses[currentIndex + 1];
     if (nextStatus !== expected) {
       return { ok: false, reason: "Invalid class status transition." };
+    }
+
+    if (["READY", "RUNNING"].includes(nextStatus)) {
+      const requirementObject = Object.fromEntries(
+        classTargetRequirements
+          .filter((requirement) => requirement.classId === classId)
+          .map((requirement) => [
+            requirement.targetType,
+            requirement.requiredTarget,
+          ]),
+      );
+      const targetValidation = validateCourseTargetValues(
+        classItem.courseId,
+        requirementObject,
+        { required: true },
+      );
+      if (!targetValidation.ok) {
+        return {
+          ok: false,
+          reason:
+            "Class target requirements must be complete and valid before the class can become Ready or Running.",
+        };
+      }
     }
 
     setClasses((current) =>

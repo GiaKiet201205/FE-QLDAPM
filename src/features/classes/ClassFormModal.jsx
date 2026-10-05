@@ -132,6 +132,7 @@ export default function ClassFormModal({
             <span className="text-xs leading-5 text-slate-500">
               A student must have a target for this same course and meet every
               required threshold before being added to the class.
+              {definition?.scaleNote ? ` ${definition.scaleNote}.` : ""}
             </span>
           </div>
 
@@ -150,7 +151,9 @@ export default function ClassFormModal({
                   <input
                     className={inputClass}
                     type="number"
-                    min="0"
+                    min={target.min}
+                    max={target.max}
+                    step={target.step}
                     value={
                       form.requiredTargets?.[form.courseId]?.[target.type] ?? ""
                     }
@@ -158,7 +161,7 @@ export default function ClassFormModal({
                       updateRequiredTarget(target.type, event.target.value)
                     }
                     required
-                    placeholder="Required target"
+                    placeholder={`${target.min}–${target.max}`}
                   />
                 </label>
               ))}

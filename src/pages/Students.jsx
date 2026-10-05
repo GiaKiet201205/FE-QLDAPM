@@ -258,7 +258,12 @@ export default function Students({ role }) {
       return;
     }
 
-    setMessage(`Student status changed to ${nextStatus}.`);
+    const affected = result.deactivatedClassIds?.length ?? 0;
+    setMessage(
+      affected
+        ? `Student status changed to ${nextStatus}. ${affected} active class membership(s) were deactivated and will not be restored automatically.`
+        : `Student status changed to ${nextStatus}.`,
+    );
   }
 
   function assignSelected(classId) {

@@ -140,8 +140,14 @@ function StudentDetail({
             )}
 
             {student.status === "Graduated" && onChangeStatus && (
-              <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-500">
-                Graduated is a terminal status in the current workflow.
+              <div className="grid gap-2">
+                <Button onClick={() => onChangeStatus("Active")}>
+                  Reactivate Returning Student
+                </Button>
+                <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-500">
+                  Reactivation restores the StudentRecord only. Previous class
+                  memberships stay historical and must be assigned again explicitly.
+                </div>
               </div>
             )}
 
