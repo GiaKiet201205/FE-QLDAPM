@@ -8,12 +8,16 @@ import {
   ClipboardList,
   ShieldCheck,
   History,
+  UserPlus,
+  FilePlus2,
+  GraduationCap,
 } from "lucide-react";
 import Button from "../../components/ui/Button";
 import EntityTable from "../../components/ui/EntityTable";
 import DetailPanel from "../../components/ui/DetailPanel";
 import { classStatuses, courses } from "./mockClasses";
 import { getCsName } from "./mockClassOperations";
+import { getTeacherName } from "../academic/mockAcademicRelations";
 
 const labelClass =
   "mb-1 block text-[11px] font-medium uppercase tracking-wide text-slate-400";
@@ -77,7 +81,7 @@ function FilterSelect({ value, onChange, label, options }) {
   );
 }
 
-function RelationPlaceholder({ icon: Icon, title, description }) {
+function EmptyState({ icon: Icon, title, description }) {
   return (
     <div className="rounded-md border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center">
       <Icon size={20} className="mx-auto mb-2 text-slate-400" />
@@ -91,19 +95,106 @@ function RelationPlaceholder({ icon: Icon, title, description }) {
   );
 }
 
-function SupportList({ schedules, canOverride, onOverride }) {
+function StudentsTab({ students, onAddStudents, onRemoveStudent }) {
+  return (
+    <div className="grid gap-3 pt-4">
+      {onAddStudents && (
+        <div className="flex justify-end">
+          <Button onClick={onAddStudents}>
+            <UserPlus size={14} />
+            Add Students
+          </Button>
+        </div>
+      )}
+
+      {students.length ? (
+        <div className="grid gap-2">
+          {students.map((student) => (
+            <div
+              key={student.id}
+              className="flex items-center justify-between gap-3 rounded-md border border-slate-200 bg-white p-3"
+            >
+              <div className="min-w-0">
+                <strong className="block truncate text-[13px] font-medium text-slate-800">
+                  {student.fullName}
+                </strong>
+                <span className="font-mono text-xs text-slate-400">
+                  {student.studentCode}
+                </span>
+              </div>
+              {onRemoveStudent && (
+                <button
+                  type="button"
+                  className="shrink-0 text-xs font-medium text-slate-500 hover:text-red-600"
+                  onClick={() => onRemoveStudent(student.id)}
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <EmptyState
+          icon={Users}
+          title="No students in this class"
+          description="Add internal student records through the ClassStudent relationship."
+        />
+      )}
+    </div>
+  );
+}
+
+function ScheduleTab({ schedules }) {
   if (!schedules.length) {
     return (
-      <RelationPlaceholder
-        icon={ShieldCheck}
-        title="No CS support schedule"
-        description="CS support for this class is derived from StaffSchedule and assigned by Center Management."
-      />
+      <div className="pt-4">
+        <EmptyState
+          icon={CalendarDays}
+          title="No teaching schedule"
+          description="Teacher assignment and class time are created by TC through TeachingSchedule."
+        />
+      </div>
     );
   }
 
   return (
-    <div className="grid gap-2">
+    <div className="grid gap-2 pt-4">
+      {schedules.map((schedule) => (
+        <div
+          key={schedule.id}
+          className="rounded-md border border-slate-200 bg-white p-3 text-[13px]"
+        >
+          <strong className="block font-medium text-slate-800">
+            {getTeacherName(schedule.teacherId)}
+          </strong>
+          <span className="mt-1 block text-xs text-slate-500">
+            {schedule.date} · {schedule.startTime}–{schedule.endTime}
+          </span>
+          <span className="mt-1 block text-[11px] text-slate-400">
+            Assigned by {schedule.assignedBy}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function SupportTab({ schedules, canOverride, onOverride }) {
+  if (!schedules.length) {
+    return (
+      <div className="pt-4">
+        <EmptyState
+          icon={ShieldCheck}
+          title="No CS support schedule"
+          description="CS support is assigned by Center Management through StaffSchedule."
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid gap-2 pt-4">
       {schedules.map((schedule) => (
         <div
           key={schedule.id}
@@ -114,7 +205,7 @@ function SupportList({ schedules, canOverride, onOverride }) {
               <strong className="block font-medium text-slate-800">
                 {getCsName(schedule.userId)}
               </strong>
-              <span className="text-xs text-slate-500">
+              <span className="mt-1 block text-xs text-slate-500">
                 {schedule.date} · {schedule.startTime}–{schedule.endTime}
               </span>
               <span className="mt-1 block text-[11px] text-slate-400">
@@ -137,19 +228,153 @@ function SupportList({ schedules, canOverride, onOverride }) {
   );
 }
 
-function AuditList({ logs }) {
+function AssignmentsTab({
+  assignments,
+  exams,
+  onCreateAssignment,
+  onCreateExam,
+}) {
+  return (
+    <div className="grid gap-4 pt-4">
+      {(onCreateAssignment || onCreateExam) && (
+        <div className="flex flex-wrap justify-end gap-2">
+          {onCreateAssignment && (
+            <Button onClick={onCreateAssignment}>
+              <FilePlus2 size={14} />
+              New Assignment
+            </Button>
+          )}
+          {onCreateExam && (
+            <Button onClick={onCreateExam}>
+              <ClipboardList size={14} />
+              New Exam
+            </Button>
+          )}
+        </div>
+      )}
+
+      <div>
+        <span className={labelClass}>Assignments</span>
+        {assignments.length ? (
+          <div className="grid gap-2">
+            {assignments.map((item) => (
+              <div
+                key={item.id}
+                className="rounded-md border border-slate-200 bg-white p-3"
+              >
+                <strong className="block text-[13px] font-medium text-slate-800">
+                  {item.title}
+                </strong>
+                <span className="mt-1 block text-xs text-slate-500">
+                  Deadline {formatDate(item.deadline)}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-xs text-slate-400">No assignments yet.</p>
+        )}
+      </div>
+
+      <div>
+        <span className={labelClass}>Exams</span>
+        {exams.length ? (
+          <div className="grid gap-2">
+            {exams.map((item) => (
+              <div
+                key={item.id}
+                className="rounded-md border border-slate-200 bg-white p-3"
+              >
+                <strong className="block text-[13px] font-medium text-slate-800">
+                  {item.title}
+                </strong>
+                <span className="mt-1 block text-xs text-slate-500">
+                  {formatDate(item.examDate)} · {item.duration} minutes
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-xs text-slate-400">No exams yet.</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ResultsTab({ students, results, onRecordResult }) {
+  return (
+    <div className="grid gap-3 pt-4">
+      {onRecordResult && (
+        <div className="flex justify-end">
+          <Button onClick={onRecordResult}>
+            <GraduationCap size={14} />
+            Record Result
+          </Button>
+        </div>
+      )}
+
+      {results.length ? (
+        <div className="grid gap-2">
+          {results
+            .slice()
+            .sort(
+              (a, b) =>
+                new Date(b.evaluatedAt).getTime() -
+                new Date(a.evaluatedAt).getTime(),
+            )
+            .map((result) => {
+              const student = students.find(
+                (item) => item.id === result.studentId,
+              );
+              return (
+                <div
+                  key={result.id}
+                  className="rounded-md border border-slate-200 bg-white p-3"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <strong className="block truncate text-[13px] font-medium text-slate-800">
+                        {student?.fullName ?? result.studentId}
+                      </strong>
+                      <span className="mt-1 block text-xs text-slate-500">
+                        {result.feedback || "No feedback"}
+                      </span>
+                    </div>
+                    <strong className="text-sm font-semibold text-[#173557]">
+                      {result.score}
+                    </strong>
+                  </div>
+                </div>
+              );
+            })}
+        </div>
+      ) : (
+        <EmptyState
+          icon={GraduationCap}
+          title="No results recorded"
+          description="Teachers record scores and evaluation for students in their assigned class."
+        />
+      )}
+    </div>
+  );
+}
+
+function AuditTab({ logs }) {
   if (!logs.length) {
     return (
-      <RelationPlaceholder
-        icon={History}
-        title="No class audit activity yet"
-        description="Important class updates, status changes and administrative interventions will appear here."
-      />
+      <div className="pt-4">
+        <EmptyState
+          icon={History}
+          title="No audit activity yet"
+          description="Important class changes and administrative interventions will appear here."
+        />
+      </div>
     );
   }
 
   return (
-    <div className="grid gap-2">
+    <div className="grid gap-2 pt-4">
       {logs.map((log) => (
         <div key={log.id} className="border-b border-slate-100 pb-2 text-xs">
           <strong className="block font-medium text-slate-700">{log.action}</strong>
@@ -166,14 +391,25 @@ function AuditList({ logs }) {
 function ClassDetail({
   classItem,
   roleKey,
+  canManageCore,
   tab,
   setTab,
   onClose,
   onEdit,
   onAdvanceStatus,
+  students,
+  onAddStudents,
+  onRemoveStudent,
+  teachingSchedules,
   supportSchedules,
-  auditLogs,
   onOverrideSupport,
+  assignments,
+  exams,
+  onCreateAssignment,
+  onCreateExam,
+  results,
+  onRecordResult,
+  auditLogs,
 }) {
   const currentIndex = classItem ? classStatuses.indexOf(classItem.status) : -1;
   const nextStatus =
@@ -186,8 +422,16 @@ function ClassDetail({
         { key: "Overview", label: "Overview" },
         { key: "Students", label: "Students" },
         { key: "Schedule", label: "Schedule" },
-        { key: "Support", label: roleKey === "CS" ? "My Support" : "Support" },
+        ...(roleKey !== "TEACHER"
+          ? [
+              {
+                key: "Support",
+                label: roleKey === "CS" ? "My Support" : "Support",
+              },
+            ]
+          : []),
         { key: "Assignments", label: "Assignments" },
+        { key: "Results", label: "Results" },
         ...(roleKey === "ADMIN" ? [{ key: "Audit", label: "Audit" }] : []),
       ]
     : [];
@@ -200,20 +444,23 @@ function ClassDetail({
       onTabChange={setTab}
       onClose={onClose}
       footer={
-        classItem && (
+        classItem && canManageCore ? (
           <div className="grid gap-2">
             {onEdit && (
               <Button variant="primary" className="w-full" onClick={onEdit}>
                 Edit Class Details
               </Button>
             )}
-            {nextStatus && (
-              <Button className="w-full" onClick={() => onAdvanceStatus(nextStatus)}>
+            {nextStatus && onAdvanceStatus && (
+              <Button
+                className="w-full"
+                onClick={() => onAdvanceStatus(nextStatus)}
+              >
                 Move to {statusLabel(nextStatus)}
               </Button>
             )}
           </div>
-        )
+        ) : null
       }
     >
       {classItem ? (
@@ -236,13 +483,35 @@ function ClassDetail({
               <div className="grid grid-cols-2 gap-3 border-b border-slate-100 py-3.5 text-[13px]">
                 <div>
                   <span className={labelClass}>Course</span>
-                  <strong className="font-medium">{courseName(classItem.courseId)}</strong>
+                  <strong className="font-medium">
+                    {courseName(classItem.courseId)}
+                  </strong>
                 </div>
                 <div>
                   <span className={labelClass}>Status</span>
                   <StatusLabel status={classItem.status} />
                 </div>
               </div>
+
+              <div className="grid grid-cols-2 gap-3 border-b border-slate-100 py-3.5 text-[13px]">
+                <div>
+                  <span className={labelClass}>Teacher</span>
+                  <span>
+                    {[
+                      ...new Set(
+                        teachingSchedules.map((schedule) =>
+                          getTeacherName(schedule.teacherId),
+                        ),
+                      ),
+                    ].join(", ") || "Not assigned"}
+                  </span>
+                </div>
+                <div>
+                  <span className={labelClass}>Students</span>
+                  <span>{students.length}</span>
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-3 border-b border-slate-100 py-3.5 text-[13px]">
                 <div>
                   <span className={labelClass}>Start date</span>
@@ -253,59 +522,65 @@ function ClassDetail({
                   <span>{formatDate(classItem.endDate)}</span>
                 </div>
               </div>
-              <div className="py-3.5 text-[13px]">
-                <span className={labelClass}>Created by</span>
-                <span className="font-mono text-xs text-slate-500">
-                  {classItem.createdBy}
-                </span>
-              </div>
+
+              {roleKey !== "TEACHER" && (
+                <div className="py-3.5 text-[13px]">
+                  <span className={labelClass}>CS support</span>
+                  <span>
+                    {[
+                      ...new Set(
+                        supportSchedules.map((schedule) =>
+                          getCsName(schedule.userId),
+                        ),
+                      ),
+                    ].join(", ") || "Not assigned"}
+                  </span>
+                </div>
+              )}
             </>
           )}
 
           {tab === "Students" && (
-            <div className="pt-4">
-              <RelationPlaceholder
-                icon={Users}
-                title="ClassStudent connection pending"
-                description="Students belong to the class through ClassStudent, not fields embedded in Class."
-              />
-            </div>
+            <StudentsTab
+              students={students}
+              onAddStudents={onAddStudents}
+              onRemoveStudent={onRemoveStudent}
+            />
           )}
 
           {tab === "Schedule" && (
-            <div className="pt-4">
-              <RelationPlaceholder
-                icon={CalendarDays}
-                title="TeachingSchedule connection pending"
-                description="Teacher assignment and teaching time belong to TeachingSchedule."
-              />
-            </div>
+            <ScheduleTab schedules={teachingSchedules} />
           )}
 
-          {tab === "Support" && (
-            <div className="pt-4">
-              <SupportList
-                schedules={supportSchedules}
-                canOverride={roleKey === "ADMIN" && Boolean(onOverrideSupport)}
-                onOverride={onOverrideSupport}
-              />
-            </div>
+          {tab === "Support" && roleKey !== "TEACHER" && (
+            <SupportTab
+              schedules={supportSchedules}
+              canOverride={
+                roleKey === "ADMIN" && Boolean(onOverrideSupport)
+              }
+              onOverride={onOverrideSupport}
+            />
           )}
 
           {tab === "Assignments" && (
-            <div className="pt-4">
-              <RelationPlaceholder
-                icon={ClipboardList}
-                title="Assignment and Exam modules pending"
-                description="Teaching activities remain separate entities linked to the class."
-              />
-            </div>
+            <AssignmentsTab
+              assignments={assignments}
+              exams={exams}
+              onCreateAssignment={onCreateAssignment}
+              onCreateExam={onCreateExam}
+            />
+          )}
+
+          {tab === "Results" && (
+            <ResultsTab
+              students={students}
+              results={results}
+              onRecordResult={onRecordResult}
+            />
           )}
 
           {tab === "Audit" && roleKey === "ADMIN" && (
-            <div className="pt-4">
-              <AuditList logs={auditLogs} />
-            </div>
+            <AuditTab logs={auditLogs} />
           )}
         </>
       ) : (
@@ -319,6 +594,7 @@ function ClassDetail({
 
 export default function ClassesView({
   roleKey,
+  canManageCore,
   search,
   onSearch,
   course,
@@ -329,9 +605,6 @@ export default function ClassesView({
   onCreate,
   visible,
   selectedId,
-  checked,
-  onToggleAll,
-  onToggleOne,
   onSelect,
   filteredCount,
   page,
@@ -343,39 +616,64 @@ export default function ClassesView({
   onCloseDetail,
   onEdit,
   onAdvanceStatus,
+  students,
+  onAddStudents,
+  onRemoveStudent,
+  teachingSchedules,
+  teacherSummary,
   supportSchedules,
-  auditLogs,
+  supportSummary,
   onOverrideSupport,
+  assignments,
+  exams,
+  onCreateAssignment,
+  onCreateExam,
+  results,
+  onRecordResult,
+  auditLogs,
+  message,
 }) {
   const columns = [
     {
       key: "classCode",
       label: "Class Code",
-      width: "w-[18%]",
-      cellClassName: "font-mono text-xs break-all",
+      width: "w-[16%]",
+      cellClassName: "font-mono text-xs",
     },
     {
       key: "name",
       label: "Class Name",
-      width: "w-[28%]",
+      width: "w-[24%]",
       cellClassName: "font-medium text-slate-900",
     },
     {
       key: "courseId",
       label: "Course",
-      width: "w-[18%]",
+      width: "w-[13%]",
       render: (classItem) => courseName(classItem.courseId),
     },
     {
-      key: "startDate",
-      label: "Start",
-      width: "w-[18%]",
-      render: (classItem) => formatDate(classItem.startDate),
+      key: "teacher",
+      label: "Teacher",
+      width: "w-[20%]",
+      render: (classItem) =>
+        teacherSummary(classItem.id).join(", ") || "Not assigned",
+    },
+    {
+      key: "students",
+      label: "Students",
+      width: "w-[10%]",
+      render: (classItem) => {
+        const count = students.length && selected?.id === classItem.id
+          ? students.length
+          : "—";
+        return count;
+      },
     },
     {
       key: "status",
       label: "Status",
-      width: "w-[18%]",
+      width: "w-[17%]",
       render: (classItem) => <StatusLabel status={classItem.status} />,
     },
   ];
@@ -384,8 +682,10 @@ export default function ClassesView({
     <div className="font-sans text-[13px] leading-5 text-slate-800 antialiased">
       <div className="mb-3 text-xs text-slate-500">
         {roleKey === "ADMIN"
-          ? "Admin view: all classes and system-level monitoring."
-          : "CS view: only classes within your assigned support scope or created by you."}
+          ? "Admin view: all classes and system-level supervision."
+          : roleKey === "CS"
+            ? "CS view: classes within your assigned support scope or created by you."
+            : "Teacher view: only classes assigned through TeachingSchedule."}
       </div>
 
       <div className="mb-4 flex flex-wrap items-center gap-2.5 rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
@@ -395,7 +695,7 @@ export default function ClassesView({
             className="min-w-0 flex-1 bg-transparent text-[13px] text-slate-800 outline-none placeholder:text-slate-400"
             value={search}
             onChange={(event) => onSearch(event.target.value)}
-            placeholder="Search by class code or name..."
+            placeholder="Search class code, name or teacher..."
             aria-label="Search classes"
           />
         </div>
@@ -438,7 +738,13 @@ export default function ClassesView({
         )}
       </div>
 
-      <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_350px] 2xl:grid-cols-[minmax(0,1fr)_380px]">
+      {message && (
+        <div className="mb-3 rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600">
+          {message}
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_350px] 2xl:grid-cols-[minmax(0,1fr)_390px]">
         <EntityTable
           label="Classes"
           columns={columns}
@@ -446,9 +752,6 @@ export default function ClassesView({
           getRowId={(classItem) => classItem.id}
           selectedId={selectedId}
           onRowClick={(classItem) => onSelect(classItem.id)}
-          checkedIds={checked}
-          onToggleRow={onToggleOne}
-          onTogglePage={onToggleAll}
           page={page}
           pageSize={pageSize}
           total={filteredCount}
@@ -460,14 +763,25 @@ export default function ClassesView({
         <ClassDetail
           classItem={selected}
           roleKey={roleKey}
+          canManageCore={canManageCore}
           tab={tab}
           setTab={setTab}
           onClose={onCloseDetail}
           onEdit={onEdit}
           onAdvanceStatus={onAdvanceStatus}
+          students={students}
+          onAddStudents={onAddStudents}
+          onRemoveStudent={onRemoveStudent}
+          teachingSchedules={teachingSchedules}
           supportSchedules={supportSchedules}
-          auditLogs={auditLogs}
           onOverrideSupport={onOverrideSupport}
+          assignments={assignments}
+          exams={exams}
+          onCreateAssignment={onCreateAssignment}
+          onCreateExam={onCreateExam}
+          results={results}
+          onRecordResult={onRecordResult}
+          auditLogs={auditLogs}
         />
       </div>
     </div>
