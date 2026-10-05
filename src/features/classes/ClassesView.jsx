@@ -621,6 +621,7 @@ export default function ClassesView({
   onRemoveStudent,
   teachingSchedules,
   teacherSummary,
+  studentCount,
   supportSchedules,
   supportSummary,
   onOverrideSupport,
@@ -663,12 +664,7 @@ export default function ClassesView({
       key: "students",
       label: "Students",
       width: "w-[10%]",
-      render: (classItem) => {
-        const count = students.length && selected?.id === classItem.id
-          ? students.length
-          : "—";
-        return count;
-      },
+      render: (classItem) => studentCount(classItem.id),
     },
     {
       key: "status",
