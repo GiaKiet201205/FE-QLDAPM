@@ -609,6 +609,7 @@ export default function Classes({ role }) {
           assignments={selectedAssignments}
           exams={selectedExams}
           existingResults={selectedResults}
+          teacherActorId={isTeacher ? actor.id : undefined}
           onClose={() => setGrading(false)}
           onSave={saveResult}
         />
