@@ -8,15 +8,15 @@ export const courseTargetDefinitions = {
   },
   "course-ielts": {
     courseLabel: "IELTS",
-    targets: [{ type: "OVERALL", label: "Overall target" }],
+    targets: [{ type: "TARGET", label: "Target score" }],
   },
   "course-sat": {
     courseLabel: "SAT",
-    targets: [{ type: "TOTAL", label: "Total target" }],
+    targets: [{ type: "TARGET", label: "Target score" }],
   },
   "course-toefl": {
     courseLabel: "TOEFL iBT",
-    targets: [{ type: "TOTAL", label: "Total target" }],
+    targets: [{ type: "TARGET", label: "Target score" }],
   },
 };
 
