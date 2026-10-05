@@ -60,65 +60,124 @@ export const initialClassStudents = seededStudents.slice(0, 36).map((student, in
 }));
 
 
-export const initialStudentTargets = seededStudents.flatMap((student, index) => {
-  const rlValues = [450, 550, 650, 750, 850, 900];
-  const swValues = [150, 200, 250, 300, 350];
-  const seededClassId = classIds[index % classIds.length];
+export const initialStudentTargets = seededStudents.flatMap(
+  (student, index) => {
+    const targets = [];
 
-  // Keep existing demo memberships coherent: students already seeded into the
-  // TOEIC 850 class meet that class target, while the rest still provide a mix
-  // of eligible and ineligible candidates for the assignment flow.
-  const rlTarget =
-    seededClassId === "class-0002"
-      ? 900
-      : rlValues[index % rlValues.length];
-  const swTarget =
-    seededClassId === "class-0002"
-      ? 350
-      : swValues[index % swValues.length];
+    const rlValues = [450, 550, 650, 750, 850, 900];
+    const swValues = [150, 200, 250, 300, 350];
 
-  return [
-    {
-      id: `student-target-rl-${String(index + 1).padStart(3, "0")}`,
-      studentId: student.id,
-      courseId: "course-toeic",
-      targetType: "RL",
-      targetValue: rlTarget,
-    },
-    {
-      id: `student-target-sw-${String(index + 1).padStart(3, "0")}`,
-      studentId: student.id,
-      courseId: "course-toeic",
-      targetType: "SW",
-      targetValue: swTarget,
-    },
-  ];
-});
+    targets.push(
+      {
+        id: `student-target-toeic-rl-${String(index + 1).padStart(3, "0")}`,
+        studentId: student.id,
+        courseId: "course-toeic",
+        targetType: "RL",
+        targetValue: rlValues[index % rlValues.length],
+      },
+      {
+        id: `student-target-toeic-sw-${String(index + 1).padStart(3, "0")}`,
+        studentId: student.id,
+        courseId: "course-toeic",
+        targetType: "SW",
+        targetValue: swValues[index % swValues.length],
+      },
+    );
+
+    if (index % 2 === 0) {
+      targets.push({
+        id: `student-target-ielts-${String(index + 1).padStart(3, "0")}`,
+        studentId: student.id,
+        courseId: "course-ielts",
+        targetType: "TARGET",
+        targetValue: 5.5 + (index % 4) * 0.5,
+      });
+    }
+
+    if (index % 3 === 0) {
+      targets.push({
+        id: `student-target-sat-${String(index + 1).padStart(3, "0")}`,
+        studentId: student.id,
+        courseId: "course-sat",
+        targetType: "TARGET",
+        targetValue: 1050 + (index % 5) * 100,
+      });
+    }
+
+    if (index % 4 === 0) {
+      targets.push({
+        id: `student-target-toefl-${String(index + 1).padStart(3, "0")}`,
+        studentId: student.id,
+        courseId: "course-toefl",
+        targetType: "TARGET",
+        targetValue: 65 + (index % 5) * 10,
+      });
+    }
+
+    return targets;
+  },
+);
 
 export const initialClassTargetRequirements = [
   {
     id: "class-target-001",
+    classId: "class-0001",
+    targetType: "TARGET",
+    requiredTarget: 7.5,
+  },
+  {
+    id: "class-target-002",
     classId: "class-0002",
     targetType: "RL",
     requiredTarget: 850,
   },
   {
-    id: "class-target-002",
+    id: "class-target-003",
     classId: "class-0002",
     targetType: "SW",
     requiredTarget: 300,
   },
   {
-    id: "class-target-003",
+    id: "class-target-004",
+    classId: "class-0003",
+    targetType: "TARGET",
+    requiredTarget: 80,
+  },
+  {
+    id: "class-target-005",
+    classId: "class-0004",
+    targetType: "TARGET",
+    requiredTarget: 1300,
+  },
+  {
+    id: "class-target-006",
+    classId: "class-0005",
+    targetType: "TARGET",
+    requiredTarget: 6.5,
+  },
+  {
+    id: "class-target-007",
+    classId: "class-0006",
+    targetType: "TARGET",
+    requiredTarget: 7,
+  },
+  {
+    id: "class-target-008",
     classId: "class-0007",
     targetType: "RL",
     requiredTarget: 650,
   },
   {
-    id: "class-target-004",
+    id: "class-target-009",
     classId: "class-0007",
     targetType: "SW",
     requiredTarget: 200,
+  },
+  {
+    id: "class-target-010",
+    classId: "class-0008",
+    targetType: "TARGET",
+    requiredTarget: 1100,
   },
 ];
 
