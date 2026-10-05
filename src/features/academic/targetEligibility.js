@@ -3,7 +3,7 @@ export const assignableClassStatuses = ["DRAFT", "READY", "RUNNING"];
 export const courseTargetDefinitions = {
   "course-toeic": {
     courseLabel: "TOEIC",
-    scaleNote: "ETS TOEIC scales",
+    scaleNote: "ETS L&R total; S&W is a derived combined target from two 0–200 section scores",
     targets: [
       {
         type: "LR_TOTAL",
@@ -13,17 +13,10 @@ export const courseTargetDefinitions = {
         step: 5,
       },
       {
-        type: "SPEAKING",
-        label: "Speaking",
+        type: "SW_TOTAL",
+        label: "Speaking & Writing combined",
         min: 0,
-        max: 200,
-        step: 10,
-      },
-      {
-        type: "WRITING",
-        label: "Writing",
-        min: 0,
-        max: 200,
+        max: 400,
         step: 10,
       },
     ],
