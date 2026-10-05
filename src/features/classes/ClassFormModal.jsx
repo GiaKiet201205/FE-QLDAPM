@@ -13,9 +13,16 @@ export default function ClassFormModal({
   onSave,
 }) {
   const [form, setForm] = useState(
-    classItem ? { ...classItem } : { ...emptyForm, status: "DRAFT" },
+    classItem
+      ? {
+          ...classItem,
+          requiredRlTarget: classItem.requiredRlTarget ?? "",
+          requiredSwTarget: classItem.requiredSwTarget ?? "",
+        }
+      : { ...emptyForm, status: "DRAFT" },
   );
   const isEditing = Boolean(classItem);
+  const isToeic = form.courseId === "course-toeic";
 
   const invalidDateRange = useMemo(
     () =>
@@ -27,6 +34,9 @@ export default function ClassFormModal({
     [form.startDate, form.endDate],
   );
 
+  const missingToeicTarget =
+    isToeic && (!form.requiredRlTarget || !form.requiredSwTarget);
+
   function update(event) {
     setForm((current) => ({
       ...current,
@@ -36,7 +46,7 @@ export default function ClassFormModal({
 
   function submit(event) {
     event.preventDefault();
-    if (invalidDateRange) return;
+    if (invalidDateRange || missingToeicTarget) return;
     onSave({
       ...form,
       status: isEditing ? classItem.status : "DRAFT",
@@ -93,6 +103,50 @@ export default function ClassFormModal({
           />
         </label>
 
+        {isToeic && (
+          <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+            <div className="mb-2">
+              <strong className="block text-[13px] font-medium text-slate-800">
+                Required TOEIC target
+              </strong>
+              <span className="text-xs leading-5 text-slate-500">
+                Students must have targets greater than or equal to both
+                requirements before they can be added to this class.
+              </span>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="grid gap-1.5 text-[13px] font-medium">
+                Reading & Listening
+                <input
+                  className={inputClass}
+                  type="number"
+                  min="0"
+                  name="requiredRlTarget"
+                  value={form.requiredRlTarget}
+                  onChange={update}
+                  required
+                  placeholder="e.g. 850"
+                />
+              </label>
+
+              <label className="grid gap-1.5 text-[13px] font-medium">
+                Speaking & Writing
+                <input
+                  className={inputClass}
+                  type="number"
+                  min="0"
+                  name="requiredSwTarget"
+                  value={form.requiredSwTarget}
+                  onChange={update}
+                  required
+                  placeholder="e.g. 300"
+                />
+              </label>
+            </div>
+          </div>
+        )}
+
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="grid gap-1.5 text-[13px] font-medium">
             Start date
@@ -141,7 +195,11 @@ export default function ClassFormModal({
           <Button type="button" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit" variant="primary" disabled={invalidDateRange}>
+          <Button
+            type="submit"
+            variant="primary"
+            disabled={invalidDateRange || missingToeicTarget}
+          >
             {isEditing ? "Save Changes" : "Create Class"}
           </Button>
         </div>
