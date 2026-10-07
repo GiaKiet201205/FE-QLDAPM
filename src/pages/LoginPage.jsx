@@ -1,7 +1,7 @@
 import React from 'react';
 import { LoginForm } from '../features/auth/components/LoginForm';
 
-const LoginPage = ({ setIsLoggedIn }) => {
+const LoginPage = () => {
   return (
     <div className="min-h-screen bg-[#f8f9fa] flex flex-col font-sans">
       {/* Header */}
@@ -20,7 +20,7 @@ const LoginPage = ({ setIsLoggedIn }) => {
 
       {/* Main Content */}
       <main className="grow flex items-center justify-center p-4">
-        <LoginForm setIsLoggedIn={setIsLoggedIn} />
+        <LoginForm />
       </main>
 
       {/* Footer */}

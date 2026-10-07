@@ -1,24 +1,37 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useAuthForm } from '../hooks/useAuthForm';
+import Button from '../../../components/ui/Button';
 
-export const LoginForm = ({ mode = 'login', setIsLoggedIn }) => {
+export const LoginForm = ({
+  mode = 'login',
+}) => {
   const { 
     copy, 
     userId, setUserId, 
     password, setPassword, 
     showPassword, togglePassword,
-    pending, errors, notice, handleSubmit 
-  } = useAuthForm(mode, setIsLoggedIn);
-
+    pending, errors, notice, handleSubmit, rememberMe, setRememberMe
+  } = useAuthForm(mode);
   return (
     <div className="bg-white p-10 rounded-lg shadow-sm border border-gray-200 w-full max-w-md">
       <h1 className="text-2xl font-bold text-[#1a365d] mb-2">{copy.title}</h1>
       <p className="text-gray-500 text-sm mb-8">{copy.subtitle}</p>
 
+      {mode === 'login' && (
+        <div className="mb-6 rounded-md border border-blue-100 bg-blue-50 p-3 text-xs leading-5 text-slate-600">
+          <p className="font-semibold text-[#1a365d]">Tài khoản đăng nhập demo</p>
+          <p>
+            Tên đăng nhập theo vai trò: <span className="font-mono font-medium">admin, teacher, tc, cm, sale, cs</span>.
+          </p>
+          <p>Mật khẩu mặc định: <span className="font-mono font-medium">123456</span>. Ví dụ: <span className="font-mono font-medium">admin/123456</span>.</p>
+          <p className="mt-1 text-slate-500">Nếu đã đổi mật khẩu, hãy dùng mật khẩu mới.</p>
+        </div>
+      )}
+
       <form onSubmit={handleSubmit} className="space-y-6" noValidate>
         <div>
-          <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
+          <label htmlFor="login-identifier" className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
             Email or User ID
           </label>
           <div className="relative">
@@ -28,6 +41,8 @@ export const LoginForm = ({ mode = 'login', setIsLoggedIn }) => {
               </svg>
             </div>
             <input
+              id="login-identifier"
+              autoComplete="username"
               type="text"
               value={userId}
               onChange={(e) => setUserId(e.target.value)}
@@ -53,7 +68,7 @@ export const LoginForm = ({ mode = 'login', setIsLoggedIn }) => {
         {/* Trường Password */}
         {mode !== 'reset' && (
           <div>
-            <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
+            <label htmlFor="login-password" className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
               Password
             </label>
             <div className="relative">
@@ -63,6 +78,8 @@ export const LoginForm = ({ mode = 'login', setIsLoggedIn }) => {
                 </svg>
               </div>
               <input
+                id="login-password"
+                autoComplete="current-password"
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -74,6 +91,8 @@ export const LoginForm = ({ mode = 'login', setIsLoggedIn }) => {
               <button 
                 type="button" 
                 onClick={togglePassword}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                aria-pressed={showPassword}
                 className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none"
               >
                 {showPassword ? (
@@ -91,7 +110,7 @@ export const LoginForm = ({ mode = 'login', setIsLoggedIn }) => {
         {mode === 'login' && (
           <div className="flex items-center justify-between">
             <div className="flex items-center">
-              <input id="remember-me" type="checkbox" className="h-4 w-4 text-[#1a365d] border-gray-300 rounded" />
+              <input id="remember-me" type="checkbox" checked={rememberMe} onChange={(event) => setRememberMe(event.target.checked)} className="h-4 w-4 text-[#1a365d] border-gray-300 rounded" />
               <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700">Remember me</label>
             </div>
             <div className="text-sm">
@@ -104,13 +123,14 @@ export const LoginForm = ({ mode = 'login', setIsLoggedIn }) => {
 
         {/* Nút Submit */}
         <div>
-          <button
+          <Button
             type="submit"
+            variant="primary"
             disabled={pending}
-            className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#1a365d] hover:bg-[#122643] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1a365d] disabled:opacity-75 disabled:cursor-not-allowed"
+            className="w-full py-2.5"
           >
             {pending ? 'Processing...' : copy.action}
-          </button>
+          </Button>
         </div>
       </form>
 

@@ -197,4 +197,18 @@ export const ROLES = {
   },
 }
 
+export const ACCOUNT_ROLE_MAP = {
+  Teacher: 'TEACHER',
+  'Teaching Coordinator': 'TC',
+  'Center Manager': 'CM',
+  Sale: 'SALE',
+  'CS Specialist': 'CS',
+  Admin: 'ADMIN',
+};
+
+export const getRoleKeyFromAccountRole = (accountRole) => {
+  return ACCOUNT_ROLE_MAP[accountRole] || null;
+};
+
 export const ROLE_LIST = Object.values(ROLES)
+export const ACCOUNT_ROLE_OPTIONS = Object.keys(ACCOUNT_ROLE_MAP)

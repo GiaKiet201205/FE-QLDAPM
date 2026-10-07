@@ -1,61 +1,44 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { toast } from 'react-toastify';
 import AccountToolbar from '../features/accounts/components/AccountToolbar';
 import AccountTable from '../features/accounts/components/AccountTable';
 import AccountDetailPanel from '../features/accounts/components/AccountDetailPanel';
 import AddAccountModal from '../features/accounts/components/AddAccountModal';
-import ChangeRoleModal from '../features/accounts/components/ChangeRoleModal'; // Import Modal mới
-import EditAccountModal from '../features/accounts/components/EditAccountModal'; // 1. Import Component
+import ChangeRoleModal from '../features/accounts/components/ChangeRoleModal';
 import { useAccounts } from '../features/accounts/hooks/useAccounts';
 
 const AccountManagement = () => {
   const {
+    accounts, nextAccountCode,
     searchTerm, selectedRole, selectedStatus,
-    currentPage, totalPages, totalItems, paginatedAccounts, itemsPerPage,
+    currentPage, totalItems, paginatedAccounts, itemsPerPage,
     handleSearch, handleFilterRole, handleFilterStatus,
     handlePageChange, handleExport, handleAddAccount,
-    handleToggleLock, handleChangeRole, handleEditAccount,  
+    handleToggleLock, handleChangeRole,
   } = useAccounts();
 
-  const [selectedAccount, setSelectedAccount] = useState(null);
+  const [selectedAccountId, setSelectedAccountId] = useState(null);
+  const selectedAccount = accounts.find(account => account.id === selectedAccountId) || null;
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isChangeRoleModalOpen, setIsChangeRoleModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false); 
-  const [accountToEdit, setAccountToEdit] = useState(null); 
 
   const onToggleLockAccount = () => {
     if (!selectedAccount) return;
     handleToggleLock(selectedAccount.id);
     
     const newStatus = selectedAccount.status === 'Active' ? 'Locked' : 'Active';
-    setSelectedAccount(prev => ({ ...prev, status: newStatus }));
     
     toast.success(`Đã ${newStatus === 'Locked' ? 'khóa' : 'mở khóa'} tài khoản ${selectedAccount.user}`);
   };
 
   const onChangeRoleSubmit = (newRole) => {
     if (!selectedAccount) return;
-    handleChangeRole(selectedAccount.id, newRole);
-    setSelectedAccount(prev => ({ ...prev, role: newRole }));
-  };
-
-  //  Wrapper hàm mở form Edit
-  const handleOpenEditModal = (account) => {
-    setAccountToEdit(account);
-    setIsEditModalOpen(true);
-  };
-
-  // Wrapper hàm submit form Edit
-  const onEditAccountSubmit = (updatedData) => {
-    handleEditAccount(updatedData);
-    if (selectedAccount && selectedAccount.id === updatedData.id) {
-      setSelectedAccount(prev => ({ ...prev, ...updatedData }));
-    }
+    return handleChangeRole(selectedAccount.id, newRole);
   };
 
   return (
-    <div className="flex h-full w-full bg-gray-50 p-6 overflow-hidden relative">
-      <div className={`flex flex-col transition-all duration-300 ${selectedAccount ? 'w-[calc(100%-20rem)] pr-6' : 'w-full'}`}>
+    <div className={`grid items-start gap-4 ${selectedAccount ? 'xl:grid-cols-[minmax(0,1fr)_350px]' : 'grid-cols-1'}`}>
+      <div className="min-w-0">
         
         <AccountToolbar 
           searchTerm={searchTerm}
@@ -68,53 +51,42 @@ const AccountManagement = () => {
           onAddClick={() => setIsAddModalOpen(true)}
         />
         
-        <div className="bg-white shadow-sm rounded-b-lg border border-gray-200 border-t-0 overflow-hidden">
           <AccountTable 
             accounts={paginatedAccounts} 
-            onRowClick={(account) => setSelectedAccount(account)} 
+            onRowClick={(account) => setSelectedAccountId(account.id)}
             selectedAccountId={selectedAccount?.id}
             currentPage={currentPage}
-            totalPages={totalPages}
             totalItems={totalItems}
             itemsPerPage={itemsPerPage}
             onPageChange={handlePageChange}
-            onEditClick={handleOpenEditModal}
           />
-        </div>
       </div>
 
       {selectedAccount && (
-        <div className="w-80 h-full bg-white shadow-lg rounded-lg overflow-hidden border border-gray-200 shrink-0 animate-fade-in-right">
+        <div className="min-w-0">
           <AccountDetailPanel 
             account={selectedAccount} 
-            onClose={() => setSelectedAccount(null)} 
+            key={selectedAccount.id}
+            onClose={() => setSelectedAccountId(null)}
             onToggleLock={onToggleLockAccount}
             onChangeRoleClick={() => setIsChangeRoleModalOpen(true)}
           />
         </div>
       )}
 
-      <AddAccountModal 
-        isOpen={isAddModalOpen} 
+      {isAddModalOpen && <AddAccountModal
         onClose={() => setIsAddModalOpen(false)} 
         onSubmit={handleAddAccount} 
-        totalAccounts={totalItems}
-      />
+        nextAccountCode={nextAccountCode}
+      />}
 
-      <ChangeRoleModal 
-        isOpen={isChangeRoleModalOpen}
+      {isChangeRoleModalOpen && selectedAccount && <ChangeRoleModal
         onClose={() => setIsChangeRoleModalOpen(false)}
         onSubmit={onChangeRoleSubmit}
         currentRole={selectedAccount?.role}
         accountName={selectedAccount?.user}
-      />
+      />}
 
-      <EditAccountModal 
-        isOpen={isEditModalOpen}
-        onClose={() => setIsEditModalOpen(false)}
-        onSubmit={onEditAccountSubmit}
-        account={accountToEdit}
-      />
     </div>
   );
 };

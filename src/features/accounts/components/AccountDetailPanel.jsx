@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { toast } from 'react-toastify';
+import DetailPanel from '../../../components/ui/DetailPanel';
+import Button from '../../../components/ui/Button';
 
 const AccountDetailPanel = ({ account, onClose, onToggleLock, onChangeRoleClick }) => {
   const [activeTab, setActiveTab] = useState('Overview');
@@ -7,10 +9,44 @@ const AccountDetailPanel = ({ account, onClose, onToggleLock, onChangeRoleClick 
   if (!account) return null;
 
   const handleResetPassword = () => {
-    toast.success(`Đã gửi hướng dẫn đặt lại mật khẩu đến email: ${account.email}`);
+    toast.info('Đặt lại mật khẩu chưa được kết nối. Chưa có email nào được gửi.');
   };
 
-  
+  const tabs = [
+    { key: 'Overview', label: 'Overview' },
+    { key: 'Roles', label: 'Roles' },
+    { key: 'Activity', label: 'Activity' },
+  ];
+
+  const footer = (
+    <div className="space-y-2">
+      <Button
+        variant="primary"
+        className="w-full"
+        onClick={handleResetPassword}
+      >
+        Reset Password
+      </Button>
+
+      <Button
+        className="w-full"
+        onClick={onChangeRoleClick}
+      >
+        Change Role
+      </Button>
+
+      <button
+        onClick={onToggleLock}
+        className={`w-full py-2 text-sm font-medium ${
+          account.status === 'Active'
+            ? 'text-red-500'
+            : 'text-green-600'
+        }`}
+      >
+        {account.status === 'Active' ? 'Lock Account' : 'Unlock Account'}
+      </button>
+    </div>
+  );
 
   const getPermissionsByRole = (role) => {
     const common = ['Truy cập Dashboard', 'Cập nhật thông tin cá nhân'];
@@ -33,59 +69,45 @@ const AccountDetailPanel = ({ account, onClose, onToggleLock, onChangeRoleClick 
   };
 
   return (
-    <div className="w-80 h-full bg-white flex flex-col border-l border-gray-200">
-      {/* Header & Tabs */}
-      <div className="shrink-0">
-        <div className="flex justify-between items-center p-5 pb-4">
-          <h2 className="text-base font-semibold text-gray-900">Account Detail</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+    <DetailPanel
+      title="Account Detail"
+      tabs={tabs}
+      activeTab={activeTab}
+      onTabChange={setActiveTab}
+      onClose={onClose}
+      footer={footer}
+    >
+      <div className="bg-gray-50 rounded-lg p-4 mb-6 flex items-center space-x-4 border border-gray-100">
+        <div className="h-12 w-12 bg-[#1a365d] rounded-full flex items-center justify-center text-white font-bold text-lg shrink-0">
+          {account.initials}
         </div>
-        
-        {/* Tabs */}
-        <div className="flex space-x-6 px-5 border-b border-gray-100 text-sm">
-          {['Overview', 'Roles', 'Activity'].map((tab) => (
-            <button 
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`pb-3 font-medium transition-colors ${
-                activeTab === tab 
-                  ? 'border-b-2 border-[#1a365d] text-[#1a365d]' 
-                  : 'text-gray-500 hover:text-gray-700'
+
+        <div className="overflow-hidden">
+          <h3 className="font-bold text-gray-900 truncate">{account.user}</h3>
+
+          <div className="text-[13px] text-gray-500 truncate mt-0.5">
+            @{account.username} · {account.code}
+          </div>
+
+          <div className="flex items-center mt-1.5">
+            <span
+              className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
+                account.status === 'Active' ? 'bg-green-500' : 'bg-red-500'
+              }`}
+            />
+
+            <span
+              className={`text-xs font-medium ${
+                account.status === 'Active' ? 'text-green-600' : 'text-red-600'
               }`}
             >
-              {tab}
-            </button>
-          ))}
+              {account.status} Account
+            </span>
+          </div>
         </div>
       </div>
 
-      {/* Scrollable Content */}
-      <div className="flex-1 overflow-y-auto p-5">
-        
-        {/* Profile Card */}
-        <div className="bg-gray-50 rounded-lg p-4 mb-6 flex items-center space-x-4 border border-gray-100">
-          <div className="h-12 w-12 bg-[#1a365d] rounded-full flex items-center justify-center text-white font-bold text-lg shrink-0">
-            {account.initials}
-          </div>
-          <div className="overflow-hidden">
-            <h3 className="font-bold text-gray-900 truncate">{account.user}</h3>
-            <div className="text-[13px] text-gray-500 truncate mt-0.5">
-              @{account.username} · {account.code}
-            </div>
-            <div className="flex items-center mt-1.5">
-              <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${account.status === 'Active' ? 'bg-green-500' : 'bg-red-500'}`}></span>
-              <span className={`text-xs font-medium ${account.status === 'Active' ? 'text-green-600' : 'text-red-600'}`}>
-                {account.status} Account
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Overview */}
+      {/* Overview */}
         {activeTab === 'Overview' && (
           <div className="space-y-6 animate-fade-in">
             {/* Account Info */}
@@ -185,32 +207,7 @@ const AccountDetailPanel = ({ account, onClose, onToggleLock, onChangeRoleClick 
             </div>
           </div>
         )}
-      </div>
-
-      {/* Footer Actions */}
-      <div className="p-5 border-t border-gray-100 space-y-3 bg-white shrink-0">
-        <button 
-          onClick={handleResetPassword}
-          className="w-full py-2 bg-[#1a365d] text-white text-sm font-medium rounded hover:bg-[#122643] transition-colors shadow-sm"
-        >
-          Reset Password
-        </button>
-        <button 
-          onClick={onChangeRoleClick} 
-          className="w-full py-2 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded hover:bg-gray-50 transition-colors"
-        >
-          Change Role
-        </button>
-        <button 
-          onClick={onToggleLock} 
-          className={`w-full py-2 text-sm font-medium hover:underline transition-colors ${
-            account.status === 'Active' ? 'text-red-500 hover:text-red-600' : 'text-green-600 hover:text-green-700'
-          }`}
-        >
-          {account.status === 'Active' ? 'Lock Account' : 'Unlock Account'}
-        </button>
-      </div>
-    </div>
+      </DetailPanel>
   );
 };
 

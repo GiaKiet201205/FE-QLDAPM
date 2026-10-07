@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import Layout from './components/layout/Layout'
 import Dashboard from './pages/Dashboard'
@@ -9,17 +9,22 @@ import AccountManagement from './pages/AccountManagement'
 import PlaceholderPage from './pages/PlaceholderPage'
 import LoginPage from './pages/LoginPage'
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import ProfilePage from './pages/ProfilePage';
 import { AcademicDataProvider } from './features/academic/AcademicDataContext'
 import { ROLES } from './config/roles'
+import AccountDataProvider from './features/accounts/AccountDataProvider'
+import { useAccountData } from './features/accounts/hooks/useAccountData'
+import ProtectedRoute from './features/auth/components/ProtectedRoute'
 
 import { ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
 
-function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false)
-  const [roleKey, setRoleKey] = useState('ADMIN')
+function AppRoutes() {
+  const { authUser } = useAccountData();
+  const isLoggedIn = !!authUser;
+  const roleKey = authUser?.roleKey || 'ADMIN';
 
-  const role = ROLES[roleKey]
+  const role = ROLES[roleKey] || ROLES['ADMIN'];
 
   const allItems = useMemo(() => {
     const items = []
@@ -45,27 +50,34 @@ function App() {
         <Routes>
           <Route 
             path="/login" 
-            element={<LoginPage setIsLoggedIn={setIsLoggedIn} />} 
+            element={isLoggedIn ? <Navigate to={`/${roleKey.toLowerCase()}`} replace /> : <LoginPage />}
           />
 
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+
           <Route 
-            path="/forgot-password" 
-            element={<ForgotPasswordPage />} 
-          />
-          
-          <Route
             path="/"
+            element={<Navigate to={isLoggedIn ? `/${roleKey.toLowerCase()}` : '/login'} replace />}
+          />
+
+          <Route
+            path={`/${roleKey.toLowerCase()}`}
             element={
-              isLoggedIn ? (
-                <Layout
-                  role={role}
-                  onChangeRole={setRoleKey}
-                />
-              ) : (
-                <Navigate to="/login" replace />
-              )
+              <ProtectedRoute allowedRoles={[roleKey]}>
+                <Layout role={role} />
+              </ProtectedRoute>
             }
           >
+          <Route path="profile" element={<ProfilePage />} />
+          <Route
+            path="*"
+            element={
+              <Navigate
+                to={isLoggedIn ? `/${roleKey.toLowerCase()}` : '/login'}
+                replace
+              />
+            }
+          />
             {allItems.map((item) =>
               item.path === '/' ? (
                 <Route
@@ -96,7 +108,7 @@ function App() {
                 <Route
                   key={item.path}
                   path="accounts"
-                  element={<AccountManagement />}
+                  element={<ProtectedRoute allowedRoles={['ADMIN']}><AccountManagement /></ProtectedRoute>}
                 />
               ) : (
                 <Route
@@ -107,10 +119,13 @@ function App() {
               )
             )}
           </Route>
+          <Route path="*" element={<Navigate to={isLoggedIn ? `/${roleKey.toLowerCase()}` : '/login'} replace />} />
         </Routes>
       </BrowserRouter>
     </AcademicDataProvider>
   )
 }
 
-export default App
+export default function App() {
+  return <AccountDataProvider><AppRoutes /></AccountDataProvider>
+}

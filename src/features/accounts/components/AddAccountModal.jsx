@@ -1,8 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { ACCOUNT_ROLE_OPTIONS } from '../../../config/roles';
+import Modal from '../../../components/ui/Modal';
+import Button from '../../../components/ui/Button';
 
-const AddAccountModal = ({ isOpen, onClose, onSubmit, totalAccounts = 50 }) => {
+const AddAccountModal = ({ onClose, onSubmit, nextAccountCode }) => {
+  const [errors, setErrors] = useState({});
   const [formData, setFormData] = useState({
-    code: '',
+    code: nextAccountCode,
     user: '',
     username: '',
     email: '',
@@ -12,49 +16,28 @@ const AddAccountModal = ({ isOpen, onClose, onSubmit, totalAccounts = 50 }) => {
     mfaStatus: 'Pending'
   });
 
-  useEffect(() => {
-    if (isOpen) {
-      const nextId = totalAccounts + 1;
-      setFormData(prev => ({ ...prev, code: `ACC-${1000 + nextId}` }));
-    }
-  }, [isOpen, totalAccounts]);
-
-  if (!isOpen) return null;
-
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+    setErrors(prev => ({ ...prev, [name]: undefined }));
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSubmit(formData);
+    const result = onSubmit(formData);
+    if (!result?.ok) {
+      setErrors(result?.errors || { general: 'Không thể thêm tài khoản.' });
+      return;
+    }
     onClose();
-    setFormData({ 
-      code: '', user: '', username: '', email: '', 
-      role: 'Teacher', department: 'Hanoi Main Campus',
-      passwordPolicy: 'Standard', mfaStatus: 'Pending'
-    });
   };
 
   return (
-    <div className="fixed inset-0 bg-gray-900/40 flex items-center justify-center z-50 p-4">
-      {/* Modal Container */}
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl flex flex-col max-h-[90vh]">
-        
-        {/* Header */}
-        <div className="flex justify-between items-center px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-medium text-gray-900">Add Account</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
+    <Modal title="Add Account" onClose={onClose} maxWidth="max-w-2xl">
+      <form id="add-account-form" onSubmit={handleSubmit} className="space-y-5">
         
         {/* Body*/}
-        <div className="overflow-y-auto px-6 py-5">
-          <form id="add-account-form" onSubmit={handleSubmit} className="space-y-5">
+        <div className="space-y-5">
             
             {/* Account Code*/}
             <div>
@@ -63,7 +46,8 @@ const AddAccountModal = ({ isOpen, onClose, onSubmit, totalAccounts = 50 }) => {
                 type="text" 
                 name="code" 
                 value={formData.code} 
-                onChange={handleChange} 
+                readOnly
+                aria-label="Account code"
                 className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#1a365d] focus:border-[#1a365d]" 
               />
             </div>
@@ -122,12 +106,7 @@ const AddAccountModal = ({ isOpen, onClose, onSubmit, totalAccounts = 50 }) => {
                     onChange={handleChange} 
                     className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#1a365d] focus:border-[#1a365d] bg-white"
                   >
-                    <option value="Teacher">Teacher</option>
-                    <option value="Teaching Coordinator">Teaching Coordinator</option>
-                    <option value="CS Specialist">CS Specialist</option>
-                    <option value="Center Manager">Center Manager</option>
-                    <option value="Sale">Sale</option>
-                    <option value="Admin">Admin</option>
+                    {ACCOUNT_ROLE_OPTIONS.map(value => <option key={value} value={value}>{value}</option>)}
                   </select>
                 </div>
                 <div>
@@ -181,29 +160,25 @@ const AddAccountModal = ({ isOpen, onClose, onSubmit, totalAccounts = 50 }) => {
               </div>
             </div>
             
-          </form>
         </div>
+        {Object.values(errors).filter(Boolean).length > 0 && (
+          <div role="alert" className="space-y-1 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-600">
+            {Object.entries(errors).filter(([, message]) => message).map(([field, message]) => <p key={field}>{message}</p>)}
+          </div>
+        )}
 
         {/* Footer */}
-        <div className="border-t border-gray-200 px-6 py-4 flex justify-end space-x-3 bg-white rounded-b-lg">
-          <button 
-            type="button" 
-            onClick={onClose} 
-            className="px-4 py-2 border border-gray-300 text-gray-700 rounded text-sm font-medium hover:bg-gray-50"
-          >
+        <div className="border-t border-gray-200 pt-4 flex justify-end space-x-3">
+          <Button type="button" onClick={onClose}>
             Cancel
-          </button>
-          <button 
-            type="submit" 
-            form="add-account-form"
-            className="px-4 py-2 bg-[#1a365d] text-white rounded text-sm font-medium hover:bg-[#122643]"
-          >
+          </Button>
+
+          <Button type="submit" variant="primary">
             Add Account
-          </button>
+          </Button>
         </div>
-        
-      </div>
-    </div>
+      </form>
+  </Modal>
   );
 };
 
