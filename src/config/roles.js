@@ -33,8 +33,7 @@ export const ROLES = {
           // { label: 'Chấm điểm', path: '/grading', icon: 'CheckSquare' },
           // { label: 'Đánh giá học viên', path: '/student-reviews', icon: 'Star' },
           // { label: 'Theo dõi kết quả lớp', path: '/class-results', icon: 'BarChart3' },
-          { label: 'Xem công lương', path: '/monitor/payroll', icon: 'Wallet' },
-        ],
+{ label: 'Xem công lương', path: '/monitor/payroll', icon: 'Wallet', meta: { page: 'payroll', permission: 'view', scope: 'teacher' } },        ],
       },
     ],
   },
@@ -71,8 +70,8 @@ export const ROLES = {
         title: 'Công lương',
         items: [
           // { label: 'Khối lượng giảng dạy', path: '/workload', icon: 'Gauge' },
-          { label: 'Quản lý công lương GV', path: '/payroll', icon: 'Gauge' },
-          { label: 'Xem công lương', path: '/payroll/history', icon: 'Wallet' },
+{ label: 'Quản lý công lương GV', path: '/payroll', icon: 'Gauge', meta: { page: 'payroll', permission: 'manage', scope: 'teacher' } },
+{ label: 'Xem công lương', path: '/payroll/history', icon: 'Wallet', meta: { page: 'payroll', permission: 'view', scope: 'teacher' } },
         ],
       },
     ],
@@ -110,9 +109,9 @@ export const ROLES = {
         title: 'Công lương',
         items: [
           // { label: 'Khối lượng làm việc', path: '/workload', icon: 'Gauge' },
-          { label: 'Công lương Sale', path: '/payroll/sale', icon: 'Gauge' },
-          { label: 'Công lương CS', path: '/payroll/cs', icon: 'Gauge' },
-          { label: 'Xem công lương', path: '/payroll/history', icon: 'Wallet' },
+{ label: 'Công lương Sale', path: '/payroll/sale', icon: 'Gauge', meta: { page: 'payroll', permission: 'manage', scope: 'sale' } },
+{ label: 'Công lương CS', path: '/payroll/cs', icon: 'Gauge', meta: { page: 'payroll', permission: 'manage', scope: 'cs' } },
+{ label: 'Xem công lương', path: '/payroll/history', icon: 'Wallet', meta: { page: 'payroll', permission: 'view', scope: 'all' } },
         ],
       },
     ],
@@ -134,8 +133,7 @@ export const ROLES = {
           { label: 'Đăng ký lịch rảnh', path: '/availability/register', icon: 'CalendarPlus' },
           // { label: 'Cập nhật lịch rảnh', path: '/availability/update', icon: 'CalendarClock' },
           { label: 'Xem lịch làm việc', path: '/availability/mine', icon: 'CalendarCheck' },
-          { label: 'Xem công lương', path: '/payroll/history', icon: 'Wallet' },
-
+{ label: 'Xem công lương', path: '/payroll/history', icon: 'Wallet', meta: { page: 'payroll', permission: 'view', scope: 'sale' } },
         ],
       },
     ],
@@ -173,8 +171,7 @@ export const ROLES = {
         items: [
           // { label: 'Khối lượng làm việc', path: '/workload', icon: 'Gauge' },
           // { label: 'Công lương CS', path: '/payroll/cs', icon: 'Gauge' },
-          { label: 'Xem công lương', path: '/payroll/history', icon: 'Wallet' },
-        ],
+{ label: 'Xem công lương', path: '/payroll/history', icon: 'Wallet', meta: { page: 'payroll', permission: 'view', scope: 'cs' } },        ],
       }
     ],
   },
@@ -209,8 +206,7 @@ export const ROLES = {
         title: 'Giám sát',
         items: [
           { label: 'Giám sát lịch phân công', path: '/monitor/schedules', icon: 'CalendarDays' },
-          { label: 'Giám sát công lương', path: '/monitor/payroll', icon: 'Wallet' },
-          // { label: 'Dữ liệu hệ thống', path: '/system-data', icon: 'Database' },
+{ label: 'Giám sát công lương', path: '/monitor/payroll', icon: 'Wallet', meta: { page: 'payroll', permission: 'approve', scope: 'all' } },          // { label: 'Dữ liệu hệ thống', path: '/system-data', icon: 'Database' },
           { label: 'Thống kê tổng quan', path: '/statistics', icon: 'BarChart3' },
         ],
       },
