@@ -95,7 +95,7 @@ function App() {
 <Route
   key={item.path}
   path={item.path.slice(1)}
-  element={resolveElement(item)}
+  element={resolveElement(item, roleKey)}
 />
               )
             )}
