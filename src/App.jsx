@@ -7,9 +7,24 @@ import Students from './pages/Students'
 import Classes from './pages/Classes'
 import AvailabilityRegister from './pages/AvailabilityRegister'
 import PlaceholderPage from './pages/PlaceholderPage'
+import PayrollPage from '../src/pages/PayrollPage'
 
 import { AcademicDataProvider } from './features/academic/AcademicDataContext'
 import { ROLES } from './config/roles'
+
+function resolveElement(item, roleKey) {
+  if (item.meta?.page === 'payroll') {
+    return (
+      <PayrollPage
+        permission={item.meta.permission}
+        scope={item.meta.scope}
+        roleKey={roleKey}
+        title={item.label}
+      />
+    )
+  }
+  return <PlaceholderPage title={item.label} />
+}
 
 function App() {
   // Demo role - sau này thay bằng role từ tài khoản đăng nhập
@@ -73,11 +88,11 @@ function App() {
                   element={<AvailabilityRegister />}
                 />
               ) : (
-                <Route
-                  key={item.path}
-                  path={item.path.slice(1)}
-                  element={<PlaceholderPage title={item.label} />}
-                />
+<Route
+  key={item.path}
+  path={item.path.slice(1)}
+  element={resolveElement(item)}
+/>
               )
             )}
           </Route>
