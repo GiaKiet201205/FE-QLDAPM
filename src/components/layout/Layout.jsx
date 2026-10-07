@@ -1,20 +1,33 @@
-import { Outlet, useLocation } from 'react-router-dom'
+import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import Sidebar from './Sidebar'
 import Topbar from './Topbar'
 
 function findPageMeta(role, pathname) {
-  for (const section of role.sections) {
-    for (const item of section.items) {
-      const isMatch = item.path === '/' ? pathname === '/' : pathname.startsWith(item.path)
-      if (isMatch) return item
-    }
-  }
-  return { label: 'Dashboard' }
+  const items = role.sections.flatMap((section) => section.items)
+
+  const exact = items.find((item) => item.path === pathname)
+  if (exact) return exact
+
+  const nested = items
+    .filter(
+      (item) =>
+        item.path !== '/' &&
+        pathname.startsWith(`${item.path}/`)
+    )
+    .sort((a, b) => b.path.length - a.path.length)[0]
+
+  return nested ?? { label: 'Dashboard' }
 }
 
 export default function Layout({ role, onChangeRole }) {
   const { pathname } = useLocation()
+  const navigate = useNavigate()
   const page = findPageMeta(role, pathname)
+
+  function handleRoleChange(nextRoleKey) {
+    onChangeRole(nextRoleKey)
+    navigate('/', { replace: true })
+  }
 
   return (
     <div className="flex bg-[#F5F6F8] min-h-screen">
@@ -22,7 +35,7 @@ export default function Layout({ role, onChangeRole }) {
       <div className="flex-1 flex flex-col min-w-0">
         <Topbar
           role={role}
-          onChangeRole={onChangeRole}
+          onChangeRole={handleRoleChange}
           pageTitle={page.label}
           pageSubtitle={page.label === 'Dashboard' ? 'Academic Cycle: Today, Oct 14, 2024' : undefined}
         />
