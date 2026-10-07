@@ -207,8 +207,7 @@ export const ROLES = {
         items: [
           { label: 'Giám sát lịch phân công', path: '/monitor/schedules', icon: 'CalendarDays' },
 { label: 'Giám sát công lương', path: '/monitor/payroll', icon: 'Wallet', meta: { page: 'payroll', permission: 'approve', scope: 'all' } },          // { label: 'Dữ liệu hệ thống', path: '/system-data', icon: 'Database' },
-          { label: 'Thống kê tổng quan', path: '/statistics', icon: 'BarChart3' },
-        ],
+{ label: 'Thống kê tổng quan', path: '/statistics', icon: 'BarChart3', meta: { page: 'statistics' } },        ],
       },
     ],
   },
