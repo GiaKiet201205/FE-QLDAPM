@@ -8,6 +8,7 @@ import AvailabilityRegister from './pages/AvailabilityRegister'
 import AccountManagement from './pages/AccountManagement' 
 import PlaceholderPage from './pages/PlaceholderPage'
 import LoginPage from './pages/LoginPage'
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import { AcademicDataProvider } from './features/academic/AcademicDataContext'
 import { ROLES } from './config/roles'
 
@@ -45,6 +46,11 @@ function App() {
           <Route 
             path="/login" 
             element={<LoginPage setIsLoggedIn={setIsLoggedIn} />} 
+          />
+
+          <Route 
+            path="/forgot-password" 
+            element={<ForgotPasswordPage />} 
           />
           
           <Route
