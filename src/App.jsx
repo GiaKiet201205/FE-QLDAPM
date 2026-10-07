@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Navigate, Routes, Route } from 'react-router-dom'
 
 import Layout from './components/layout/Layout'
 import Dashboard from './pages/Dashboard'
@@ -91,10 +91,11 @@ function App() {
 <Route
   key={item.path}
   path={item.path.slice(1)}
-  element={resolveElement(item)}
+  element={resolveElement(item, roleKey)}
 />
               )
             )}
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>
       </BrowserRouter>
