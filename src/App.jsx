@@ -8,6 +8,7 @@ import Classes from './pages/Classes'
 import AvailabilityRegister from './pages/AvailabilityRegister'
 import PlaceholderPage from './pages/PlaceholderPage'
 import PayrollPage from '../src/pages/PayrollPage'
+import StatisticsPage from '../src/pages/StatisticsPage'
 
 import { AcademicDataProvider } from './features/academic/AcademicDataContext'
 import { ROLES } from './config/roles'
@@ -22,6 +23,9 @@ function resolveElement(item, roleKey) {
         title={item.label}
       />
     )
+  }
+  if (item.meta?.page === 'statistics') {
+    return <StatisticsPage />
   }
   return <PlaceholderPage title={item.label} />
 }
@@ -91,7 +95,7 @@ function App() {
 <Route
   key={item.path}
   path={item.path.slice(1)}
-  element={resolveElement(item, roleKey)}
+  element={resolveElement(item)}
 />
               )
             )}
