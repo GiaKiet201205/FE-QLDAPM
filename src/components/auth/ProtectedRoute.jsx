@@ -2,7 +2,7 @@ import {
   Navigate,
   useLocation,
 } from 'react-router-dom';
-import { useAccountData } from '../../accounts/hooks/useAccountData';
+import { useAccountData } from '../../features/accounts/hooks/useAccountData';
 
 export default function ProtectedRoute({
   children,

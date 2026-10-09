@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { useAuthForm } from '../hooks/useAuthForm';
-import Button from '../../../components/ui/Button';
+import { useAuthForm } from '../../features/auth/hooks/useAuthForm';
+import Button from '../ui/Button';
 
 export const LoginForm = ({
   mode = 'login',

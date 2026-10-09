@@ -16,7 +16,7 @@ import { AcademicDataProvider } from './features/academic/AcademicDataContext'
 import { ROLES } from './config/roles'
 import AccountDataProvider from './features/accounts/AccountDataProvider'
 import { useAccountData } from './features/accounts/hooks/useAccountData'
-import ProtectedRoute from './features/auth/components/ProtectedRoute'
+import ProtectedRoute from './components/auth/ProtectedRoute'
 
 import { ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
