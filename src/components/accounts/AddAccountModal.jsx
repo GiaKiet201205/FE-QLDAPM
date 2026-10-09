@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { ACCOUNT_ROLE_OPTIONS } from '../../../config/roles';
-import Modal from '../../../components/ui/Modal';
-import Button from '../../../components/ui/Button';
+import { ACCOUNT_ROLE_OPTIONS } from '../../config/roles';
+import Modal from '../ui/Modal';
+import Button from '../ui/Button';
 
 const AddAccountModal = ({ onClose, onSubmit, nextAccountCode }) => {
   const [errors, setErrors] = useState({});

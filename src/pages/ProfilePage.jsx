@@ -3,7 +3,7 @@ import { Camera, Eye, EyeOff, LockKeyhole, ShieldCheck, Trash2, UserRound } from
 import { toast } from 'react-toastify';
 import Button from '../components/ui/Button';
 import { useAccountData } from '../features/accounts/hooks/useAccountData';
-import { getInitials } from '../features/accounts/data/accountStore';
+import { getInitials } from '../features/accounts/accountStore';
 import { ROLES } from '../config/roles';
 
 const inputClass = 'w-full rounded-md border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-50';

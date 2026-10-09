@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { toast } from 'react-toastify';
-import AccountToolbar from '../features/accounts/components/AccountToolbar';
-import AccountTable from '../features/accounts/components/AccountTable';
-import AccountDetailPanel from '../features/accounts/components/AccountDetailPanel';
-import AddAccountModal from '../features/accounts/components/AddAccountModal';
-import ChangeRoleModal from '../features/accounts/components/ChangeRoleModal';
+import AccountToolbar from '../components/accounts/AccountToolbar';
+import AccountTable from '../components/accounts/AccountTable';
+import AccountDetailPanel from '../components/accounts/AccountDetailPanel';
+import AddAccountModal from '../components/accounts/AddAccountModal';
+import ChangeRoleModal from '../components/accounts/ChangeRoleModal';
 import { useAccounts } from '../features/accounts/hooks/useAccounts';
 
 const AccountManagement = () => {

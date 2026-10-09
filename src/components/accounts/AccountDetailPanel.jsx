@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { toast } from 'react-toastify';
-import DetailPanel from '../../../components/ui/DetailPanel';
-import Button from '../../../components/ui/Button';
+import DetailPanel from '../ui/DetailPanel';
+import Button from '../ui/Button';
 
 const AccountDetailPanel = ({ account, onClose, onToggleLock, onChangeRoleClick }) => {
   const [activeTab, setActiveTab] = useState('Overview');

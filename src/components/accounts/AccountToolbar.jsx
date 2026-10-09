@@ -1,6 +1,6 @@
 import React from 'react';
-import Button from '../../../components/ui/Button';
-import { ACCOUNT_ROLE_OPTIONS } from '../../../config/roles';
+import Button from '../ui/Button';
+import { ACCOUNT_ROLE_OPTIONS } from '../../config/roles';
 import { Download, Plus, Search } from 'lucide-react';
 const AccountToolbar = ({ 
   searchTerm, onSearch, 

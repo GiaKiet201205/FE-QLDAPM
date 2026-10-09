@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AccountDataContext } from './hooks/useAccountData';
-import { ACCOUNTS_STORAGE_KEY, authenticateAccount, createAccount, createPasswordChange, createProfileUpdate, getNextAccountCode, loadAccounts, loadSession, persistSession } from './data/accountStore';
+import { ACCOUNTS_STORAGE_KEY, authenticateAccount, createAccount, createPasswordChange, createProfileUpdate, getNextAccountCode, loadAccounts, loadSession, persistSession } from './accountStore';
 import { getRoleKeyFromAccountRole } from '../../config/roles';
 
 export default function AccountDataProvider({ children }) {

@@ -1,5 +1,5 @@
-import { mockAccounts } from './mockAccounts.js';
-import { getRoleKeyFromAccountRole } from '../../../config/roles.js';
+import { mockAccounts } from '../../data/mockAccounts.js';
+import { getRoleKeyFromAccountRole } from '../../config/roles.js';
 
 export const ACCOUNTS_STORAGE_KEY = 'iig.accounts.v1';
 export const SESSION_STORAGE_KEY = 'iig.session.v1';

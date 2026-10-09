@@ -1,4 +1,4 @@
-import EntityTable from '../../../components/ui/EntityTable';
+import EntityTable from '../ui/EntityTable';
 
 const columns = [
   {
