@@ -10,6 +10,8 @@ import PlaceholderPage from './pages/PlaceholderPage'
 import LoginPage from './pages/LoginPage'
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ProfilePage from './pages/ProfilePage';
+import PayrollPage from './pages/PayrollPage'
+import StatisticsPage from './pages/StatisticsPage'
 import { AcademicDataProvider } from './features/academic/AcademicDataContext'
 import { ROLES } from './config/roles'
 import AccountDataProvider from './features/accounts/AccountDataProvider'
@@ -18,6 +20,23 @@ import ProtectedRoute from './features/auth/components/ProtectedRoute'
 
 import { ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
+
+function resolveElement(item, roleKey) {
+  if (item.meta?.page === 'payroll') {
+    return (
+      <PayrollPage
+        permission={item.meta.permission}
+        scope={item.meta.scope}
+        roleKey={roleKey}
+        title={item.label}
+      />
+    )
+  }
+  if (item.meta?.page === 'statistics') {
+    return <StatisticsPage />
+  }
+  return <PlaceholderPage title={item.label} />
+}
 
 function AppRoutes() {
   const { authUser } = useAccountData();
@@ -114,7 +133,7 @@ function AppRoutes() {
                 <Route
                   key={item.path}
                   path={item.path.slice(1)}
-                  element={<PlaceholderPage title={item.label} />}
+                  element={resolveElement(item, roleKey)}
                 />
               )
             )}
