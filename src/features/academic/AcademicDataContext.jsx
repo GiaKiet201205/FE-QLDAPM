@@ -1528,6 +1528,89 @@ export function AcademicDataProvider({ children }) {
     return { ok: true, schedule };
   }
 
+  function assignStaffSchedule(data, actor) {
+    if (actor?.role !== "CM") {
+      return {
+        ok: false,
+        reason: "Only Center Management can assign Sale or CS work schedules.",
+      };
+    }
+
+    if (
+      !data.userId ||
+      !["SALE", "CS"].includes(data.staffRole) ||
+      !data.date ||
+      !data.startTime ||
+      !data.endTime ||
+      data.startTime >= data.endTime
+    ) {
+      return {
+        ok: false,
+        reason: "Staff, role, date, start time and end time are required.",
+      };
+    }
+
+    if (data.staffRole === "CS" && data.workType === "CLASS_SUPPORT") {
+      const classItem = classes.find((item) => item.id === data.classId);
+      if (!classItem) {
+        return { ok: false, reason: "A valid class is required for CS class support." };
+      }
+      if (!["READY", "RUNNING"].includes(classItem.status)) {
+        return {
+          ok: false,
+          reason: "CS can only be assigned to support READY or RUNNING classes.",
+        };
+      }
+    }
+
+    const staffConflict = staffSchedules.find(
+      (schedule) =>
+        schedule.userId === data.userId &&
+        schedule.date === data.date &&
+        schedule.status === "ASSIGNED" &&
+        data.startTime < schedule.endTime &&
+        data.endTime > schedule.startTime,
+    );
+
+    if (staffConflict) {
+      return {
+        ok: false,
+        code: "STAFF_SCHEDULE_CONFLICT",
+        reason: "This staff member already has another assigned shift during the selected time.",
+        conflict: staffConflict,
+      };
+    }
+
+    const schedule = {
+      id: `staff-schedule-${Date.now()}`,
+      userId: data.userId,
+      staffRole: data.staffRole,
+      workplaceId: data.workplaceId ?? "center-01",
+      classId: data.staffRole === "CS" && data.workType === "CLASS_SUPPORT"
+        ? data.classId
+        : null,
+      date: data.date,
+      startTime: data.startTime,
+      endTime: data.endTime,
+      workType: data.workType ?? (data.staffRole === "SALE" ? "SALES_SHIFT" : "OPERATIONS_SUPPORT"),
+      status: "ASSIGNED",
+      assignedBy: actor.id,
+    };
+
+    setStaffSchedules((current) => [...current, schedule]);
+    addAudit(actor, "ASSIGN_STAFF_SHIFT", "STAFF_SCHEDULE", schedule.id, {
+      userId: schedule.userId,
+      staffRole: schedule.staffRole,
+      classId: schedule.classId,
+      date: schedule.date,
+      startTime: schedule.startTime,
+      endTime: schedule.endTime,
+      workType: schedule.workType,
+    });
+
+    return { ok: true, schedule };
+  }
+
   const value = useMemo(
     () => ({
       students,
@@ -1539,6 +1622,7 @@ export function AcademicDataProvider({ children }) {
       teachingSchedules,
       assignTeacherSchedule,
       staffSchedules,
+      assignStaffSchedule,
       assignments,
       exams,
       studentResults,
