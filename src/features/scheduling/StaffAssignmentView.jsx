@@ -1,0 +1,589 @@
+import { useMemo, useState } from "react";
+import {
+  BriefcaseBusiness,
+  CalendarCheck2,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  Clock3,
+  Search,
+  UserCheck,
+  Users,
+} from "lucide-react";
+import Button from "../../components/ui/Button";
+import { useAcademicData } from "../academic/AcademicDataContext";
+import { csUsers, saleUsers } from "../classes/mockClassOperations";
+import {
+  csWorkTypes,
+  isStaffTimeInsideAvailability,
+  saleWorkTypes,
+  staffAvailability,
+  staffWeekDays,
+  workplaceOptions,
+} from "./mockStaffAssignment";
+
+const fieldClass =
+  "h-9 w-full rounded-md border border-slate-300 bg-white px-3 text-[13px] text-slate-700 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100";
+
+function StatusBadge({ children, tone = "slate" }) {
+  const styles = {
+    emerald: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    amber: "border-amber-200 bg-amber-50 text-amber-700",
+    blue: "border-blue-200 bg-blue-50 text-blue-700",
+    violet: "border-violet-200 bg-violet-50 text-violet-700",
+    slate: "border-slate-200 bg-slate-50 text-slate-600",
+  };
+
+  return (
+    <span className={"inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium " + styles[tone]}>
+      {children}
+    </span>
+  );
+}
+
+function getWorkTypeLabel(role, value) {
+  const source = role === "SALE" ? saleWorkTypes : csWorkTypes;
+  return source.find((item) => item.value === value)?.label ?? value;
+}
+
+export default function StaffAssignmentView() {
+  const { classes, staffSchedules, assignStaffSchedule } = useAcademicData();
+  const staff = useMemo(
+    () => [
+      ...saleUsers.map((item) => ({ ...item, role: "SALE" })),
+      ...csUsers.map((item) => ({ ...item, role: "CS" })),
+    ],
+    [],
+  );
+
+  const [roleFilter, setRoleFilter] = useState("ALL");
+  const [staffFilter, setStaffFilter] = useState("all");
+  const [search, setSearch] = useState("");
+  const [selectedUserId, setSelectedUserId] = useState("sale-001");
+  const [form, setForm] = useState({
+    date: "2026-10-12",
+    startTime: "08:30",
+    endTime: "11:30",
+    workplaceId: "center-01",
+    workType: "SALES_SHIFT",
+    classId: "class-0001",
+  });
+  const [message, setMessage] = useState(null);
+
+  const selectedStaff = staff.find((item) => item.id === selectedUserId);
+  const selectedRole = selectedStaff?.role ?? "SALE";
+  const workTypes = selectedRole === "SALE" ? saleWorkTypes : csWorkTypes;
+
+  const visibleStaff = useMemo(
+    () =>
+      staff.filter((person) => {
+        const matchesRole = roleFilter === "ALL" || person.role === roleFilter;
+        const matchesStaff = staffFilter === "all" || person.id === staffFilter;
+        const matchesSearch = (person.fullName + " " + person.employeeCode)
+          .toLowerCase()
+          .includes(search.toLowerCase());
+        return matchesRole && matchesStaff && matchesSearch;
+      }),
+    [staff, roleFilter, staffFilter, search],
+  );
+
+  const selectedDay = staffWeekDays.find((day) => day.date === form.date);
+  const selectedAvailability = staffAvailability.find(
+    (availability) =>
+      availability.userId === selectedUserId &&
+      availability.day === selectedDay?.key &&
+      isStaffTimeInsideAvailability(
+        availability,
+        form.startTime,
+        form.endTime,
+      ),
+  );
+
+  const conflictingSchedule = staffSchedules.find(
+    (schedule) =>
+      schedule.userId === selectedUserId &&
+      schedule.date === form.date &&
+      schedule.status === "ASSIGNED" &&
+      form.startTime < schedule.endTime &&
+      form.endTime > schedule.startTime,
+  );
+
+  const assignableClasses = classes.filter((item) =>
+    ["READY", "RUNNING"].includes(item.status),
+  );
+
+  function selectStaff(person) {
+    setSelectedUserId(person.id);
+    setForm((current) => ({
+      ...current,
+      workType:
+        person.role === "SALE"
+          ? "SALES_SHIFT"
+          : "CLASS_SUPPORT",
+    }));
+    setMessage(null);
+  }
+
+  function selectAvailability(person, availability) {
+    const day = staffWeekDays.find((item) => item.key === availability.day);
+    setSelectedUserId(person.id);
+    setForm((current) => ({
+      ...current,
+      date: day?.date ?? current.date,
+      startTime: availability.startTime,
+      endTime: availability.endTime,
+      workplaceId: availability.workplaceId,
+      workType:
+        person.role === "SALE"
+          ? "SALES_SHIFT"
+          : "CLASS_SUPPORT",
+    }));
+    setMessage(null);
+  }
+
+  function submitAssignment() {
+    setMessage(null);
+
+    if (!selectedStaff) {
+      setMessage({ type: "error", text: "Vui lòng chọn nhân viên." });
+      return;
+    }
+
+    if (!selectedAvailability) {
+      setMessage({
+        type: "error",
+        text: "Khung giờ đã chọn không nằm trọn trong lịch rảnh đã được duyệt của nhân viên.",
+      });
+      return;
+    }
+
+    const result = assignStaffSchedule(
+      {
+        userId: selectedStaff.id,
+        staffRole: selectedStaff.role,
+        workplaceId: form.workplaceId,
+        classId: form.classId,
+        date: form.date,
+        startTime: form.startTime,
+        endTime: form.endTime,
+        workType: form.workType,
+      },
+      {
+        id: "cm-001",
+        fullName: "Center Manager",
+        role: "CM",
+      },
+    );
+
+    if (!result.ok) {
+      setMessage({ type: "error", text: result.reason });
+      return;
+    }
+
+    setMessage({
+      type: "success",
+      text:
+        "Đã phân công " +
+        selectedStaff.fullName +
+        " vào " +
+        getWorkTypeLabel(selectedStaff.role, form.workType) +
+        ".",
+    });
+  }
+
+  return (
+    <div className="space-y-4 font-sans text-[13px] leading-5 text-slate-800 antialiased">
+      <section className="flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm xl:flex-row xl:items-start xl:justify-between">
+        <div>
+          <div className="flex items-center gap-2">
+            <CalendarCheck2 size={20} className="text-blue-600" />
+            <h2 className="text-xl font-semibold tracking-tight text-slate-900">
+              Lịch rảnh & Phân công Sale / CS
+            </h2>
+          </div>
+          <p className="mt-1 text-sm text-slate-500">
+            CM xem lịch rảnh của nhân sự vận hành, kiểm tra ca đã xếp và phân công Sale hoặc CS ngay trên cùng một màn hình.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-3 gap-2">
+          <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-center">
+            <strong className="block text-base text-slate-900">{saleUsers.length}</strong>
+            <span className="text-[11px] text-slate-500">Sale</span>
+          </div>
+          <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-center">
+            <strong className="block text-base text-slate-900">{csUsers.length}</strong>
+            <span className="text-[11px] text-slate-500">CS</span>
+          </div>
+          <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-center">
+            <strong className="block text-base text-slate-900">{staffSchedules.length}</strong>
+            <span className="text-[11px] text-slate-500">Ca đã xếp</span>
+          </div>
+        </div>
+      </section>
+
+      <section className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm xl:flex-row xl:items-center">
+        <div className="flex h-9 min-w-52 flex-1 items-center gap-2 rounded-md border border-slate-300 bg-slate-50 px-3 text-slate-400 xl:max-w-72">
+          <Search size={15} />
+          <input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Tìm Sale / CS..."
+            className="min-w-0 flex-1 bg-transparent text-[13px] text-slate-700 outline-none"
+          />
+        </div>
+
+        <select
+          className={fieldClass + " xl:w-40"}
+          value={roleFilter}
+          onChange={(event) => setRoleFilter(event.target.value)}
+        >
+          <option value="ALL">Tất cả vai trò</option>
+          <option value="SALE">Sale</option>
+          <option value="CS">CS</option>
+        </select>
+
+        <select
+          className={fieldClass + " xl:w-52"}
+          value={staffFilter}
+          onChange={(event) => setStaffFilter(event.target.value)}
+        >
+          <option value="all">Tất cả nhân viên</option>
+          {staff.map((person) => (
+            <option key={person.id} value={person.id}>
+              {person.fullName}
+            </option>
+          ))}
+        </select>
+
+        <div className="flex items-center rounded-md border border-slate-200 bg-white">
+          <button type="button" className="px-2.5 py-2 text-slate-400 hover:bg-slate-50">
+            <ChevronLeft size={15} />
+          </button>
+          <span className="border-x border-slate-200 px-3 py-2 text-xs font-medium text-slate-700">
+            Tuần 42 · 12/10 – 18/10/2026
+          </span>
+          <button type="button" className="px-2.5 py-2 text-slate-400 hover:bg-slate-50">
+            <ChevronRight size={15} />
+          </button>
+        </div>
+      </section>
+
+      <div className="grid items-start gap-4 2xl:grid-cols-[minmax(0,1fr)_370px]">
+        <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+          <div className="overflow-x-auto">
+            <div className="min-w-[1000px]">
+              <div className="grid grid-cols-[200px_repeat(7,minmax(112px,1fr))] border-b border-slate-200 bg-slate-50">
+                <div className="px-3 py-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                  Nhân viên
+                </div>
+                {staffWeekDays.map((day) => (
+                  <div key={day.key} className="border-l border-slate-200 px-2 py-2 text-center">
+                    <strong className="block text-xs text-slate-700">{day.label}</strong>
+                    <span className="text-[11px] text-slate-400">{day.displayDate}</span>
+                  </div>
+                ))}
+              </div>
+
+              {visibleStaff.map((person) => (
+                <div
+                  key={person.id}
+                  className="grid min-h-32 grid-cols-[200px_repeat(7,minmax(112px,1fr))] border-b border-slate-200 last:border-b-0"
+                >
+                  <button
+                    type="button"
+                    onClick={() => selectStaff(person)}
+                    className={
+                      "px-3 py-4 text-left transition " +
+                      (selectedUserId === person.id
+                        ? "bg-blue-50"
+                        : "bg-slate-50 hover:bg-slate-100")
+                    }
+                  >
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#173557] text-xs font-semibold text-white">
+                        {person.fullName
+                          .split(" ")
+                          .map((part) => part[0])
+                          .slice(0, 2)
+                          .join("")}
+                      </span>
+                      <StatusBadge tone={person.role === "SALE" ? "emerald" : "violet"}>
+                        {person.role}
+                      </StatusBadge>
+                    </div>
+                    <strong className="block text-xs font-semibold text-slate-900">
+                      {person.fullName}
+                    </strong>
+                    <span className="text-[11px] text-slate-400">{person.employeeCode}</span>
+                  </button>
+
+                  {staffWeekDays.map((day) => {
+                    const availabilities = staffAvailability.filter(
+                      (item) => item.userId === person.id && item.day === day.key,
+                    );
+                    const schedules = staffSchedules.filter(
+                      (schedule) =>
+                        schedule.userId === person.id &&
+                        schedule.date === day.date &&
+                        schedule.status === "ASSIGNED",
+                    );
+
+                    return (
+                      <div key={day.key} className="space-y-1.5 border-l border-slate-200 p-2">
+                        {availabilities.map((availability) => (
+                          <button
+                            key={availability.id}
+                            type="button"
+                            onClick={() => selectAvailability(person, availability)}
+                            className={
+                              "w-full rounded-md border px-2 py-1.5 text-left transition " +
+                              (availability.status === "APPROVED"
+                                ? "border-emerald-200 bg-emerald-50 hover:bg-emerald-100"
+                                : "border-amber-200 bg-amber-50 hover:bg-amber-100")
+                            }
+                          >
+                            <span className="block text-[11px] font-semibold text-slate-700">
+                              {availability.startTime}–{availability.endTime}
+                            </span>
+                            <span className="block text-[10px] text-slate-500">
+                              {availability.status === "APPROVED" ? "Rảnh" : "Chờ duyệt"}
+                            </span>
+                          </button>
+                        ))}
+
+                        {schedules.map((schedule) => (
+                          <div
+                            key={schedule.id}
+                            className="rounded-md border border-blue-200 bg-blue-50 px-2 py-1.5"
+                          >
+                            <span className="block text-[10px] font-semibold uppercase text-blue-700">
+                              Đã xếp ca
+                            </span>
+                            <span className="block text-[11px] font-medium text-slate-700">
+                              {schedule.startTime}–{schedule.endTime}
+                            </span>
+                            <span className="block truncate text-[10px] text-slate-500">
+                              {getWorkTypeLabel(schedule.staffRole, schedule.workType)}
+                            </span>
+                          </div>
+                        ))}
+
+                        {!availabilities.length && !schedules.length && (
+                          <div className="pt-8 text-center text-slate-300">—</div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+
+              {!visibleStaff.length && (
+                <div className="px-6 py-12 text-center text-sm text-slate-400">
+                  Không có nhân viên phù hợp bộ lọc.
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-4 border-t border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-500">
+            <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-emerald-500" /> Lịch rảnh đã duyệt</span>
+            <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-amber-500" /> Chờ duyệt</span>
+            <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-blue-500" /> Đã phân công</span>
+          </div>
+        </section>
+
+        <aside className="rounded-lg border border-slate-200 bg-white shadow-sm">
+          <div className="flex items-center gap-2 border-b border-slate-200 px-4 py-3">
+            <BriefcaseBusiness size={17} className="text-blue-600" />
+            <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-700">
+              Phân công ca làm
+            </h3>
+          </div>
+
+          <div className="space-y-4 p-4">
+            <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+              <span className="mb-1 block text-[11px] uppercase tracking-wide text-slate-400">
+                Nhân viên đã chọn
+              </span>
+              <div className="flex items-center justify-between gap-2">
+                <strong className="text-sm text-slate-900">
+                  {selectedStaff?.fullName || "Chưa chọn"}
+                </strong>
+                {selectedStaff && (
+                  <StatusBadge tone={selectedStaff.role === "SALE" ? "emerald" : "violet"}>
+                    {selectedStaff.role}
+                  </StatusBadge>
+                )}
+              </div>
+              {selectedStaff && (
+                <span className="mt-1 block text-[11px] text-slate-400">
+                  {selectedStaff.employeeCode}
+                </span>
+              )}
+            </div>
+
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-medium text-slate-600">
+                Công việc / Loại ca
+              </span>
+              <select
+                className={fieldClass}
+                value={form.workType}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, workType: event.target.value }))
+                }
+              >
+                {workTypes.map((item) => (
+                  <option key={item.value} value={item.value}>
+                    {item.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            {selectedRole === "CS" && form.workType === "CLASS_SUPPORT" && (
+              <label className="block">
+                <span className="mb-1.5 block text-xs font-medium text-slate-600">
+                  Lớp cần hỗ trợ
+                </span>
+                <select
+                  className={fieldClass}
+                  value={form.classId}
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, classId: event.target.value }))
+                  }
+                >
+                  {assignableClasses.map((classItem) => (
+                    <option key={classItem.id} value={classItem.id}>
+                      {classItem.classCode} · {classItem.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-medium text-slate-600">
+                Ngày làm
+              </span>
+              <select
+                className={fieldClass}
+                value={form.date}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, date: event.target.value }))
+                }
+              >
+                {staffWeekDays.map((day) => (
+                  <option key={day.date} value={day.date}>
+                    {day.label} · {day.displayDate}/2026
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <div className="grid grid-cols-2 gap-3">
+              <label>
+                <span className="mb-1.5 block text-xs font-medium text-slate-600">
+                  Bắt đầu
+                </span>
+                <input
+                  type="time"
+                  className={fieldClass}
+                  value={form.startTime}
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, startTime: event.target.value }))
+                  }
+                />
+              </label>
+              <label>
+                <span className="mb-1.5 block text-xs font-medium text-slate-600">
+                  Kết thúc
+                </span>
+                <input
+                  type="time"
+                  className={fieldClass}
+                  value={form.endTime}
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, endTime: event.target.value }))
+                  }
+                />
+              </label>
+            </div>
+
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-medium text-slate-600">
+                Cơ sở
+              </span>
+              <select
+                className={fieldClass}
+                value={form.workplaceId}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, workplaceId: event.target.value }))
+                }
+              >
+                {workplaceOptions.map((place) => (
+                  <option key={place.id} value={place.id}>
+                    {place.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <div className="space-y-2 rounded-md border border-slate-200 p-3">
+              <div className="flex items-center justify-between gap-2">
+                <span className="inline-flex items-center gap-1.5 text-xs text-slate-500">
+                  <Clock3 size={14} />
+                  Kiểm tra lịch rảnh
+                </span>
+                {selectedAvailability ? (
+                  <StatusBadge tone="emerald">Phù hợp</StatusBadge>
+                ) : (
+                  <StatusBadge tone="amber">Ngoài lịch rảnh</StatusBadge>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between gap-2">
+                <span className="inline-flex items-center gap-1.5 text-xs text-slate-500">
+                  <Users size={14} />
+                  Trùng ca
+                </span>
+                {conflictingSchedule ? (
+                  <StatusBadge tone="amber">Có xung đột</StatusBadge>
+                ) : (
+                  <StatusBadge tone="emerald">Không xung đột</StatusBadge>
+                )}
+              </div>
+            </div>
+
+            {message && (
+              <div
+                className={
+                  "rounded-md border px-3 py-2 text-xs " +
+                  (message.type === "success"
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                    : "border-red-200 bg-red-50 text-red-700")
+                }
+              >
+                {message.type === "success" && (
+                  <CheckCircle2 size={14} className="mr-1 inline" />
+                )}
+                {message.text}
+              </div>
+            )}
+
+            <Button
+              variant="primary"
+              className="w-full"
+              onClick={submitAssignment}
+              disabled={!selectedStaff}
+            >
+              <UserCheck size={16} />
+              Xác nhận phân công
+            </Button>
+          </div>
+        </aside>
+      </div>
+    </div>
+  );
+}
