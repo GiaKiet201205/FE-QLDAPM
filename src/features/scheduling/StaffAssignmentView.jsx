@@ -35,7 +35,12 @@ function StatusBadge({ children, tone = "slate" }) {
   };
 
   return (
-    <span className={"inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium " + styles[tone]}>
+    <span
+      className={
+        "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium " +
+        styles[tone]
+      }
+    >
       {children}
     </span>
   );
@@ -46,51 +51,66 @@ function getWorkTypeLabel(role, value) {
   return source.find((item) => item.value === value)?.label ?? value;
 }
 
-export default function StaffAssignmentView() {
+export default function StaffAssignmentView({ staffRole = "SALE" }) {
+  const role = staffRole === "CS" ? "CS" : "SALE";
+  const isSale = role === "SALE";
   const { classes, staffSchedules, assignStaffSchedule } = useAcademicData();
+
   const staff = useMemo(
-    () => [
-      ...saleUsers.map((item) => ({ ...item, role: "SALE" })),
-      ...csUsers.map((item) => ({ ...item, role: "CS" })),
-    ],
-    [],
+    () =>
+      (isSale ? saleUsers : csUsers).map((item) => ({
+        ...item,
+        role,
+      })),
+    [isSale, role],
   );
 
-  const [roleFilter, setRoleFilter] = useState("ALL");
   const [staffFilter, setStaffFilter] = useState("all");
   const [search, setSearch] = useState("");
-  const [selectedUserId, setSelectedUserId] = useState("sale-001");
+  const [selectedUserId, setSelectedUserId] = useState(
+    isSale ? "sale-001" : "cs-001",
+  );
   const [form, setForm] = useState({
     date: "2026-10-12",
-    startTime: "08:30",
-    endTime: "11:30",
+    startTime: isSale ? "08:30" : "17:30",
+    endTime: isSale ? "11:30" : "20:30",
     workplaceId: "center-01",
-    workType: "SALES_SHIFT",
+    workType: isSale ? "SALES_SHIFT" : "CLASS_SUPPORT",
     classId: "class-0001",
   });
   const [message, setMessage] = useState(null);
 
+  const workTypes = isSale ? saleWorkTypes : csWorkTypes;
   const selectedStaff = staff.find((item) => item.id === selectedUserId);
-  const selectedRole = selectedStaff?.role ?? "SALE";
-  const workTypes = selectedRole === "SALE" ? saleWorkTypes : csWorkTypes;
 
   const visibleStaff = useMemo(
     () =>
       staff.filter((person) => {
-        const matchesRole = roleFilter === "ALL" || person.role === roleFilter;
         const matchesStaff = staffFilter === "all" || person.id === staffFilter;
         const matchesSearch = (person.fullName + " " + person.employeeCode)
           .toLowerCase()
           .includes(search.toLowerCase());
-        return matchesRole && matchesStaff && matchesSearch;
+
+        return matchesStaff && matchesSearch;
       }),
-    [staff, roleFilter, staffFilter, search],
+    [staff, staffFilter, search],
   );
+
+  const roleAvailability = staffAvailability.filter(
+    (item) => item.staffRole === role,
+  );
+  const roleSchedules = staffSchedules.filter(
+    (item) => item.staffRole === role,
+  );
+  const approvedAvailabilityCount = roleAvailability.filter(
+    (item) => item.status === "APPROVED",
+  ).length;
 
   const selectedDay = staffWeekDays.find((day) => day.date === form.date);
   const selectedAvailability = staffAvailability.find(
     (availability) =>
       availability.userId === selectedUserId &&
+      availability.staffRole === role &&
       availability.day === selectedDay?.key &&
       isStaffTimeInsideAvailability(
         availability,
@@ -114,18 +134,12 @@ export default function StaffAssignmentView() {
 
   function selectStaff(person) {
     setSelectedUserId(person.id);
-    setForm((current) => ({
-      ...current,
-      workType:
-        person.role === "SALE"
-          ? "SALES_SHIFT"
-          : "CLASS_SUPPORT",
-    }));
     setMessage(null);
   }
 
   function selectAvailability(person, availability) {
     const day = staffWeekDays.find((item) => item.key === availability.day);
+
     setSelectedUserId(person.id);
     setForm((current) => ({
       ...current,
@@ -133,10 +147,6 @@ export default function StaffAssignmentView() {
       startTime: availability.startTime,
       endTime: availability.endTime,
       workplaceId: availability.workplaceId,
-      workType:
-        person.role === "SALE"
-          ? "SALES_SHIFT"
-          : "CLASS_SUPPORT",
     }));
     setMessage(null);
   }
@@ -160,7 +170,7 @@ export default function StaffAssignmentView() {
     const result = assignStaffSchedule(
       {
         userId: selectedStaff.id,
-        staffRole: selectedStaff.role,
+        staffRole: role,
         workplaceId: form.workplaceId,
         classId: form.classId,
         date: form.date,
@@ -186,7 +196,7 @@ export default function StaffAssignmentView() {
         "Đã phân công " +
         selectedStaff.fullName +
         " vào " +
-        getWorkTypeLabel(selectedStaff.role, form.workType) +
+        getWorkTypeLabel(role, form.workType) +
         ".",
     });
   }
@@ -198,25 +208,31 @@ export default function StaffAssignmentView() {
           <div className="flex items-center gap-2">
             <CalendarCheck2 size={20} className="text-blue-600" />
             <h2 className="text-xl font-semibold tracking-tight text-slate-900">
-              Lịch rảnh & Phân công Sale / CS
+              Lịch rảnh & Phân công {isSale ? "Sale" : "CS"}
             </h2>
           </div>
           <p className="mt-1 text-sm text-slate-500">
-            CM xem lịch rảnh của nhân sự vận hành, kiểm tra ca đã xếp và phân công Sale hoặc CS ngay trên cùng một màn hình.
+            {isSale
+              ? "Xem lịch rảnh của Sale, kiểm tra ca tư vấn đã xếp và phân công công việc ngay trên cùng một màn hình."
+              : "Xem lịch rảnh của CS, kiểm tra ca hỗ trợ đã xếp và phân công công việc ngay trên cùng một màn hình."}
           </p>
         </div>
 
         <div className="grid grid-cols-3 gap-2">
           <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-center">
-            <strong className="block text-base text-slate-900">{saleUsers.length}</strong>
-            <span className="text-[11px] text-slate-500">Sale</span>
+            <strong className="block text-base text-slate-900">{staff.length}</strong>
+            <span className="text-[11px] text-slate-500">{isSale ? "Sale" : "CS"}</span>
           </div>
           <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-center">
-            <strong className="block text-base text-slate-900">{csUsers.length}</strong>
-            <span className="text-[11px] text-slate-500">CS</span>
+            <strong className="block text-base text-slate-900">
+              {approvedAvailabilityCount}
+            </strong>
+            <span className="text-[11px] text-slate-500">Slot rảnh</span>
           </div>
           <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-center">
-            <strong className="block text-base text-slate-900">{staffSchedules.length}</strong>
+            <strong className="block text-base text-slate-900">
+              {roleSchedules.length}
+            </strong>
             <span className="text-[11px] text-slate-500">Ca đã xếp</span>
           </div>
         </div>
@@ -228,27 +244,19 @@ export default function StaffAssignmentView() {
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Tìm Sale / CS..."
+            placeholder={"Tìm " + (isSale ? "Sale" : "CS") + "..."}
             className="min-w-0 flex-1 bg-transparent text-[13px] text-slate-700 outline-none"
           />
         </div>
 
         <select
-          className={fieldClass + " xl:w-40"}
-          value={roleFilter}
-          onChange={(event) => setRoleFilter(event.target.value)}
-        >
-          <option value="ALL">Tất cả vai trò</option>
-          <option value="SALE">Sale</option>
-          <option value="CS">CS</option>
-        </select>
-
-        <select
-          className={fieldClass + " xl:w-52"}
+          className={fieldClass + " xl:w-56"}
           value={staffFilter}
           onChange={(event) => setStaffFilter(event.target.value)}
         >
-          <option value="all">Tất cả nhân viên</option>
+          <option value="all">
+            Tất cả {isSale ? "Sale" : "CS"}
+          </option>
           {staff.map((person) => (
             <option key={person.id} value={person.id}>
               {person.fullName}
@@ -257,13 +265,19 @@ export default function StaffAssignmentView() {
         </select>
 
         <div className="flex items-center rounded-md border border-slate-200 bg-white">
-          <button type="button" className="px-2.5 py-2 text-slate-400 hover:bg-slate-50">
+          <button
+            type="button"
+            className="px-2.5 py-2 text-slate-400 hover:bg-slate-50"
+          >
             <ChevronLeft size={15} />
           </button>
           <span className="border-x border-slate-200 px-3 py-2 text-xs font-medium text-slate-700">
             Tuần 42 · 12/10 – 18/10/2026
           </span>
-          <button type="button" className="px-2.5 py-2 text-slate-400 hover:bg-slate-50">
+          <button
+            type="button"
+            className="px-2.5 py-2 text-slate-400 hover:bg-slate-50"
+          >
             <ChevronRight size={15} />
           </button>
         </div>
@@ -275,12 +289,19 @@ export default function StaffAssignmentView() {
             <div className="min-w-[1000px]">
               <div className="grid grid-cols-[200px_repeat(7,minmax(112px,1fr))] border-b border-slate-200 bg-slate-50">
                 <div className="px-3 py-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                  Nhân viên
+                  {isSale ? "Sale" : "CS"}
                 </div>
                 {staffWeekDays.map((day) => (
-                  <div key={day.key} className="border-l border-slate-200 px-2 py-2 text-center">
-                    <strong className="block text-xs text-slate-700">{day.label}</strong>
-                    <span className="text-[11px] text-slate-400">{day.displayDate}</span>
+                  <div
+                    key={day.key}
+                    className="border-l border-slate-200 px-2 py-2 text-center"
+                  >
+                    <strong className="block text-xs text-slate-700">
+                      {day.label}
+                    </strong>
+                    <span className="text-[11px] text-slate-400">
+                      {day.displayDate}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -308,34 +329,45 @@ export default function StaffAssignmentView() {
                           .slice(0, 2)
                           .join("")}
                       </span>
-                      <StatusBadge tone={person.role === "SALE" ? "emerald" : "violet"}>
-                        {person.role}
+                      <StatusBadge tone={isSale ? "emerald" : "violet"}>
+                        {role}
                       </StatusBadge>
                     </div>
                     <strong className="block text-xs font-semibold text-slate-900">
                       {person.fullName}
                     </strong>
-                    <span className="text-[11px] text-slate-400">{person.employeeCode}</span>
+                    <span className="text-[11px] text-slate-400">
+                      {person.employeeCode}
+                    </span>
                   </button>
 
                   {staffWeekDays.map((day) => {
                     const availabilities = staffAvailability.filter(
-                      (item) => item.userId === person.id && item.day === day.key,
+                      (item) =>
+                        item.userId === person.id &&
+                        item.staffRole === role &&
+                        item.day === day.key,
                     );
                     const schedules = staffSchedules.filter(
                       (schedule) =>
                         schedule.userId === person.id &&
+                        schedule.staffRole === role &&
                         schedule.date === day.date &&
                         schedule.status === "ASSIGNED",
                     );
 
                     return (
-                      <div key={day.key} className="space-y-1.5 border-l border-slate-200 p-2">
+                      <div
+                        key={day.key}
+                        className="space-y-1.5 border-l border-slate-200 p-2"
+                      >
                         {availabilities.map((availability) => (
                           <button
                             key={availability.id}
                             type="button"
-                            onClick={() => selectAvailability(person, availability)}
+                            onClick={() =>
+                              selectAvailability(person, availability)
+                            }
                             className={
                               "w-full rounded-md border px-2 py-1.5 text-left transition " +
                               (availability.status === "APPROVED"
@@ -347,7 +379,9 @@ export default function StaffAssignmentView() {
                               {availability.startTime}–{availability.endTime}
                             </span>
                             <span className="block text-[10px] text-slate-500">
-                              {availability.status === "APPROVED" ? "Rảnh" : "Chờ duyệt"}
+                              {availability.status === "APPROVED"
+                                ? "Rảnh"
+                                : "Chờ duyệt"}
                             </span>
                           </button>
                         ))}
@@ -364,7 +398,7 @@ export default function StaffAssignmentView() {
                               {schedule.startTime}–{schedule.endTime}
                             </span>
                             <span className="block truncate text-[10px] text-slate-500">
-                              {getWorkTypeLabel(schedule.staffRole, schedule.workType)}
+                              {getWorkTypeLabel(role, schedule.workType)}
                             </span>
                           </div>
                         ))}
@@ -387,9 +421,18 @@ export default function StaffAssignmentView() {
           </div>
 
           <div className="flex flex-wrap items-center gap-4 border-t border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-500">
-            <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-emerald-500" /> Lịch rảnh đã duyệt</span>
-            <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-amber-500" /> Chờ duyệt</span>
-            <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-blue-500" /> Đã phân công</span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-emerald-500" />
+              Lịch rảnh đã duyệt
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-amber-500" />
+              Chờ duyệt
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-blue-500" />
+              Đã phân công
+            </span>
           </div>
         </section>
 
@@ -397,7 +440,7 @@ export default function StaffAssignmentView() {
           <div className="flex items-center gap-2 border-b border-slate-200 px-4 py-3">
             <BriefcaseBusiness size={17} className="text-blue-600" />
             <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-700">
-              Phân công ca làm
+              Phân công {isSale ? "Sale" : "CS"}
             </h3>
           </div>
 
@@ -411,8 +454,8 @@ export default function StaffAssignmentView() {
                   {selectedStaff?.fullName || "Chưa chọn"}
                 </strong>
                 {selectedStaff && (
-                  <StatusBadge tone={selectedStaff.role === "SALE" ? "emerald" : "violet"}>
-                    {selectedStaff.role}
+                  <StatusBadge tone={isSale ? "emerald" : "violet"}>
+                    {role}
                   </StatusBadge>
                 )}
               </div>
@@ -431,7 +474,10 @@ export default function StaffAssignmentView() {
                 className={fieldClass}
                 value={form.workType}
                 onChange={(event) =>
-                  setForm((current) => ({ ...current, workType: event.target.value }))
+                  setForm((current) => ({
+                    ...current,
+                    workType: event.target.value,
+                  }))
                 }
               >
                 {workTypes.map((item) => (
@@ -442,7 +488,7 @@ export default function StaffAssignmentView() {
               </select>
             </label>
 
-            {selectedRole === "CS" && form.workType === "CLASS_SUPPORT" && (
+            {!isSale && form.workType === "CLASS_SUPPORT" && (
               <label className="block">
                 <span className="mb-1.5 block text-xs font-medium text-slate-600">
                   Lớp cần hỗ trợ
@@ -451,7 +497,10 @@ export default function StaffAssignmentView() {
                   className={fieldClass}
                   value={form.classId}
                   onChange={(event) =>
-                    setForm((current) => ({ ...current, classId: event.target.value }))
+                    setForm((current) => ({
+                      ...current,
+                      classId: event.target.value,
+                    }))
                   }
                 >
                   {assignableClasses.map((classItem) => (
@@ -471,7 +520,10 @@ export default function StaffAssignmentView() {
                 className={fieldClass}
                 value={form.date}
                 onChange={(event) =>
-                  setForm((current) => ({ ...current, date: event.target.value }))
+                  setForm((current) => ({
+                    ...current,
+                    date: event.target.value,
+                  }))
                 }
               >
                 {staffWeekDays.map((day) => (
@@ -492,10 +544,14 @@ export default function StaffAssignmentView() {
                   className={fieldClass}
                   value={form.startTime}
                   onChange={(event) =>
-                    setForm((current) => ({ ...current, startTime: event.target.value }))
+                    setForm((current) => ({
+                      ...current,
+                      startTime: event.target.value,
+                    }))
                   }
                 />
               </label>
+
               <label>
                 <span className="mb-1.5 block text-xs font-medium text-slate-600">
                   Kết thúc
@@ -505,7 +561,10 @@ export default function StaffAssignmentView() {
                   className={fieldClass}
                   value={form.endTime}
                   onChange={(event) =>
-                    setForm((current) => ({ ...current, endTime: event.target.value }))
+                    setForm((current) => ({
+                      ...current,
+                      endTime: event.target.value,
+                    }))
                   }
                 />
               </label>
@@ -519,7 +578,10 @@ export default function StaffAssignmentView() {
                 className={fieldClass}
                 value={form.workplaceId}
                 onChange={(event) =>
-                  setForm((current) => ({ ...current, workplaceId: event.target.value }))
+                  setForm((current) => ({
+                    ...current,
+                    workplaceId: event.target.value,
+                  }))
                 }
               >
                 {workplaceOptions.map((place) => (
