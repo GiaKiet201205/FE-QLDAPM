@@ -24,6 +24,11 @@ export const initialStaffSchedules = [
   { id: "staff-schedule-006", userId: "sale-001", staffRole: "SALE", workplaceId: "center-01", classId: null, date: "2026-10-12", startTime: "08:30", endTime: "11:30", workType: "SALES_SHIFT", status: "ASSIGNED", assignedBy: "cm-001" },
   { id: "staff-schedule-007", userId: "sale-002", staffRole: "SALE", workplaceId: "center-02", classId: null, date: "2026-10-14", startTime: "14:00", endTime: "17:00", workType: "LEAD_FOLLOWUP", status: "ASSIGNED", assignedBy: "cm-001" },
   { id: "staff-schedule-008", userId: "sale-003", staffRole: "SALE", workplaceId: "center-01", classId: null, date: "2026-10-16", startTime: "18:00", endTime: "21:00", workType: "CONSULTATION", status: "ASSIGNED", assignedBy: "cm-001" },
+  { id: "staff-schedule-009", userId: "cs-001", staffRole: "CS", workplaceId: "center-01", classId: "class-0001", date: "2026-10-12", startTime: "17:30", endTime: "20:30", workType: "CLASS_SUPPORT", status: "ASSIGNED", assignedBy: "cm-001" },
+  { id: "staff-schedule-010", userId: "cs-001", staffRole: "CS", workplaceId: "center-01", classId: null, date: "2026-10-14", startTime: "08:30", endTime: "11:30", workType: "FRONT_DESK", status: "ASSIGNED", assignedBy: "cm-001" },
+  { id: "staff-schedule-011", userId: "cs-001", staffRole: "CS", workplaceId: "center-01", classId: null, date: "2026-10-16", startTime: "14:00", endTime: "17:00", workType: "OPERATIONS_SUPPORT", status: "ASSIGNED", assignedBy: "cm-001" },
+  { id: "staff-schedule-012", userId: "sale-001", staffRole: "SALE", workplaceId: "center-01", classId: null, date: "2026-10-14", startTime: "14:00", endTime: "17:00", workType: "LEAD_FOLLOWUP", status: "ASSIGNED", assignedBy: "cm-001" },
+  { id: "staff-schedule-013", userId: "sale-001", staffRole: "SALE", workplaceId: "center-01", classId: null, date: "2026-10-16", startTime: "18:00", endTime: "21:00", workType: "CONSULTATION", status: "ASSIGNED", assignedBy: "cm-001" },
 ];
 
 export const initialAuditLogs = [];
