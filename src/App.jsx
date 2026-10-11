@@ -33,7 +33,7 @@ function resolveElement(item, roleKey) {
     return <TeacherAssignment />
   }
   if (item.meta?.page === 'staff-assignment') {
-    return <StaffAssignment />
+    return <StaffAssignment staffRole={item.meta.staffRole} />
   }
   return <PlaceholderPage title={item.label} />
 }
