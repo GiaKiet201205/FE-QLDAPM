@@ -11,6 +11,7 @@ import PayrollPage from '../src/pages/PayrollPage'
 import StatisticsPage from '../src/pages/StatisticsPage'
 import TeacherAssignment from './pages/TeacherAssignment'
 import StaffAssignment from './pages/StaffAssignment'
+import MySchedule from './pages/MySchedule'
 
 import { AcademicDataProvider } from './features/academic/AcademicDataContext'
 import { ROLES } from './config/roles'
@@ -34,6 +35,9 @@ function resolveElement(item, roleKey) {
   }
   if (item.meta?.page === 'staff-assignment') {
     return <StaffAssignment staffRole={item.meta.staffRole} />
+  }
+  if (item.meta?.page === 'my-schedule') {
+    return <MySchedule roleKey={item.meta.roleKey} />
   }
   return <PlaceholderPage title={item.label} />
 }
