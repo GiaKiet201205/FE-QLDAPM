@@ -53,16 +53,18 @@ export const ROLES = {
         items: [
           { label: 'Danh sách Giáo viên', path: '/teachers', icon: 'Users' },
           // { label: 'Hồ sơ Giáo viên', path: '/teachers/profiles', icon: 'IdCard' },
-          { label: 'Lịch rảnh Giáo viên', path: '/teachers/availability', icon: 'CalendarSearch' },
         ],
       },
       {
-        title: 'Phân công',
+        title: 'Vận hành giảng dạy',
         items: [
-          { label: 'Phân công Giáo viên', path: '/assign-teacher', icon: 'UserCheck' },
-          // { label: 'Tạo / phân công lịch dạy', path: '/schedule/create', icon: 'CalendarPlus' },
+          {
+            label: 'Lịch rảnh & Phân công',
+            path: '/assign-teacher',
+            icon: 'CalendarCheck2',
+            meta: { page: 'teacher-assignment' },
+          },
           { label: 'Điều chỉnh lịch dạy', path: '/schedule/adjust', icon: 'CalendarClock' },
-          // { label: 'Kiểm tra trùng lịch', path: '/schedule/conflicts', icon: 'AlertTriangle' },
           { label: 'Theo dõi lịch giảng dạy', path: '/schedule/overview', icon: 'CalendarDays' },
         ],
       },
