@@ -10,6 +10,7 @@ import PlaceholderPage from './pages/PlaceholderPage'
 import PayrollPage from '../src/pages/PayrollPage'
 import StatisticsPage from '../src/pages/StatisticsPage'
 import TeacherAssignment from './pages/TeacherAssignment'
+import StaffAssignment from './pages/StaffAssignment'
 
 import { AcademicDataProvider } from './features/academic/AcademicDataContext'
 import { ROLES } from './config/roles'
@@ -30,6 +31,9 @@ function resolveElement(item, roleKey) {
   }
   if (item.meta?.page === 'teacher-assignment') {
     return <TeacherAssignment />
+  }
+  if (item.meta?.page === 'staff-assignment') {
+    return <StaffAssignment />
   }
   return <PlaceholderPage title={item.label} />
 }
