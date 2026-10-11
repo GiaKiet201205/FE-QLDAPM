@@ -99,10 +99,16 @@ export const ROLES = {
         title: 'Vận hành ca làm',
         items: [
           {
-            label: 'Lịch rảnh & Phân công',
-            path: '/staff-assignment',
+            label: 'Lịch rảnh & Phân công Sale',
+            path: '/assign-sale',
             icon: 'CalendarCheck2',
-            meta: { page: 'staff-assignment' },
+            meta: { page: 'staff-assignment', staffRole: 'SALE' },
+          },
+          {
+            label: 'Lịch rảnh & Phân công CS',
+            path: '/assign-cs',
+            icon: 'CalendarCheck2',
+            meta: { page: 'staff-assignment', staffRole: 'CS' },
           },
           { label: 'Điều chỉnh lịch làm việc', path: '/shift/adjust', icon: 'CalendarClock' },
           { label: 'Theo dõi lịch làm việc', path: '/shift/overview', icon: 'CalendarDays' },
