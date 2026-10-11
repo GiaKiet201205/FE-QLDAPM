@@ -15,7 +15,7 @@ export const ROLES = {
         items: [
           { label: 'Đăng ký lịch rảnh', path: '/availability/register', icon: 'CalendarPlus' },
           // { label: 'Cập nhật lịch rảnh', path: '/availability/update', icon: 'CalendarClock' },
-          { label: 'Lịch dạy', path: '/teaching-schedule', icon: 'CalendarDays' },
+          { label: 'Lịch dạy', path: '/teaching-schedule', icon: 'CalendarDays', meta: { page: 'my-schedule', roleKey: 'TEACHER' } },
         ],
       },
       {
@@ -53,16 +53,18 @@ export const ROLES = {
         items: [
           { label: 'Danh sách Giáo viên', path: '/teachers', icon: 'Users' },
           // { label: 'Hồ sơ Giáo viên', path: '/teachers/profiles', icon: 'IdCard' },
-          { label: 'Lịch rảnh Giáo viên', path: '/teachers/availability', icon: 'CalendarSearch' },
         ],
       },
       {
-        title: 'Phân công',
+        title: 'Vận hành giảng dạy',
         items: [
-          { label: 'Phân công Giáo viên', path: '/assign-teacher', icon: 'UserCheck' },
-          // { label: 'Tạo / phân công lịch dạy', path: '/schedule/create', icon: 'CalendarPlus' },
+          {
+            label: 'Lịch rảnh & Phân công',
+            path: '/assign-teacher',
+            icon: 'CalendarCheck2',
+            meta: { page: 'teacher-assignment' },
+          },
           { label: 'Điều chỉnh lịch dạy', path: '/schedule/adjust', icon: 'CalendarClock' },
-          // { label: 'Kiểm tra trùng lịch', path: '/schedule/conflicts', icon: 'AlertTriangle' },
           { label: 'Theo dõi lịch giảng dạy', path: '/schedule/overview', icon: 'CalendarDays' },
         ],
       },
@@ -91,17 +93,24 @@ export const ROLES = {
         title: 'Nhân sự vận hành',
         items: [
           { label: 'Danh sách Sale / CS', path: '/staff', icon: 'Users' },
-          { label: 'Lịch rảnh Sale', path: '/staff/sale-availability', icon: 'CalendarSearch' },
-          { label: 'Lịch rảnh CS', path: '/staff/cs-availability', icon: 'CalendarSearch' },
         ],
       },
       {
-        title: 'Phân công ca làm',
+        title: 'Vận hành ca làm',
         items: [
-          { label: 'Phân công Sale', path: '/assign-sale', icon: 'UserCheck' },
-          { label: 'Phân công CS', path: '/assign-cs', icon: 'UserCheck' },
+          {
+            label: 'Lịch rảnh & Phân công Sale',
+            path: '/assign-sale',
+            icon: 'CalendarCheck2',
+            meta: { page: 'staff-assignment', staffRole: 'SALE' },
+          },
+          {
+            label: 'Lịch rảnh & Phân công CS',
+            path: '/assign-cs',
+            icon: 'CalendarCheck2',
+            meta: { page: 'staff-assignment', staffRole: 'CS' },
+          },
           { label: 'Điều chỉnh lịch làm việc', path: '/shift/adjust', icon: 'CalendarClock' },
-          // { label: 'Kiểm tra trùng lịch', path: '/shift/conflicts', icon: 'AlertTriangle' },
           { label: 'Theo dõi lịch làm việc', path: '/shift/overview', icon: 'CalendarDays' },
         ],
       },
@@ -132,7 +141,7 @@ export const ROLES = {
         items: [
           { label: 'Đăng ký lịch rảnh', path: '/availability/register', icon: 'CalendarPlus' },
           // { label: 'Cập nhật lịch rảnh', path: '/availability/update', icon: 'CalendarClock' },
-          { label: 'Xem lịch làm việc', path: '/availability/mine', icon: 'CalendarCheck' },
+          { label: 'Xem lịch làm việc', path: '/availability/mine', icon: 'CalendarCheck', meta: { page: 'my-schedule', roleKey: 'SALE' } },
 { label: 'Xem công lương', path: '/payroll/history', icon: 'Wallet', meta: { page: 'payroll', permission: 'view', scope: 'sale' } },
         ],
       },
@@ -154,7 +163,7 @@ export const ROLES = {
         items: [
           { label: 'Đăng ký lịch rảnh', path: '/availability/register', icon: 'CalendarPlus' },
           // { label: 'Cập nhật lịch rảnh', path: '/availability/update', icon: 'CalendarClock' },
-          { label: 'Lịch làm việc', path: '/my-shifts', icon: 'CalendarDays' },
+          { label: 'Lịch làm việc', path: '/my-shifts', icon: 'CalendarDays', meta: { page: 'my-schedule', roleKey: 'CS' } },
         ],
       },
       {
