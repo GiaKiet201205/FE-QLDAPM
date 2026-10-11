@@ -68,7 +68,7 @@ export function AcademicDataProvider({ children }) {
     initialClassTargetRequirements,
   );
   const [classAccessScopes, setClassAccessScopes] = useState(initialClassAccessScopes);
-  const [teachingSchedules] = useState(initialTeachingSchedules);
+  const [teachingSchedules, setTeachingSchedules] = useState(initialTeachingSchedules);
   const [staffSchedules, setStaffSchedules] = useState(initialStaffSchedules);
   const [assignments, setAssignments] = useState(initialAssignments);
   const [exams, setExams] = useState(initialExams);
@@ -1421,6 +1421,113 @@ export function AcademicDataProvider({ children }) {
     return { ok: true };
   }
 
+  function assignTeacherSchedule(data, actor) {
+    if (actor?.role !== "TC") {
+      return {
+        ok: false,
+        reason: "Only Teaching Coordinator can assign teachers.",
+      };
+    }
+
+    const classItem = classes.find((item) => item.id === data.classId);
+    if (!classItem) {
+      return { ok: false, reason: "Class not found." };
+    }
+
+    if (!["READY", "RUNNING"].includes(classItem.status)) {
+      return {
+        ok: false,
+        reason: "Only READY or RUNNING classes can receive teaching assignments.",
+      };
+    }
+
+    if (
+      !data.teacherId ||
+      !data.date ||
+      !data.startTime ||
+      !data.endTime ||
+      data.startTime >= data.endTime
+    ) {
+      return {
+        ok: false,
+        reason: "Teacher, date, start time and end time are required.",
+      };
+    }
+
+    if (classItem.startDate && data.date < classItem.startDate) {
+      return {
+        ok: false,
+        reason: "The teaching date is before the class start date.",
+      };
+    }
+
+    if (classItem.endDate && data.date > classItem.endDate) {
+      return {
+        ok: false,
+        reason: "The teaching date is after the class end date.",
+      };
+    }
+
+    const teacherConflict = teachingSchedules.find(
+      (schedule) =>
+        schedule.teacherId === data.teacherId &&
+        schedule.date === data.date &&
+        schedule.status === "ASSIGNED" &&
+        data.startTime < schedule.endTime &&
+        data.endTime > schedule.startTime,
+    );
+
+    if (teacherConflict) {
+      return {
+        ok: false,
+        code: "TEACHER_SCHEDULE_CONFLICT",
+        reason: "This teacher already has another class during the selected time.",
+        conflict: teacherConflict,
+      };
+    }
+
+    const duplicateClassSession = teachingSchedules.find(
+      (schedule) =>
+        schedule.classId === data.classId &&
+        schedule.date === data.date &&
+        schedule.status === "ASSIGNED" &&
+        data.startTime < schedule.endTime &&
+        data.endTime > schedule.startTime,
+    );
+
+    if (duplicateClassSession) {
+      return {
+        ok: false,
+        code: "CLASS_SCHEDULE_CONFLICT",
+        reason: "This class already has a teacher assigned during the selected time.",
+        conflict: duplicateClassSession,
+      };
+    }
+
+    const schedule = {
+      id: `teaching-${Date.now()}`,
+      teacherId: data.teacherId,
+      classId: data.classId,
+      date: data.date,
+      startTime: data.startTime,
+      endTime: data.endTime,
+      campus: data.campus ?? "Cơ sở chính",
+      status: "ASSIGNED",
+      assignedBy: actor.id,
+    };
+
+    setTeachingSchedules((current) => [...current, schedule]);
+    addAudit(actor, "ASSIGN_TEACHER", "TEACHING_SCHEDULE", schedule.id, {
+      teacherId: schedule.teacherId,
+      classId: schedule.classId,
+      date: schedule.date,
+      startTime: schedule.startTime,
+      endTime: schedule.endTime,
+    });
+
+    return { ok: true, schedule };
+  }
+
   const value = useMemo(
     () => ({
       students,
@@ -1430,6 +1537,7 @@ export function AcademicDataProvider({ children }) {
       classTargetRequirements,
       classAccessScopes,
       teachingSchedules,
+      assignTeacherSchedule,
       staffSchedules,
       assignments,
       exams,
