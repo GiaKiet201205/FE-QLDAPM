@@ -93,17 +93,18 @@ export const ROLES = {
         title: 'Nhân sự vận hành',
         items: [
           { label: 'Danh sách Sale / CS', path: '/staff', icon: 'Users' },
-          { label: 'Lịch rảnh Sale', path: '/staff/sale-availability', icon: 'CalendarSearch' },
-          { label: 'Lịch rảnh CS', path: '/staff/cs-availability', icon: 'CalendarSearch' },
         ],
       },
       {
-        title: 'Phân công ca làm',
+        title: 'Vận hành ca làm',
         items: [
-          { label: 'Phân công Sale', path: '/assign-sale', icon: 'UserCheck' },
-          { label: 'Phân công CS', path: '/assign-cs', icon: 'UserCheck' },
+          {
+            label: 'Lịch rảnh & Phân công',
+            path: '/staff-assignment',
+            icon: 'CalendarCheck2',
+            meta: { page: 'staff-assignment' },
+          },
           { label: 'Điều chỉnh lịch làm việc', path: '/shift/adjust', icon: 'CalendarClock' },
-          // { label: 'Kiểm tra trùng lịch', path: '/shift/conflicts', icon: 'AlertTriangle' },
           { label: 'Theo dõi lịch làm việc', path: '/shift/overview', icon: 'CalendarDays' },
         ],
       },
