@@ -15,7 +15,7 @@ export const ROLES = {
         items: [
           { label: 'Đăng ký lịch rảnh', path: '/availability/register', icon: 'CalendarPlus' },
           // { label: 'Cập nhật lịch rảnh', path: '/availability/update', icon: 'CalendarClock' },
-          { label: 'Lịch dạy', path: '/teaching-schedule', icon: 'CalendarDays' },
+          { label: 'Lịch dạy', path: '/teaching-schedule', icon: 'CalendarDays', meta: { page: 'my-schedule', roleKey: 'TEACHER' } },
         ],
       },
       {
@@ -141,7 +141,7 @@ export const ROLES = {
         items: [
           { label: 'Đăng ký lịch rảnh', path: '/availability/register', icon: 'CalendarPlus' },
           // { label: 'Cập nhật lịch rảnh', path: '/availability/update', icon: 'CalendarClock' },
-          { label: 'Xem lịch làm việc', path: '/availability/mine', icon: 'CalendarCheck' },
+          { label: 'Xem lịch làm việc', path: '/availability/mine', icon: 'CalendarCheck', meta: { page: 'my-schedule', roleKey: 'SALE' } },
 { label: 'Xem công lương', path: '/payroll/history', icon: 'Wallet', meta: { page: 'payroll', permission: 'view', scope: 'sale' } },
         ],
       },
@@ -163,7 +163,7 @@ export const ROLES = {
         items: [
           { label: 'Đăng ký lịch rảnh', path: '/availability/register', icon: 'CalendarPlus' },
           // { label: 'Cập nhật lịch rảnh', path: '/availability/update', icon: 'CalendarClock' },
-          { label: 'Lịch làm việc', path: '/my-shifts', icon: 'CalendarDays' },
+          { label: 'Lịch làm việc', path: '/my-shifts', icon: 'CalendarDays', meta: { page: 'my-schedule', roleKey: 'CS' } },
         ],
       },
       {
