@@ -15,6 +15,10 @@ export const initialTeachingSchedules = [
   { id: "teaching-004", teacherId: "teacher-003", classId: "class-0003", date: "2026-10-08", startTime: "18:30", endTime: "20:30", status: "ASSIGNED", assignedBy: "tc-001" },
   { id: "teaching-005", teacherId: "teacher-001", classId: "class-0005", date: "2026-10-07", startTime: "14:00", endTime: "16:00", status: "ASSIGNED", assignedBy: "tc-001" },
   { id: "teaching-006", teacherId: "teacher-001", classId: "class-0006", date: "2026-10-21", startTime: "18:30", endTime: "20:30", status: "ASSIGNED", assignedBy: "tc-001" },
+  { id: "teaching-007", teacherId: "teacher-001", classId: "class-0001", date: "2026-10-12", startTime: "18:30", endTime: "20:30", campus: "Cơ sở chính", room: "Room 302", status: "ASSIGNED", assignedBy: "tc-001" },
+  { id: "teaching-008", teacherId: "teacher-001", classId: "class-0001", date: "2026-10-14", startTime: "08:30", endTime: "10:30", campus: "Cơ sở chính", room: "Room 204", status: "ASSIGNED", assignedBy: "tc-001" },
+  { id: "teaching-009", teacherId: "teacher-001", classId: "class-0001", date: "2026-10-15", startTime: "19:00", endTime: "21:00", campus: "Cơ sở chính", room: "Lab 105", status: "ASSIGNED", assignedBy: "tc-001" },
+  { id: "teaching-010", teacherId: "teacher-001", classId: "class-0001", date: "2026-10-16", startTime: "18:30", endTime: "20:30", campus: "Cơ sở chính", room: "Room 302", status: "ASSIGNED", assignedBy: "tc-001" },
 ];
 
 const classIds = [
