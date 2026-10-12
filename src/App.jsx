@@ -11,14 +11,25 @@ import Dashboard from "./pages/Dashboard";
 import Students from "./pages/Students";
 import Classes from "./pages/Classes";
 import AvailabilityRegister from "./pages/AvailabilityRegister";
+import AccountManagement from "./pages/AccountManagement";
 import PlaceholderPage from "./pages/PlaceholderPage";
+import LoginPage from "./pages/LoginPage";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage";
+import ProfilePage from "./pages/ProfilePage";
 import PayrollPage from "./pages/PayrollPage";
 import StatisticsPage from "./pages/StatisticsPage";
-import Login from "./pages/Login";
+import TeacherAssignment from "./pages/TeacherAssignment";
+import StaffAssignment from "./pages/StaffAssignment";
+import MySchedule from "./pages/MySchedule";
 
 import { AcademicDataProvider } from "./features/academic/AcademicDataContext";
-import { AuthProvider, useAuth } from "./context/AuthContext";
 import { ROLES } from "./config/roles";
+import AccountDataProvider from "./features/accounts/AccountDataProvider";
+import { useAccountData } from "./features/accounts/hooks/useAccountData";
+import ProtectedRoute from "./components/auth/ProtectedRoute";
+
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 function resolveElement(item, roleKey) {
   if (item.meta?.page === "payroll") {
@@ -36,14 +47,27 @@ function resolveElement(item, roleKey) {
     return <StatisticsPage />;
   }
 
+  if (item.meta?.page === "teacher-assignment") {
+    return <TeacherAssignment />;
+  }
+
+  if (item.meta?.page === "staff-assignment") {
+    return <StaffAssignment staffRole={item.meta.staffRole} />;
+  }
+
+  if (item.meta?.page === "my-schedule") {
+    return <MySchedule roleKey={item.meta.roleKey} />;
+  }
+
   return <PlaceholderPage title={item.label} />;
 }
 
-function AuthenticatedRoutes() {
-  const { session, isAuthenticated, logout } = useAuth();
+function AppRoutes() {
+  const { authUser } = useAccountData();
 
-  const roleKey = session?.role;
-  const role = roleKey ? ROLES[roleKey] : null;
+  const isLoggedIn = Boolean(authUser);
+  const roleKey = authUser?.roleKey || "ADMIN";
+  const role = ROLES[roleKey] || ROLES.ADMIN;
 
   const allItems = useMemo(() => {
     if (!role) return [];
@@ -51,58 +75,66 @@ function AuthenticatedRoutes() {
     const items = [];
     const seen = new Set();
 
-    role.sections.forEach((section) =>
+    role.sections.forEach((section) => {
       section.items.forEach((item) => {
         if (!seen.has(item.path)) {
           seen.add(item.path);
           items.push(item);
         }
-      }),
-    );
+      });
+    });
 
     return items;
   }, [role]);
 
-  if (!isAuthenticated) {
-    return (
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="*" element={<Navigate to="/login" replace />} />
-      </Routes>
-    );
-  }
-
-  if (!role) {
-    return (
-      <Routes>
-        <Route
-          path="*"
-          element={
-            <div className="p-8 text-sm text-red-700">
-              This account has an unsupported role: {roleKey || "unknown"}.
-              Sign out and use a configured staff account.
-              <button
-                type="button"
-                className="ml-3 underline"
-                onClick={logout}
-              >
-                Sign out
-              </button>
-            </div>
-          }
-        />
-      </Routes>
-    );
-  }
+  const rolePrefix = `/${roleKey.toLowerCase()}`;
 
   return (
-    <AcademicDataProvider>
+    <>
+      <ToastContainer position="top-right" autoClose={2000} />
+
       <Routes>
-        <Route path="/login" element={<Navigate to="/" replace />} />
+        <Route
+          path="/login"
+          element={
+            isLoggedIn ? (
+              <Navigate to={rolePrefix} replace />
+            ) : (
+              <LoginPage />
+            )
+          }
+        />
+
+        <Route
+          path="/forgot-password"
+          element={<ForgotPasswordPage />}
+        />
+
         <Route
           path="/"
-          element={<Layout role={role} session={session} onLogout={logout} />}
+          element={
+            <Navigate
+              to={isLoggedIn ? rolePrefix : "/login"}
+              replace
+            />
+          }
+        />
+
+        <Route
+          path={rolePrefix}
+          element={
+            <ProtectedRoute allowedRoles={[roleKey]}>
+              <AcademicDataProvider>
+                <Layout role={role} />
+              </AcademicDataProvider>
+            </ProtectedRoute>
+          }
         >
+          <Route
+            path="profile"
+            element={<ProfilePage />}
+          />
+
           {allItems.map((item) =>
             item.path === "/" ? (
               <Route
@@ -129,6 +161,16 @@ function AuthenticatedRoutes() {
                 path="availability/register"
                 element={<AvailabilityRegister />}
               />
+            ) : item.path === "/accounts" ? (
+              <Route
+                key={item.path}
+                path="accounts"
+                element={
+                  <ProtectedRoute allowedRoles={["ADMIN"]}>
+                    <AccountManagement />
+                  </ProtectedRoute>
+                }
+              />
             ) : (
               <Route
                 key={item.path}
@@ -137,19 +179,33 @@ function AuthenticatedRoutes() {
               />
             ),
           )}
-          <Route path="*" element={<Navigate to="/" replace />} />
+
+          <Route
+            path="*"
+            element={<Navigate to={rolePrefix} replace />}
+          />
         </Route>
+
+        <Route
+          path="*"
+          element={
+            <Navigate
+              to={isLoggedIn ? rolePrefix : "/login"}
+              replace
+            />
+          }
+        />
       </Routes>
-    </AcademicDataProvider>
+    </>
   );
 }
 
 export default function App() {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <AuthenticatedRoutes />
-      </AuthProvider>
+      <AccountDataProvider>
+        <AppRoutes />
+      </AccountDataProvider>
     </BrowserRouter>
   );
 }
