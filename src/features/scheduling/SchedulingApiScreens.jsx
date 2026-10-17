@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiRequest, schedulingApi } from '../../services/api';
+import { initialClasses } from '../classes/mockClasses';
 import { addDays, campuses, days, iso, mondayOf, normalizeSlot, slotForWeek, workplaces, workTypes } from './schedulingUtils';
 
 const input = 'w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700';
@@ -99,10 +100,10 @@ export function AssignmentScreen({role}) {
   const {people,slots,shifts,loading,error,refresh}=useSchedulingData(role,week,'assignment');
   const [selected,setSelected]=useState('');
   const [form,setForm]=useState({classId:'',date:iso(mondayOf()),startTime:'08:30',endTime:'11:30',campus:'Cơ sở chính',workplaceId:'center-01',workType:role==='CS'?'CLASS_SUPPORT':'SALES_SHIFT'});
-  const [classes,setClasses]=useState([]);
+  const [classes,setClasses]=useState(initialClasses);
   const [message,setMessage]=useState('');const [actionError,setActionError]=useState('');
   const [saving,setSaving]=useState(false);
-  useEffect(()=>{let active=true;apiRequest('/classes').then(rows=>{if(active)setClasses(Array.isArray(rows)?rows:[]);}).catch(()=>{if(active)setClasses([]);});return()=>{active=false;};},[]);
+  useEffect(()=>{let active=true;apiRequest('/classes').then(rows=>{if(active&&Array.isArray(rows))setClasses(rows);}).catch(()=>{});return()=>{active=false;};},[]);
   useEffect(()=>{setSelected(people[0]?.id||'');},[people]);
   useEffect(()=>{setForm(current=>({...current,date:iso(week)}));},[week]);
   const available=slots.map(normalizeSlot);
