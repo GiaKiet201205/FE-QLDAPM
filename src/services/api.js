@@ -13,6 +13,7 @@ export async function apiRequest(path, options = {}) {
   if (response.status === 204) return null;
   const data = await response.json().catch(() => null);
   if (!response.ok) {
+    if (response.status === 401 && path !== '/auth/login') { saveSession(null);window.dispatchEvent(new Event('qldapm:session-expired')); }
     const error = new Error(data?.message || ('HTTP ' + response.status));
     error.status = response.status;
     throw error;
