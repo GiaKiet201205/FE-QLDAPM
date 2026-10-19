@@ -22,10 +22,14 @@ export const LoginForm = ({
         <div className="mb-6 rounded-md border border-blue-100 bg-blue-50 p-3 text-xs leading-5 text-slate-600">
           <p className="font-semibold text-[#1a365d]">Tài khoản đăng nhập demo</p>
           <p>
-            Tên đăng nhập theo vai trò: <span className="font-mono font-medium">admin, teacher, tc, cm, sale, cs</span>.
+            Tài khoản BE seed: <span className="font-mono font-medium">admin, teacher001, tc001, cm001, cs001</span>.
           </p>
-          <p>Mật khẩu mặc định: <span className="font-mono font-medium">123456</span>. Ví dụ: <span className="font-mono font-medium">admin/123456</span>.</p>
-          <p className="mt-1 text-slate-500">Nếu đã đổi mật khẩu, hãy dùng mật khẩu mới.</p>
+          <p>
+            Mật khẩu seed: <span className="font-mono font-medium">123456</span>. Ví dụ: <span className="font-mono font-medium">admin / 123456</span>.
+          </p>
+          <p className="mt-1 text-slate-500">
+            Hệ thống đăng nhập bằng JWT từ backend, không dùng tài khoản mock để cấp quyền.
+          </p>
         </div>
       )}
 
