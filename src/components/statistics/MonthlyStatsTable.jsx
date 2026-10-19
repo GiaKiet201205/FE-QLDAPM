@@ -1,7 +1,8 @@
 export default function MonthlyStatsTable({ data, year }) {
-  const totalRevenue = data.reduce((s, r) => s + r.revenue, 0)
+  const hasRevenue = data.some((r) => r.revenue != null)
+  const totalRevenue = data.reduce((s, r) => s + (r.revenue ?? 0), 0)
   const totalSalaryCost = data.reduce((s, r) => s + r.salaryCost, 0)
-  const totalProfit = totalRevenue - totalSalaryCost
+  const totalProfit = hasRevenue ? totalRevenue - totalSalaryCost : null
   const totalNewEnrollments = data.reduce((s, r) => s + r.newEnrollments, 0)
 
   return (
@@ -30,10 +31,12 @@ export default function MonthlyStatsTable({ data, year }) {
                 <td className="px-5 py-2.5 text-slate-600">+{r.newEnrollments}</td>
                 <td className="px-5 py-2.5 text-slate-600">{r.students.toLocaleString()}</td>
                 <td className="px-5 py-2.5 text-slate-600">{r.classes}</td>
-                <td className="px-5 py-2.5 text-slate-700 whitespace-nowrap">${r.revenue.toLocaleString()}</td>
+                <td className="px-5 py-2.5 text-slate-700 whitespace-nowrap">
+                  {r.revenue == null ? 'Chưa có dữ liệu' : `$${Number(r.revenue).toLocaleString()}`}
+                </td>
                 <td className="px-5 py-2.5 text-slate-700 whitespace-nowrap">${r.salaryCost.toLocaleString()}</td>
-                <td className={`px-5 py-2.5 font-semibold whitespace-nowrap ${r.profit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                  ${r.profit.toLocaleString()}
+                <td className={`px-5 py-2.5 font-semibold whitespace-nowrap ${r.profit == null ? 'text-slate-400' : r.profit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                  {r.profit == null ? '—' : `$${Number(r.profit).toLocaleString()}`}
                 </td>
               </tr>
             ))}
@@ -44,10 +47,12 @@ export default function MonthlyStatsTable({ data, year }) {
               <td className="px-5 py-3 text-slate-800">+{totalNewEnrollments}</td>
               <td className="px-5 py-3 text-slate-400">—</td>
               <td className="px-5 py-3 text-slate-400">—</td>
-              <td className="px-5 py-3 text-slate-900 whitespace-nowrap">${totalRevenue.toLocaleString()}</td>
+              <td className="px-5 py-3 text-slate-900 whitespace-nowrap">
+                {hasRevenue ? `$${totalRevenue.toLocaleString()}` : 'Chưa có dữ liệu'}
+              </td>
               <td className="px-5 py-3 text-slate-900 whitespace-nowrap">${totalSalaryCost.toLocaleString()}</td>
-              <td className={`px-5 py-3 whitespace-nowrap ${totalProfit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                ${totalProfit.toLocaleString()}
+              <td className={`px-5 py-3 whitespace-nowrap ${totalProfit == null ? 'text-slate-400' : totalProfit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                {totalProfit == null ? '—' : `$${totalProfit.toLocaleString()}`}
               </td>
             </tr>
           </tfoot>

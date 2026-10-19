@@ -82,7 +82,54 @@ export async function apiRequest(path, options = {}) {
 
   return body;
 }
+<<<<<<< Updated upstream
 export const login = (username, password) => apiRequest('/auth/login', { method: 'POST', body: JSON.stringify({ username, password }) });
+=======
+
+
+/* =========================================================
+   AUTH
+========================================================= */
+
+export function login(
+  username,
+  password,
+) {
+  return apiRequest(
+    '/auth/login',
+    {
+      method: 'POST',
+
+      body: JSON.stringify({
+        username,
+        password,
+      }),
+    },
+  )
+}
+
+export const dashboardApi = {
+  overview() {
+    return apiRequest('/dashboard')
+  },
+}
+
+export const statisticsApi = {
+  summary({ period, year, month, date }) {
+    const params = new URLSearchParams({ period })
+    if (year != null) params.set('year', String(year))
+    if (month != null) params.set('month', String(month))
+    if (date) params.set('date', date)
+    return apiRequest(`/statistics?${params.toString()}`)
+  },
+}
+
+
+/* =========================================================
+   SCHEDULING API
+========================================================= */
+
+>>>>>>> Stashed changes
 export const schedulingApi = {
   employees: (role) => apiRequest('/employees?role=' + encodeURIComponent(role)),
   mineAvailability: (week) => apiRequest('/availabilities/me?weekStart=' + week),
