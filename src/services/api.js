@@ -22,34 +22,42 @@ export class ApiError extends Error {
    SESSION
 ========================================================= */
 
-export function getSession() {
+function parseSession(raw) {
+  if (!raw) return null;
   try {
-    const raw = sessionStorage.getItem(SESSION_KEY)
-
-    if (!raw) {
-      return null
-    }
-
-    return JSON.parse(raw)
+    const session = JSON.parse(raw);
+    if (
+      !session ||
+      typeof session.token !== 'string' ||
+      !session.token ||
+      typeof session.username !== 'string' ||
+      !session.username ||
+      typeof session.role !== 'string' ||
+      !session.role
+    ) return null;
+    return session;
   } catch {
-    return null
+    return null;
   }
 }
 
-
-export function saveSession(session) {
-  if (session) {
-    sessionStorage.setItem(
-      SESSION_KEY,
-      JSON.stringify(session),
-    )
-
-    return
-  }
-
-  sessionStorage.removeItem(SESSION_KEY)
+export function getSession() {
+  return (
+    parseSession(sessionStorage.getItem(SESSION_KEY)) ||
+    parseSession(localStorage.getItem(SESSION_KEY))
+  );
 }
 
+export function saveSession(session, remember = false) {
+  // Remove any previous session so old tokens cannot survive logout or account switch.
+  sessionStorage.removeItem(SESSION_KEY);
+  localStorage.removeItem(SESSION_KEY);
+
+  if (!session) return;
+
+  const storage = remember ? localStorage : sessionStorage;
+  storage.setItem(SESSION_KEY, JSON.stringify(session));
+}
 
 /* =========================================================
    TOKEN
@@ -72,10 +80,13 @@ export function setAccessToken(token) {
     return
   }
 
-  saveSession({
-    ...(currentSession || {}),
-    token,
-  })
+  saveSession(
+    {
+      ...(currentSession || {}),
+      token,
+    },
+    Boolean(localStorage.getItem(SESSION_KEY)),
+  )
 }
 
 
