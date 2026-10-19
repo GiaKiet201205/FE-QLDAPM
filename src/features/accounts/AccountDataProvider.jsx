@@ -3,16 +3,12 @@ import { AccountDataContext } from './hooks/useAccountData';
 import {
   ACCOUNTS_STORAGE_KEY,
   createAccount,
-  createPasswordChange,
   createProfileUpdate,
   getNextAccountCode,
   loadAccounts,
-  loadSession,
-  persistSession,
 } from './accountStore';
 import { getRoleKeyFromAccountRole } from '../../config/roles';
-import { loginRequest } from '../../services/authApi';
-import { setAccessToken } from '../../services/api';
+import { getSession, login as backendLogin, saveSession } from '../../services/api';
 
 const ROLE_LABELS = {
   ADMIN: 'Admin',
@@ -23,180 +19,124 @@ const ROLE_LABELS = {
   CS: 'CS Specialist',
 };
 
-const BACKEND_USERNAME_ALIASES = {
-  admin: 'admin',
+const USERNAME_ALIASES = {
   teacher: 'teacher001',
   tc: 'tc001',
   cm: 'cm001',
   cs: 'cs001',
 };
 
-function normalizedBackendUsername(identifier, accounts) {
-  const value = identifier.trim().toLowerCase();
-  const localAccount = accounts.find(
+function backendUsername(identifier, accounts) {
+  const input = identifier.trim().toLowerCase();
+  const known = accounts.find(
     (item) =>
-      item.username?.toLowerCase() === value ||
-      item.email?.toLowerCase() === value,
+      item.username?.toLowerCase() === input ||
+      item.email?.toLowerCase() === input,
   );
+  const username = known?.username?.toLowerCase() ?? input;
+  return USERNAME_ALIASES[username] ?? username;
+}
 
-  const localUsername = localAccount?.username?.toLowerCase() ?? value;
-  return BACKEND_USERNAME_ALIASES[localUsername] ?? localUsername;
+function accountForSession(accounts, session) {
+  if (!session?.token || !ROLE_LABELS[session.role]) return null;
+
+  const username = session.username;
+  const existing = accounts.find(
+    (item) => item.username?.toLowerCase() === username.toLowerCase(),
+  );
+  if (existing) return existing;
+
+  // Accounts in this provider are UI profiles, not a second login authority.
+  return {
+    id: `backend:${username}`,
+    code: `BE-${username.toUpperCase()}`,
+    user: username,
+    username,
+    email: '',
+    initials: username.slice(0, 2).toUpperCase(),
+    role: ROLE_LABELS[session.role],
+    status: 'Active',
+    department: '',
+    phone: '',
+    avatar: '',
+  };
 }
 
 export default function AccountDataProvider({ children }) {
   const [accounts, setAccounts] = useState(() => loadAccounts(localStorage));
-  const [session, setSession] = useState(() =>
-    loadSession(localStorage, sessionStorage),
-  );
+  const [session, setSession] = useState(() => getSession());
 
-  const currentAccount = accounts.find(
-    (account) => account.id === session?.accountId,
+  // Only the backend JWT authorizes access. UI account records can never
+  // authenticate users or change the effective role of a signed-in session.
+  const currentAccount = useMemo(
+    () => accountForSession(accounts, session),
+    [accounts, session],
   );
 
   const authUser = useMemo(() => {
-    if (
-      currentAccount?.status !== 'Active' ||
-      !getRoleKeyFromAccountRole(currentAccount.role)
-    ) {
-      return null;
-    }
-
-    const { passwordCredential: _passwordCredential, ...profile } =
-      currentAccount;
-
+    if (!currentAccount || !session?.token) return null;
+    const { passwordCredential: _passwordCredential, ...profile } = currentAccount;
     return {
       ...profile,
-      roleKey: getRoleKeyFromAccountRole(currentAccount.role),
+      status: 'Active',
+      role: ROLE_LABELS[session.role],
+      roleKey: session.role,
     };
-  }, [currentAccount]);
+  }, [currentAccount, session]);
 
   useEffect(() => {
     localStorage.setItem(ACCOUNTS_STORAGE_KEY, JSON.stringify(accounts));
   }, [accounts]);
 
   useEffect(() => {
-    persistSession(localStorage, sessionStorage, session, authUser);
-  }, [session, authUser]);
-
-  useEffect(() => {
-    function handleUnauthorized() {
-      setAccessToken(null);
+    function handleExpiredSession() {
       setSession(null);
     }
-
-    window.addEventListener('iig:unauthorized', handleUnauthorized);
-    return () =>
-      window.removeEventListener('iig:unauthorized', handleUnauthorized);
+    window.addEventListener('qldapm:session-expired', handleExpiredSession);
+    window.addEventListener('iig:unauthorized', handleExpiredSession);
+    return () => {
+      window.removeEventListener('qldapm:session-expired', handleExpiredSession);
+      window.removeEventListener('iig:unauthorized', handleExpiredSession);
+    };
   }, []);
 
   async function login(identifier, password, remember) {
-    const normalizedIdentifier = identifier.trim();
-    const backendUsername = normalizedBackendUsername(
-      normalizedIdentifier,
-      accounts,
-    );
-
-    let response;
     try {
-      response = await loginRequest(backendUsername, password);
+      const response = await backendLogin(backendUsername(identifier, accounts), password);
+      const role = response?.role?.toUpperCase();
+
+      if (!response?.token || !ROLE_LABELS[role]) {
+        return { ok: false, reason: 'Backend không trả về JWT hoặc vai trò hợp lệ.' };
+      }
+
+      const nextSession = {
+        token: response.token,
+        tokenType: response.tokenType || 'Bearer',
+        username: response.username,
+        role,
+      };
+
+      // Save the real JWT before any protected academic/scheduling API calls.
+      saveSession(nextSession, Boolean(remember));
+      setSession(nextSession);
+      return {
+        ok: true,
+        user: accountForSession(accounts, nextSession)?.user || nextSession.username,
+        roleKey: role,
+      };
     } catch (error) {
-      return {
-        ok: false,
-        reason: error?.message || 'Không thể đăng nhập vào hệ thống.',
-      };
+      return { ok: false, reason: error?.message || 'Không thể đăng nhập vào backend.' };
     }
-
-    const roleKey = response?.role?.toUpperCase();
-    const accountRole = ROLE_LABELS[roleKey];
-
-    if (!response?.token) {
-      return {
-        ok: false,
-        reason: 'Backend không trả về access token.',
-      };
-    }
-
-    if (!accountRole) {
-      setAccessToken(null);
-      return {
-        ok: false,
-        reason: `Vai trò backend không được hỗ trợ: ${roleKey || 'unknown'}.`,
-      };
-    }
-
-    setAccessToken(response.token);
-
-    const responseUsername = response.username || backendUsername;
-    const inputValue = normalizedIdentifier.toLowerCase();
-
-    let account = accounts.find(
-      (item) =>
-        item.username?.toLowerCase() === inputValue ||
-        item.email?.toLowerCase() === inputValue ||
-        item.username?.toLowerCase() === responseUsername.toLowerCase(),
-    );
-
-    const lastLogin = new Date().toLocaleString('vi-VN', {
-      timeZone: 'Asia/Ho_Chi_Minh',
-    });
-
-    if (account) {
-      const updatedAccount = {
-        ...account,
-        role: accountRole,
-        status: 'Active',
-        lastLogin,
-      };
-
-      account = updatedAccount;
-      setAccounts((current) =>
-        current.map((item) =>
-          item.id === updatedAccount.id ? updatedAccount : item,
-        ),
-      );
-    } else {
-      account = {
-        id: Math.max(0, ...accounts.map((item) => item.id)) + 1,
-        code: `BE-${responseUsername.toUpperCase()}`,
-        user: responseUsername,
-        initials: responseUsername.slice(0, 2).toUpperCase(),
-        role: accountRole,
-        status: 'Active',
-        lastLogin,
-        username: responseUsername,
-        email: '',
-        department: '',
-        createdDate: new Date().toISOString().slice(0, 10),
-        mfaStatus: 'Disabled',
-        passwordPolicy: 'Standard',
-        ipAddress: '-',
-      };
-
-      setAccounts((current) => [...current, account]);
-    }
-
-    setSession({
-      accountId: account.id,
-      remember,
-    });
-
-    return {
-      ok: true,
-      user: account.user,
-      roleKey,
-    };
   }
 
   function logout() {
-    setAccessToken(null);
+    saveSession(null);
     setSession(null);
   }
 
   function addAccount(form) {
     const result = createAccount(accounts, form);
-    if (result.ok) {
-      setAccounts((current) => [result.account, ...current]);
-    }
+    if (result.ok) setAccounts((current) => [result.account, ...current]);
     return result;
   }
 
@@ -204,89 +144,58 @@ export default function AccountDataProvider({ children }) {
     setAccounts((current) =>
       current.map((account) =>
         account.id === id
-          ? {
-              ...account,
-              status: account.status === 'Active' ? 'Locked' : 'Active',
-            }
+          ? { ...account, status: account.status === 'Active' ? 'Locked' : 'Active' }
           : account,
       ),
     );
-
-    if (id === session?.accountId) {
-      logout();
-    }
+    // Local mock account status is not a backend revocation or user lock.
   }
 
   function changeRole(id, role) {
     if (!getRoleKeyFromAccountRole(role)) {
-      return {
-        ok: false,
-        reason: 'Vai trò không hợp lệ.',
-      };
+      return { ok: false, reason: 'Vai trò không hợp lệ.' };
     }
-
     setAccounts((current) =>
-      current.map((account) =>
-        account.id === id ? { ...account, role } : account,
-      ),
+      current.map((account) => account.id === id ? { ...account, role } : account),
     );
-
     return { ok: true };
   }
 
   function updateProfile(form) {
     if (!authUser) {
-      return {
-        ok: false,
-        errors: {
-          user: 'Phiên đăng nhập đã hết hiệu lực.',
-        },
-      };
+      return { ok: false, errors: { user: 'Phiên đăng nhập đã hết hiệu lực.' } };
     }
+    // This updates the local presentation profile only; backend user data is not edited.
+    const profileAccount = accounts.find(
+      (account) => account.username?.toLowerCase() === session.username.toLowerCase(),
+    ) ?? currentAccount;
+    const result = createProfileUpdate(accounts, profileAccount, form);
+    if (!result.ok) return result;
 
-    const result = createProfileUpdate(accounts, currentAccount, form);
-    if (!result.ok) {
-      return result;
-    }
-
-    setAccounts((current) =>
-      current.map((account) =>
-        account.id === authUser.id
-          ? { ...account, ...result.profile }
-          : account,
-      ),
-    );
-
+    const profile = { ...profileAccount, ...result.profile };
+    setAccounts((current) => {
+      const existing = current.find(
+        (item) => item.username?.toLowerCase() === session.username.toLowerCase(),
+      );
+      if (existing) {
+        return current.map((item) =>
+          item.username?.toLowerCase() === session.username.toLowerCase()
+            ? { ...item, ...result.profile }
+            : item,
+        );
+      }
+      return [...current, profile];
+    });
     return { ok: true };
   }
 
-  async function changePassword(form) {
-    if (!authUser) {
-      return {
-        ok: false,
-        errors: {
-          general: 'Phiên đăng nhập đã hết hiệu lực.',
-        },
-      };
-    }
-
-    const result = await createPasswordChange(currentAccount, form);
-    if (!result.ok) {
-      return result;
-    }
-
-    setAccounts((current) =>
-      current.map((account) =>
-        account.id === authUser.id
-          ? {
-              ...account,
-              passwordCredential: result.passwordCredential,
-            }
-          : account,
-      ),
-    );
-
-    return { ok: true };
+  async function changePassword() {
+    return {
+      ok: false,
+      errors: {
+        general: 'Đổi mật khẩu trên backend chưa được triển khai. Mật khẩu hiện tại không thay đổi.',
+      },
+    };
   }
 
   return (
