@@ -135,7 +135,7 @@ function AppRoutes() {
                 );
               })}
 
-            <Route index={false} path="*" element={<Navigate to={home} replace />} />
+            <Route path="*" element={<Navigate to={home} replace />} />
           </Route>
         )}
 
