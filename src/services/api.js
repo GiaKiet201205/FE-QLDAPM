@@ -22,34 +22,54 @@ export class ApiError extends Error {
    SESSION
 ========================================================= */
 
-export function getSession() {
+function parseSession(raw) {
+  if (!raw) return null;
   try {
-    const raw = sessionStorage.getItem(SESSION_KEY)
+    const session = JSON.parse(raw);
+    if (
+      !session ||
+      typeof session.token !== 'string' ||
+      !session.token ||
+      typeof session.username !== 'string' ||
+      !session.username ||
+      typeof session.role !== 'string' ||
+      !session.role
+    ) return null;
 
-    if (!raw) {
-      return null
-    }
+    // Reject expired JWTs rather than treating a stale browser session as logged in.
+    const jwtPayload = session.token.split('.')[1];
+    if (!jwtPayload) return null;
+    const payload = JSON.parse(
+      atob(jwtPayload.replace(/-/g, '+').replace(/_/g, '/')),
+    );
+    if (
+      !Number.isFinite(payload.exp) ||
+      payload.exp * 1000 <= Date.now()
+    ) return null;
 
-    return JSON.parse(raw)
+    return session;
   } catch {
-    return null
+    return null;
   }
 }
 
-
-export function saveSession(session) {
-  if (session) {
-    sessionStorage.setItem(
-      SESSION_KEY,
-      JSON.stringify(session),
-    )
-
-    return
-  }
-
-  sessionStorage.removeItem(SESSION_KEY)
+export function getSession() {
+  return (
+    parseSession(sessionStorage.getItem(SESSION_KEY)) ||
+    parseSession(localStorage.getItem(SESSION_KEY))
+  );
 }
 
+export function saveSession(session, remember = false) {
+  // Remove any previous session so old tokens cannot survive logout or account switch.
+  sessionStorage.removeItem(SESSION_KEY);
+  localStorage.removeItem(SESSION_KEY);
+
+  if (!session) return;
+
+  const storage = remember ? localStorage : sessionStorage;
+  storage.setItem(SESSION_KEY, JSON.stringify(session));
+}
 
 /* =========================================================
    TOKEN
@@ -72,10 +92,13 @@ export function setAccessToken(token) {
     return
   }
 
-  saveSession({
-    ...(currentSession || {}),
-    token,
-  })
+  saveSession(
+    {
+      ...(currentSession || {}),
+      token,
+    },
+    Boolean(localStorage.getItem(SESSION_KEY)),
+  )
 }
 
 
@@ -112,6 +135,17 @@ export async function apiRequest(
   options = {},
 ) {
   const token = getAccessToken()
+
+  // Spring Security can return 403 when a missing/expired JWT reaches a
+  // protected endpoint. Detect stale local sessions before making the request.
+  if (
+    path !== '/auth/login' &&
+    !token &&
+    (sessionStorage.getItem(SESSION_KEY) || localStorage.getItem(SESSION_KEY))
+  ) {
+    handleUnauthorized()
+    throw new ApiError('Phiên đăng nhập đã hết hạn.', 401)
+  }
 
   const headers = new Headers(
     options.headers || {},
