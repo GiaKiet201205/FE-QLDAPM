@@ -38,7 +38,7 @@ function backendUsername(identifier, accounts) {
 }
 
 function accountForSession(accounts, session) {
-  if (!session?.token || !ROLE_LABELS[session.role]) return null;
+  if (!session?.token || !session.username || !ROLE_LABELS[session.role]) return null;
 
   const username = session.username;
   const existing = accounts.find(
@@ -48,7 +48,7 @@ function accountForSession(accounts, session) {
 
   // Accounts in this provider are UI profiles, not a second login authority.
   return {
-    id: `backend:${username}`,
+    id: Math.max(0, ...accounts.map((item) => Number(item.id) || 0)) + 1,
     code: `BE-${username.toUpperCase()}`,
     user: username,
     username,
