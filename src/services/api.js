@@ -35,6 +35,18 @@ function parseSession(raw) {
       typeof session.role !== 'string' ||
       !session.role
     ) return null;
+
+    // Reject expired JWTs rather than treating a stale browser session as logged in.
+    const jwtPayload = session.token.split('.')[1];
+    if (!jwtPayload) return null;
+    const payload = JSON.parse(
+      atob(jwtPayload.replace(/-/g, '+').replace(/_/g, '/')),
+    );
+    if (
+      !Number.isFinite(payload.exp) ||
+      payload.exp * 1000 <= Date.now()
+    ) return null;
+
     return session;
   } catch {
     return null;
@@ -123,6 +135,17 @@ export async function apiRequest(
   options = {},
 ) {
   const token = getAccessToken()
+
+  // Spring Security can return 403 when a missing/expired JWT reaches a
+  // protected endpoint. Detect stale local sessions before making the request.
+  if (
+    path !== '/auth/login' &&
+    !token &&
+    (sessionStorage.getItem(SESSION_KEY) || localStorage.getItem(SESSION_KEY))
+  ) {
+    handleUnauthorized()
+    throw new ApiError('Phiên đăng nhập đã hết hạn.', 401)
+  }
 
   const headers = new Headers(
     options.headers || {},
