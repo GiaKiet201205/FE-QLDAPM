@@ -1,101 +1,509 @@
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
-const KEY = 'qldapm.scheduling.session';
-export const getSession = () => {
-  try { return JSON.parse(sessionStorage.getItem(KEY) || 'null'); } catch { return null; }
-};
-export const saveSession = (session) => session ? sessionStorage.setItem(KEY, JSON.stringify(session)) : sessionStorage.removeItem(KEY);
-export async function apiRequest(path, options = {}) {
-  const token = getSession()?.token;
-  const response = await fetch(BASE_URL + path, {
-    ...options,
-    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}), ...options.headers }
-  });
-  if (response.status === 204) return null;
-  const data = await response.json().catch(() => null);
-  if (!response.ok) {
-    if (response.status === 401 && path !== '/auth/login') { saveSession(null);window.dispatchEvent(new Event('qldapm:session-expired')); }
-    const error = new Error(data?.message || ('HTTP ' + response.status));
-    error.status = response.status;
-    throw error;
-  }
-  return data;
-const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8080/api";
-const TOKEN_KEY = "iig_access_token";
+const BASE_URL =
+  import.meta.env.VITE_API_URL || 'http://localhost:8080/api'
+
+const SESSION_KEY = 'qldapm.scheduling.session'
+
+/* =========================================================
+   API ERROR
+========================================================= */
 
 export class ApiError extends Error {
   constructor(message, status, body = null) {
-    super(message);
-    this.name = "ApiError";
-    this.status = status;
-    this.body = body;
+    super(message)
+
+    this.name = 'ApiError'
+    this.status = status
+    this.body = body
   }
 }
 
-export function getAccessToken() {
-  return localStorage.getItem(TOKEN_KEY);
-}
 
-export function setAccessToken(token) {
-  if (token) localStorage.setItem(TOKEN_KEY, token);
-  else localStorage.removeItem(TOKEN_KEY);
-}
+/* =========================================================
+   SESSION
+========================================================= */
 
-export async function apiRequest(path, options = {}) {
-  const token = getAccessToken();
-  const headers = new Headers(options.headers || {});
+export function getSession() {
+  try {
+    const raw = sessionStorage.getItem(SESSION_KEY)
 
-  if (!headers.has("Content-Type") && options.body != null) {
-    headers.set("Content-Type", "application/json");
-  }
-  if (token && !headers.has("Authorization")) {
-    headers.set("Authorization", `Bearer ${token}`);
-  }
-
-  const response = await fetch(`${BASE_URL}${path}`, {
-    ...options,
-    headers,
-  });
-
-  const contentType = response.headers.get("content-type") || "";
-  const body =
-    response.status === 204
-      ? null
-      : contentType.includes("application/json")
-        ? await response.json()
-        : await response.text();
-
-  if (!response.ok) {
-    const message =
-      body && typeof body === "object" && body.message
-        ? body.message
-        : typeof body === "string" && body
-          ? body
-          : `API error: ${response.status}`;
-
-    if (response.status === 401) {
-      setAccessToken(null);
-      window.dispatchEvent(new Event("iig:unauthorized"));
+    if (!raw) {
+      return null
     }
 
-    throw new ApiError(message, response.status, body);
+    return JSON.parse(raw)
+  } catch {
+    return null
+  }
+}
+
+
+export function saveSession(session) {
+  if (session) {
+    sessionStorage.setItem(
+      SESSION_KEY,
+      JSON.stringify(session),
+    )
+
+    return
   }
 
-  return body;
+  sessionStorage.removeItem(SESSION_KEY)
 }
-export const login = (username, password) => apiRequest('/auth/login', { method: 'POST', body: JSON.stringify({ username, password }) });
+
+
+/* =========================================================
+   TOKEN
+
+   Giữ lại 2 function này để tương thích nếu file khác
+   trong project vẫn đang import getAccessToken /
+   setAccessToken.
+========================================================= */
+
+export function getAccessToken() {
+  return getSession()?.token || null
+}
+
+
+export function setAccessToken(token) {
+  const currentSession = getSession()
+
+  if (!token) {
+    saveSession(null)
+    return
+  }
+
+  saveSession({
+    ...(currentSession || {}),
+    token,
+  })
+}
+
+
+/* =========================================================
+   UNAUTHORIZED
+========================================================= */
+
+function handleUnauthorized() {
+  saveSession(null)
+
+  /*
+    Event chính mà App.jsx hiện tại đang lắng nghe.
+  */
+  window.dispatchEvent(
+    new Event('qldapm:session-expired'),
+  )
+
+  /*
+    Giữ event cũ để tránh lỗi nếu một module cũ
+    vẫn còn đang lắng nghe event này.
+  */
+  window.dispatchEvent(
+    new Event('iig:unauthorized'),
+  )
+}
+
+
+/* =========================================================
+   API REQUEST
+========================================================= */
+
+export async function apiRequest(
+  path,
+  options = {},
+) {
+  const token = getAccessToken()
+
+  const headers = new Headers(
+    options.headers || {},
+  )
+
+  /*
+    Chỉ tự động set JSON khi request thực sự có body.
+
+    Không set Content-Type nếu body là FormData,
+    vì browser cần tự thêm boundary.
+  */
+  if (
+    options.body != null &&
+    !(options.body instanceof FormData) &&
+    !headers.has('Content-Type')
+  ) {
+    headers.set(
+      'Content-Type',
+      'application/json',
+    )
+  }
+
+  /*
+    Gắn JWT
+  */
+  if (
+    token &&
+    !headers.has('Authorization')
+  ) {
+    headers.set(
+      'Authorization',
+      `Bearer ${token}`,
+    )
+  }
+
+  let response
+
+  try {
+    response = await fetch(
+      `${BASE_URL}${path}`,
+      {
+        ...options,
+        headers,
+      },
+    )
+  } catch (error) {
+    throw new ApiError(
+      'Không thể kết nối tới server.',
+      0,
+      error,
+    )
+  }
+
+
+  /* =======================================================
+     PARSE RESPONSE
+  ======================================================= */
+
+  let body = null
+
+  if (response.status !== 204) {
+    const contentType =
+      response.headers.get('content-type') || ''
+
+    try {
+      if (
+        contentType.includes(
+          'application/json',
+        )
+      ) {
+        body = await response.json()
+      } else {
+        body = await response.text()
+      }
+    } catch {
+      body = null
+    }
+  }
+
+
+  /* =======================================================
+     HTTP ERROR
+  ======================================================= */
+
+  if (!response.ok) {
+    if (
+      response.status === 401 &&
+      path !== '/auth/login'
+    ) {
+      handleUnauthorized()
+    }
+
+    let message =
+      `API error: ${response.status}`
+
+    if (
+      body &&
+      typeof body === 'object' &&
+      body.message
+    ) {
+      message = body.message
+    } else if (
+      typeof body === 'string' &&
+      body.trim()
+    ) {
+      message = body
+    }
+
+    throw new ApiError(
+      message,
+      response.status,
+      body,
+    )
+  }
+
+  return body
+}
+
+
+/* =========================================================
+   AUTH
+========================================================= */
+
+export function login(
+  username,
+  password,
+) {
+  return apiRequest(
+    '/auth/login',
+    {
+      method: 'POST',
+
+      body: JSON.stringify({
+        username,
+        password,
+      }),
+    },
+  )
+}
+
+
+/* =========================================================
+   SCHEDULING API
+========================================================= */
+
 export const schedulingApi = {
-  employees: (role) => apiRequest('/employees?role=' + encodeURIComponent(role)),
-  mineAvailability: (week) => apiRequest('/availabilities/me?weekStart=' + week),
-  availability: (role, week) => apiRequest('/availabilities?role=' + role + '&weekStart=' + week),
-  createAvailability: (body) => apiRequest('/availabilities', { method:'POST', body:JSON.stringify(body) }),
-  updateAvailability: (id, body) => apiRequest('/availabilities/' + encodeURIComponent(id), {method:'PUT',body:JSON.stringify(body)}),
-  removeAvailability: (id) => apiRequest('/availabilities/' + encodeURIComponent(id), {method:'DELETE'}),
-  reviewAvailability: (id, status) => apiRequest('/availabilities/' + encodeURIComponent(id) + '/review', {method:'PATCH',body:JSON.stringify({status})}),
-  teaching: (week) => apiRequest('/teaching-schedules?weekStart=' + week),
-  staff: (role, week) => apiRequest('/staff-schedules?role=' + role + '&weekStart=' + week),
-  ownSchedule: (week) => apiRequest('/schedules/me?weekStart=' + week),
-  assignTeacher: (body) => apiRequest('/teaching-schedules', {method:'POST',body:JSON.stringify(body)}),
-  assignStaff: (body) => apiRequest('/staff-schedules', {method:'POST',body:JSON.stringify(body)}),
-  cancelTeacher: (id) => apiRequest('/teaching-schedules/' + encodeURIComponent(id), {method:'DELETE'}),
-  cancelStaff: (id) => apiRequest('/staff-schedules/' + encodeURIComponent(id), {method:'DELETE'})
-};
+  /* =======================================================
+     EMPLOYEES
+  ======================================================= */
+
+  employees(role) {
+    return apiRequest(
+      `/employees?role=${encodeURIComponent(
+        role,
+      )}`,
+    )
+  },
+
+
+  /* =======================================================
+     MY AVAILABILITY
+  ======================================================= */
+
+  mineAvailability(week) {
+    return apiRequest(
+      `/availabilities/me?weekStart=${encodeURIComponent(
+        week,
+      )}`,
+    )
+  },
+
+
+  /* =======================================================
+     AVAILABILITY BY ROLE
+
+     TC:
+       TEACHER
+
+     CM:
+       SALE
+       CS
+  ======================================================= */
+
+  availability(
+    role,
+    week,
+  ) {
+    return apiRequest(
+      `/availabilities?role=${encodeURIComponent(
+        role,
+      )}&weekStart=${encodeURIComponent(
+        week,
+      )}`,
+    )
+  },
+
+
+  /* =======================================================
+     CREATE AVAILABILITY
+  ======================================================= */
+
+  createAvailability(body) {
+    return apiRequest(
+      '/availabilities',
+      {
+        method: 'POST',
+
+        body: JSON.stringify(body),
+      },
+    )
+  },
+
+
+  /* =======================================================
+     UPDATE AVAILABILITY
+  ======================================================= */
+
+  updateAvailability(
+    id,
+    body,
+  ) {
+    return apiRequest(
+      `/availabilities/${encodeURIComponent(
+        id,
+      )}`,
+      {
+        method: 'PUT',
+
+        body: JSON.stringify(body),
+      },
+    )
+  },
+
+
+  /* =======================================================
+     DELETE AVAILABILITY
+  ======================================================= */
+
+  removeAvailability(id) {
+    return apiRequest(
+      `/availabilities/${encodeURIComponent(
+        id,
+      )}`,
+      {
+        method: 'DELETE',
+      },
+    )
+  },
+
+
+  /* =======================================================
+     REVIEW AVAILABILITY
+
+     TC / CM duyệt lịch rảnh
+  ======================================================= */
+
+  reviewAvailability(
+    id,
+    status,
+  ) {
+    return apiRequest(
+      `/availabilities/${encodeURIComponent(
+        id,
+      )}/review`,
+      {
+        method: 'PATCH',
+
+        body: JSON.stringify({
+          status,
+        }),
+      },
+    )
+  },
+
+
+  /* =======================================================
+     TEACHING SCHEDULE
+
+     TC xem lịch giáo viên
+  ======================================================= */
+
+  teaching(week) {
+    return apiRequest(
+      `/teaching-schedules?weekStart=${encodeURIComponent(
+        week,
+      )}`,
+    )
+  },
+
+
+  /* =======================================================
+     STAFF SCHEDULE
+
+     CM xem lịch Sale / CS
+  ======================================================= */
+
+  staff(
+    role,
+    week,
+  ) {
+    return apiRequest(
+      `/staff-schedules?role=${encodeURIComponent(
+        role,
+      )}&weekStart=${encodeURIComponent(
+        week,
+      )}`,
+    )
+  },
+
+
+  /* =======================================================
+     MY SCHEDULE
+
+     Teacher:
+       lịch dạy
+
+     Sale:
+       lịch làm việc
+
+     CS:
+       lịch làm việc
+  ======================================================= */
+
+  ownSchedule(week) {
+    return apiRequest(
+      `/schedules/me?weekStart=${encodeURIComponent(
+        week,
+      )}`,
+    )
+  },
+
+
+  /* =======================================================
+     TC ASSIGN TEACHER
+  ======================================================= */
+
+  assignTeacher(body) {
+    return apiRequest(
+      '/teaching-schedules',
+      {
+        method: 'POST',
+
+        body: JSON.stringify(body),
+      },
+    )
+  },
+
+
+  /* =======================================================
+     CM ASSIGN SALE / CS
+  ======================================================= */
+
+  assignStaff(body) {
+    return apiRequest(
+      '/staff-schedules',
+      {
+        method: 'POST',
+
+        body: JSON.stringify(body),
+      },
+    )
+  },
+
+
+  /* =======================================================
+     CANCEL TEACHER SCHEDULE
+  ======================================================= */
+
+  cancelTeacher(id) {
+    return apiRequest(
+      `/teaching-schedules/${encodeURIComponent(
+        id,
+      )}`,
+      {
+        method: 'DELETE',
+      },
+    )
+  },
+
+
+  /* =======================================================
+     CANCEL SALE / CS SCHEDULE
+  ======================================================= */
+
+  cancelStaff(id) {
+    return apiRequest(
+      `/staff-schedules/${encodeURIComponent(
+        id,
+      )}`,
+      {
+        method: 'DELETE',
+      },
+    )
+  },
+}
