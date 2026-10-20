@@ -27,10 +27,11 @@ import PlaceholderPage from "./pages/PlaceholderPage";
 import PayrollPage from "./pages/PayrollPage";
 import StatisticsPage from "./pages/StatisticsPage";
 
-import {
-  AcademicDataProvider,
-} from "./features/academic/AcademicDataContext";
-
+import AvailabilityRegister from "./pages/AvailabilityRegister";
+import TeacherAssignment from "./pages/TeacherAssignment";
+import StaffAssignment from "./pages/StaffAssignment";
+import MySchedule from "./pages/MySchedule";
+import { AcademicDataProvider } from "./features/academic/AcademicDataContext";
 import AccountDataProvider from "./features/accounts/AccountDataProvider";
 
 import {
@@ -344,6 +345,10 @@ function AppRoutes() {
                   ) ||
                   item.path === "/my-classes"
                 ) {
+                  element = <Classes role={role} />;
+                } else if (item.path === "/availability/register") {
+                  element = <AvailabilityRegister />;
+                } else if (item.path === "/accounts") {
                   element = (
                     <Classes
                       role={role}
