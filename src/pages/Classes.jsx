@@ -228,13 +228,14 @@ export default function Classes({ role }) {
 
     if (!result.ok) {
       setMessage(result.reason);
-      return;
+      throw new Error(result.reason || 'Không thể lưu lớp.');
     }
 
     setSelectedId(editing?.id ?? result.classItem?.id ?? null);
     setEditing(undefined);
     setTab("Overview");
     setMessage("");
+    return true;
   }
 
   async function advanceStatus(nextStatus) {
