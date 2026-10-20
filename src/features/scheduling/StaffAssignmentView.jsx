@@ -11,7 +11,8 @@ import {
   Users,
 } from "lucide-react";
 import Button from "../../components/ui/Button";
-import { apiRequest, schedulingApi } from "../../services/api";
+import { schedulingApi } from "../../services/api";
+import { classApi } from "../../services/classApi";
 import {
   csWorkTypes,
   saleWorkTypes,
@@ -65,6 +66,8 @@ export default function StaffAssignmentView({ staffRole = "SALE" }) {
   const [staffAvailability, setStaffAvailability] = useState([]);
   const [staffSchedules, setStaffSchedules] = useState([]);
   const [classes, setClasses] = useState([]);
+  const [planned, setPlanned] = useState([]);
+  const [planError, setPlanError] = useState("");
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [staffFilter, setStaffFilter] = useState("all");
@@ -92,7 +95,7 @@ export default function StaffAssignmentView({ staffRole = "SALE" }) {
           schedulingApi.employees(role),
           schedulingApi.availability(role, iso(weekStart)),
           schedulingApi.staff(role, iso(weekStart)),
-          apiRequest("/classes").catch(() => []),
+          classApi.planningClasses(),
         ]);
 
       const nextStaff = (Array.isArray(peopleRows) ? peopleRows : []).map(
@@ -189,6 +192,40 @@ export default function StaffAssignmentView({ staffRole = "SALE" }) {
   const assignableClasses = classes.filter((item) =>
     ["READY", "RUNNING"].includes(item.status),
   );
+  const needsPlan = role === "CS" && form.workType === "CLASS_SUPPORT";
+  useEffect(() => {
+    let active = true;
+    setPlanned([]);
+    setPlanError("");
+    if (!form.classId || isSale || form.workType !== "CLASS_SUPPORT")
+      return () => { active = false; };
+    classApi.plannedSessions(form.classId)
+      .then((rows) => { if (active) setPlanned((rows || []).filter((s) => s.status === "PLANNED")); })
+      .catch((error) => { if (active) setPlanError(error.message || "Không tải được lịch lớp."); });
+    return () => { active = false; };
+  }, [form.classId, form.workType, isSale]);
+
+  const planKey = (item) =>
+    [String(item.date).slice(0,10),String(item.startTime).slice(0,5),String(item.endTime).slice(0,5)].join("|");
+  const currentKey = [form.date,form.startTime,form.endTime].join("|");
+  const plannedForWeek = planned.filter((item) =>
+    String(item.date).slice(0,10) >= iso(weekStart) &&
+    String(item.date).slice(0,10) <= iso(addDays(weekStart,6))
+  );
+  const matchingPlan = plannedForWeek.find((item) => planKey(item) === currentKey);
+  const occupiedSlots = new Set(staffSchedules
+    .filter((s) => s.classId === form.classId && s.status === "ASSIGNED" &&
+      s.workType === "CLASS_SUPPORT")
+    .map(planKey));
+  const uncoveredSlots = plannedForWeek.filter((item) => !occupiedSlots.has(planKey(item)));
+  function choosePlannedSlot(key) {
+    const item = plannedForWeek.find((s) => planKey(s) === key);
+    if (item) setForm((current) => ({
+      ...current,date:String(item.date).slice(0,10),
+      startTime:String(item.startTime).slice(0,5),endTime:String(item.endTime).slice(0,5),
+    }));
+    setMessage(null);
+  }
 
   function selectStaff(person) {
     setSelectedUserId(person.id);
@@ -199,11 +236,21 @@ export default function StaffAssignmentView({ staffRole = "SALE" }) {
     const day = staffWeekDays.find((item) => item.key === availability.day);
 
     setSelectedUserId(person.id);
+    const candidate = needsPlan && plannedForWeek.find((item) =>
+      String(item.date).slice(0,10) === day?.date &&
+      String(item.startTime).slice(0,5) >= availability.startTime &&
+      String(item.endTime).slice(0,5) <= availability.endTime,
+    );
     setForm((current) => ({
       ...current,
-      date: day?.date ?? current.date,
-      startTime: availability.startTime,
-      endTime: availability.endTime,
+      ...(needsPlan ? (candidate ? {
+        date:String(candidate.date).slice(0,10),
+        startTime:String(candidate.startTime).slice(0,5),
+        endTime:String(candidate.endTime).slice(0,5),
+      } : {}) : {
+        date:day?.date ?? current.date,
+        startTime:availability.startTime,endTime:availability.endTime,
+      }),
       workplaceId: availability.workplaceId,
     }));
     setMessage(null);
@@ -217,6 +264,10 @@ export default function StaffAssignmentView({ staffRole = "SALE" }) {
       return;
     }
 
+    if (needsPlan && !matchingPlan) {
+      setMessage({ type: "error", text: "Hãy chọn đúng buổi học có trong kế hoạch lớp." });
+      return;
+    }
     if (!selectedAvailability) {
       setMessage({
         type: "error",
@@ -263,6 +314,47 @@ export default function StaffAssignmentView({ staffRole = "SALE" }) {
         type: "error",
         text: error?.message || "Không thể lưu phân công.",
       });
+    }
+  }
+
+  async function reviewSlot(item, status) {
+    try {
+      await schedulingApi.reviewAvailability(item.id, status);
+      setMessage({ type: "success", text: "Đã duyệt lịch rảnh." });
+      await loadData();
+    } catch (error) {
+      setMessage({ type: "error", text: error.message || "Không thể xét duyệt." });
+    }
+  }
+
+  async function assignWeek() {
+    setMessage(null);
+    if (!selectedStaff || !form.classId || !needsPlan || !uncoveredSlots.length) return;
+    try {
+      await schedulingApi.assignSupportBatch({
+        employeeId:selectedStaff.id,classId:form.classId,workplaceId:form.workplaceId,
+        sessionIds:uncoveredSlots.map((item) => item.id),
+      });
+      setMessage({ type: "success", text: `Đã phân công CS cho ${uncoveredSlots.length} buổi hỗ trợ.` });
+      await loadData();
+    } catch (error) {
+      setMessage({ type: "error", text: error.message || "Không thể phân công tuần. Không có ca nào được lưu." });
+    }
+  }
+
+  async function replaceStaff(schedule) {
+    if (!selectedStaff || schedule.employeeId === selectedStaff.id) return;
+    if (!window.confirm("Đổi nhân viên ca này sang nhân viên đang chọn?")) return;
+    try {
+      await schedulingApi.updateStaff(schedule.id, {
+        employeeId:selectedStaff.id,staffRole:role,workplaceId:schedule.workplaceId,
+        classId:schedule.classId || null,date:schedule.date,
+        startTime:schedule.startTime,endTime:schedule.endTime,workType:schedule.workType,
+      });
+      setMessage({ type: "success", text: "Đã đổi nhân sự, giữ nguyên giờ phân công." });
+      await loadData();
+    } catch (error) {
+      setMessage({ type: "error", text: error.message || "Không đổi được nhân sự." });
     }
   }
 
@@ -465,6 +557,14 @@ export default function StaffAssignmentView({ staffRole = "SALE" }) {
                             </span>
                           </button>
                         ))}
+                        {availabilities.filter((item) => item.status === "PENDING").map((item) => (
+                          <div key={`review-${item.id}`} className="flex gap-1 text-[10px]">
+                            <button type="button" className="text-emerald-700 underline"
+                              onClick={() => reviewSlot(item,"APPROVED")}>Duyệt</button>
+                            <button type="button" className="text-red-700 underline"
+                              onClick={() => reviewSlot(item,"REJECTED")}>Từ chối</button>
+                          </div>
+                        ))}
 
                         {schedules.map((schedule) => (
                           <div
@@ -480,6 +580,8 @@ export default function StaffAssignmentView({ staffRole = "SALE" }) {
                             <span className="block truncate text-[10px] text-slate-500">
                               {getWorkTypeLabel(role, schedule.workType)}
                             </span>
+                            <button type="button" className="mt-1 text-[10px] text-blue-700 underline"
+                              onClick={() => replaceStaff(schedule)}>Đổi sang nhân sự đang chọn</button>
                           </div>
                         ))}
 
@@ -579,7 +681,7 @@ export default function StaffAssignmentView({ staffRole = "SALE" }) {
                   onChange={(event) =>
                     setForm((current) => ({
                       ...current,
-                      classId: event.target.value,
+                      classId: event.target.value, date: "", startTime: "", endTime: "",
                     }))
                   }
                 >
@@ -592,63 +694,53 @@ export default function StaffAssignmentView({ staffRole = "SALE" }) {
               </label>
             )}
 
-            <label className="block">
-              <span className="mb-1.5 block text-xs font-medium text-slate-600">
-                Ngày làm
-              </span>
-              <select
-                className={fieldClass}
-                value={form.date}
-                onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    date: event.target.value,
-                  }))
-                }
-              >
-                {staffWeekDays.map((day) => (
-                  <option key={day.date} value={day.date}>
-                    {day.label} · {day.displayDate}/2026
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <div className="grid grid-cols-2 gap-3">
-              <label>
+            {needsPlan ? (
+              <label className="block">
                 <span className="mb-1.5 block text-xs font-medium text-slate-600">
-                  Bắt đầu
+                  Buổi học cần hỗ trợ
                 </span>
-                <input
-                  type="time"
-                  className={fieldClass}
-                  value={form.startTime}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      startTime: event.target.value,
-                    }))
-                  }
-                />
+                <select className={fieldClass}
+                  value={matchingPlan ? currentKey : ""}
+                  onChange={(event) => choosePlannedSlot(event.target.value)}>
+                  <option value="">Chọn buổi trong lịch đã lập</option>
+                  {plannedForWeek.map((slot) => (
+                    <option key={slot.id} value={planKey(slot)}>
+                      {String(slot.date).slice(0,10)} · {String(slot.startTime).slice(0,5)}–{String(slot.endTime).slice(0,5)}
+                    </option>
+                  ))}
+                </select>
+                {planError ? <span className="text-xs text-red-600">{planError}</span> : null}
+                {!plannedForWeek.length ? <span className="text-xs text-amber-700">
+                  Lớp chưa có buổi học trong tuần này.
+                </span> : null}
               </label>
-
-              <label>
-                <span className="mb-1.5 block text-xs font-medium text-slate-600">
-                  Kết thúc
-                </span>
-                <input
-                  type="time"
-                  className={fieldClass}
-                  value={form.endTime}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      endTime: event.target.value,
-                    }))
-                  }
-                />
-              </label>
-            </div>
+            ) : (
+              <>
+                <label className="block">
+                  <span className="mb-1.5 block text-xs font-medium text-slate-600">
+                    Ngày làm
+                  </span>
+                  <select className={fieldClass} value={form.date}
+                    onChange={(event) => setForm((current) => ({ ...current, date:event.target.value }))}>
+                    {staffWeekDays.map((day) => (
+                      <option key={day.date} value={day.date}>
+                        {day.label} · {day.date}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <label>Bắt đầu
+                    <input type="time" className={fieldClass} value={form.startTime}
+                      onChange={(event) => setForm((current) => ({ ...current,startTime:event.target.value }))} />
+                  </label>
+                  <label>Kết thúc
+                    <input type="time" className={fieldClass} value={form.endTime}
+                      onChange={(event) => setForm((current) => ({ ...current,endTime:event.target.value }))} />
+                  </label>
+                </div>
+              </>
+            )}
 
             <label className="block">
               <span className="mb-1.5 block text-xs font-medium text-slate-600">
@@ -718,11 +810,17 @@ export default function StaffAssignmentView({ staffRole = "SALE" }) {
               variant="primary"
               className="w-full"
               onClick={submitAssignment}
-              disabled={!selectedStaff}
+              disabled={!selectedStaff || (needsPlan && !matchingPlan)}
             >
               <UserCheck size={16} />
               Xác nhận phân công
             </Button>
+            {needsPlan ? (
+              <Button className="w-full" onClick={assignWeek}
+                disabled={!selectedStaff || !form.classId || !uncoveredSlots.length}>
+                Phân công {uncoveredSlots.length} buổi hỗ trợ chưa có CS trong tuần
+              </Button>
+            ) : null}
           </div>
         </aside>
       </div>
