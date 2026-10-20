@@ -1,3 +1,4 @@
+import PlannedClassSessions from "./PlannedClassSessions";
 import {
   ChevronDown,
   Download,
@@ -683,7 +684,15 @@ function ClassDetail({
           )}
 
           {tab === "Schedule" && (
-            <ScheduleTab schedules={teachingSchedules} />
+            <div className="space-y-4">
+              <PlannedClassSessions
+                classItem={classItem}
+                canManage={canManageCore}
+                teachingSchedules={teachingSchedules}
+                supportSchedules={supportSchedules}
+              />
+              <ScheduleTab schedules={teachingSchedules} />
+            </div>
           )}
 
           {tab === "Support" && roleKey !== "TEACHER" && (
