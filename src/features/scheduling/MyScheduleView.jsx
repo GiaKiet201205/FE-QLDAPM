@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   CalendarDays,
   ChevronLeft,
@@ -8,20 +8,19 @@ import {
   Search,
   Users,
 } from "lucide-react";
-import { useAcademicData } from "../academic/AcademicDataContext";
-import { demoTeacherId } from "../academic/mockAcademicRelations";
-import { csUsers, saleUsers } from "../classes/mockClassOperations";
-import { csWorkTypes, saleWorkTypes, workplaceOptions } from "./mockStaffAssignment";
-
-const weekDays = [
-  { key: "mon", label: "T2", date: "2026-10-12", display: "12/10" },
-  { key: "tue", label: "T3", date: "2026-10-13", display: "13/10" },
-  { key: "wed", label: "T4", date: "2026-10-14", display: "14/10" },
-  { key: "thu", label: "T5", date: "2026-10-15", display: "15/10" },
-  { key: "fri", label: "T6", date: "2026-10-16", display: "16/10" },
-  { key: "sat", label: "T7", date: "2026-10-17", display: "17/10" },
-  { key: "sun", label: "CN", date: "2026-10-18", display: "18/10" },
-];
+import { apiRequest, schedulingApi } from "../../services/api";
+import {
+  csWorkTypes,
+  saleWorkTypes,
+  workplaceOptions,
+} from "./mockStaffAssignment";
+import { addDays, iso, mondayOf } from "./schedulingUtils";
+import {
+  buildWeekDays,
+  formatWeekLabel,
+  normalizeClass,
+  normalizeSchedule,
+} from "./schedulingApiAdapters";
 
 const shifts = [
   { key: "morning", label: "Buổi sáng", start: "08:00", end: "12:00" },
@@ -37,82 +36,107 @@ function getShift(startTime) {
 
 function getWorkTypeLabel(role, value) {
   const source = role === "SALE" ? saleWorkTypes : csWorkTypes;
-  return source.find((item) => item.value === value)?.label ?? value;
+  return source.find((item) => item.value === value)?.label ?? value ?? "Ca làm việc";
 }
 
 export default function MyScheduleView({ roleKey }) {
-  const { teachingSchedules, staffSchedules, classes } = useAcademicData();
+  const [weekStart, setWeekStart] = useState(() => mondayOf());
+  const [rows, setRows] = useState([]);
+  const [classes, setClasses] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   const isTeacher = roleKey === "TEACHER";
-  const currentUserId = isTeacher
-    ? demoTeacherId
-    : roleKey === "CS"
-      ? csUsers[0].id
-      : saleUsers[0].id;
+  const weekDays = useMemo(() => buildWeekDays(weekStart), [weekStart]);
+
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    setError("");
+
+    try {
+      const [scheduleRows, classRows] = await Promise.all([
+        schedulingApi.ownSchedule(iso(weekStart)),
+        apiRequest("/classes").catch(() => []),
+      ]);
+
+      const nextRows = (Array.isArray(scheduleRows) ? scheduleRows : []).map(
+        (row) => normalizeSchedule(row, roleKey),
+      );
+      const nextClasses = (Array.isArray(classRows) ? classRows : []).map(
+        normalizeClass,
+      );
+
+      setRows(nextRows);
+      setClasses(nextClasses);
+      setSelectedId((current) =>
+        nextRows.some((item) => item.id === current)
+          ? current
+          : nextRows[0]?.id || null,
+      );
+    } catch (requestError) {
+      setRows([]);
+      setSelectedId(null);
+      setError(requestError?.message || "Không thể tải lịch cá nhân.");
+    } finally {
+      setLoading(false);
+    }
+  }, [roleKey, weekStart]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const schedules = useMemo(() => {
-    const source = isTeacher
-      ? teachingSchedules
-          .filter(
-            (item) =>
-              item.teacherId === currentUserId &&
-              item.status === "ASSIGNED" &&
-              item.date >= "2026-10-12" &&
-              item.date <= "2026-10-18",
-          )
-          .map((item) => {
-            const classItem = classes.find((cls) => cls.id === item.classId);
-            return {
-              ...item,
-              title: classItem?.name ?? "Lớp học",
-              subtitle: classItem?.classCode ?? "",
-              place: item.room ?? item.campus ?? "Cơ sở chính",
-              kind: "TEACHING",
-            };
-          })
-      : staffSchedules
-          .filter(
-            (item) =>
-              item.userId === currentUserId &&
-              item.staffRole === roleKey &&
-              item.status === "ASSIGNED" &&
-              item.date >= "2026-10-12" &&
-              item.date <= "2026-10-18",
-          )
-          .map((item) => {
-            const classItem = item.classId
-              ? classes.find((cls) => cls.id === item.classId)
-              : null;
-            const workplace =
-              workplaceOptions.find((place) => place.id === item.workplaceId)
-                ?.label ?? item.workplaceId;
-            return {
-              ...item,
-              title: getWorkTypeLabel(roleKey, item.workType),
-              subtitle: classItem?.classCode ?? (roleKey === "CS" ? "CS" : "Sale"),
-              place: workplace,
-              kind: "WORK",
-            };
-          });
+    return rows
+      .map((item) => {
+        const classItem = item.classId
+          ? classes.find((cls) => cls.id === item.classId)
+          : null;
 
-    return source.filter((item) =>
-      (item.title + " " + item.subtitle + " " + item.place)
-        .toLowerCase()
-        .includes(search.toLowerCase()),
-    );
-  }, [
-    isTeacher,
-    teachingSchedules,
-    staffSchedules,
-    currentUserId,
-    classes,
-    roleKey,
-    search,
-  ]);
+        if (isTeacher) {
+          return {
+            ...item,
+            title:
+              item.className ||
+              classItem?.name ||
+              item.classCode ||
+              classItem?.classCode ||
+              "Lớp học",
+            subtitle: item.classCode || classItem?.classCode || "",
+            place:
+              item.room ||
+              item.campus ||
+              item.workplaceName ||
+              "Cơ sở chính",
+            kind: "TEACHING",
+          };
+        }
 
-  const selected = schedules.find((item) => item.id === selectedId) ?? schedules[0] ?? null;
+        const workplace =
+          item.workplaceName ||
+          workplaceOptions.find((place) => place.id === item.workplaceId)?.label ||
+          item.campus ||
+          "Cơ sở chính";
+
+        return {
+          ...item,
+          title: getWorkTypeLabel(roleKey, item.workType),
+          subtitle: classItem?.classCode || item.classCode || roleKey,
+          place: workplace,
+          kind: "WORK",
+        };
+      })
+      .filter((item) =>
+        (item.title + " " + item.subtitle + " " + item.place)
+          .toLowerCase()
+          .includes(search.toLowerCase()),
+      );
+  }, [rows, classes, isTeacher, roleKey, search]);
+
+  const selected =
+    schedules.find((item) => item.id === selectedId) ?? schedules[0] ?? null;
 
   return (
     <div className="space-y-4 font-sans text-[13px] leading-5 text-slate-800 antialiased">
@@ -141,19 +165,40 @@ export default function MyScheduleView({ roleKey }) {
             </div>
 
             <div className="flex items-center rounded-md border border-slate-200 bg-white">
-              <button type="button" className="px-2.5 py-2 text-slate-400 hover:bg-slate-50">
+              <button
+                type="button"
+                onClick={() => setWeekStart((current) => addDays(current, -7))}
+                className="px-2.5 py-2 text-slate-400 hover:bg-slate-50"
+              >
                 <ChevronLeft size={15} />
               </button>
               <span className="border-x border-slate-200 px-4 py-2 text-xs font-medium text-slate-700">
-                Tuần 42 · 12/10 – 18/10/2026
+                {formatWeekLabel(weekStart)}
               </span>
-              <button type="button" className="px-2.5 py-2 text-slate-400 hover:bg-slate-50">
+              <button
+                type="button"
+                onClick={() => setWeekStart((current) => addDays(current, 7))}
+                className="px-2.5 py-2 text-slate-400 hover:bg-slate-50"
+              >
                 <ChevronRight size={15} />
               </button>
             </div>
           </div>
         </div>
       </section>
+
+      {(loading || error) && (
+        <div
+          className={
+            "rounded-lg border px-4 py-3 text-sm " +
+            (error
+              ? "border-red-200 bg-red-50 text-red-700"
+              : "border-slate-200 bg-white text-slate-500")
+          }
+        >
+          {error || "Đang tải lịch..."}
+        </div>
+      )}
 
       <div className="grid items-start gap-4 2xl:grid-cols-[minmax(0,1fr)_360px]">
         <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
@@ -166,7 +211,7 @@ export default function MyScheduleView({ roleKey }) {
                 {weekDays.map((day) => (
                   <div key={day.key} className="border-l border-slate-200 px-2 py-2.5 text-center">
                     <strong className="block text-xs text-slate-700">{day.label}</strong>
-                    <span className="text-[11px] text-slate-400">{day.display}</span>
+                    <span className="text-[11px] text-slate-400">{day.displayDate}</span>
                   </div>
                 ))}
               </div>
@@ -299,7 +344,8 @@ export default function MyScheduleView({ roleKey }) {
                         Lớp hỗ trợ
                       </span>
                       <strong className="text-xs font-medium text-slate-800">
-                        {classes.find((item) => item.id === selected.classId)?.name ?? selected.classId}
+                        {classes.find((item) => item.id === selected.classId)?.name ??
+                          selected.classId}
                       </strong>
                     </div>
                   </div>

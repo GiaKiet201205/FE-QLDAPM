@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   CalendarCheck2,
   CheckCircle2,
@@ -10,14 +10,17 @@ import {
   Users,
 } from "lucide-react";
 import Button from "../../components/ui/Button";
-import { useAcademicData } from "../academic/AcademicDataContext";
-import { teachers } from "../academic/mockAcademicRelations";
-import { courses } from "../classes/mockClasses";
+import { apiRequest, schedulingApi } from "../../services/api";
+import { addDays, iso, mondayOf } from "./schedulingUtils";
 import {
-  isTimeInsideAvailability,
-  teacherAvailability,
-  weekDays,
-} from "./mockTeacherAssignment";
+  buildWeekDays,
+  formatWeekLabel,
+  isInsideAvailability,
+  normalizeAvailability,
+  normalizeClass,
+  normalizeEmployee,
+  normalizeSchedule,
+} from "./schedulingApiAdapters";
 
 const fieldClass =
   "h-9 w-full rounded-md border border-slate-300 bg-white px-3 text-[13px] text-slate-700 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100";
@@ -37,23 +40,102 @@ function StatusBadge({ children, tone = "slate" }) {
 }
 
 export default function TeacherAssignmentView() {
-  const { classes, teachingSchedules, assignTeacherSchedule } = useAcademicData();
+  const [weekStart, setWeekStart] = useState(() => mondayOf());
+  const [teachers, setTeachers] = useState([]);
+  const [teacherAvailability, setTeacherAvailability] = useState([]);
+  const [teachingSchedules, setTeachingSchedules] = useState([]);
+  const [classes, setClasses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [teacherFilter, setTeacherFilter] = useState("all");
   const [courseFilter, setCourseFilter] = useState("all");
   const [search, setSearch] = useState("");
-  const [selectedTeacherId, setSelectedTeacherId] = useState("teacher-001");
+  const [selectedTeacherId, setSelectedTeacherId] = useState("");
   const [form, setForm] = useState({
-    classId: "class-0002",
-    date: "2026-10-12",
+    classId: "",
+    date: iso(mondayOf()),
     startTime: "18:30",
     endTime: "20:30",
     campus: "Cơ sở chính",
   });
   const [message, setMessage] = useState(null);
 
+  const weekDays = useMemo(() => buildWeekDays(weekStart), [weekStart]);
+
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    setLoadError("");
+
+    try {
+      const [peopleRows, availabilityRows, scheduleRows, classRows] =
+        await Promise.all([
+          schedulingApi.employees("TEACHER"),
+          schedulingApi.availability("TEACHER", iso(weekStart)),
+          schedulingApi.teaching(iso(weekStart)),
+          apiRequest("/classes").catch(() => []),
+        ]);
+
+      const nextTeachers = (Array.isArray(peopleRows) ? peopleRows : []).map(
+        (row) => normalizeEmployee(row, "TEACHER"),
+      );
+      const nextAvailability = (
+        Array.isArray(availabilityRows) ? availabilityRows : []
+      ).map((row) => normalizeAvailability(row, "TEACHER"));
+      const nextSchedules = (
+        Array.isArray(scheduleRows) ? scheduleRows : []
+      ).map((row) => normalizeSchedule(row, "TEACHER"));
+      const nextClasses = (Array.isArray(classRows) ? classRows : []).map(
+        normalizeClass,
+      );
+
+      setTeachers(nextTeachers);
+      setTeacherAvailability(nextAvailability);
+      setTeachingSchedules(nextSchedules);
+      setClasses(nextClasses);
+      setSelectedTeacherId((current) =>
+        nextTeachers.some((teacher) => teacher.id === current)
+          ? current
+          : nextTeachers[0]?.id || "",
+      );
+      setForm((current) => ({
+        ...current,
+        classId:
+          nextClasses.some((item) => item.id === current.classId)
+            ? current.classId
+            : nextClasses.find((item) =>
+                ["READY", "RUNNING"].includes(item.status),
+              )?.id || "",
+        date: iso(weekStart),
+      }));
+    } catch (error) {
+      setLoadError(error?.message || "Không thể tải dữ liệu phân công.");
+    } finally {
+      setLoading(false);
+    }
+  }, [weekStart]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
   const assignableClasses = classes.filter((item) =>
     ["READY", "RUNNING"].includes(item.status),
   );
+
+  const courses = useMemo(() => {
+    const seen = new Set();
+    return classes
+      .filter((item) => item.courseId)
+      .filter((item) => {
+        if (seen.has(item.courseId)) return false;
+        seen.add(item.courseId);
+        return true;
+      })
+      .map((item) => ({
+        id: item.courseId,
+        name: item.courseName || item.courseId,
+      }));
+  }, [classes]);
 
   const visibleTeachers = useMemo(
     () =>
@@ -85,7 +167,7 @@ export default function TeacherAssignmentView() {
     (availability) =>
       availability.teacherId === selectedTeacherId &&
       availability.day === selectedDay?.key &&
-      isTimeInsideAvailability(
+      isInsideAvailability(
         availability,
         form.startTime,
         form.endTime,
@@ -121,8 +203,13 @@ export default function TeacherAssignmentView() {
     setMessage(null);
   }
 
-  function submitAssignment() {
+  async function submitAssignment() {
     setMessage(null);
+
+    if (!selectedTeacherId || !form.classId) {
+      setMessage({ type: "error", text: "Vui lòng chọn giáo viên và lớp." });
+      return;
+    }
 
     if (!selectedAvailability) {
       setMessage({
@@ -132,31 +219,40 @@ export default function TeacherAssignmentView() {
       return;
     }
 
-    const result = assignTeacherSchedule(
-      {
+    if (conflictingSchedule) {
+      setMessage({
+        type: "error",
+        text: "Giáo viên đã có lịch dạy trùng với khung giờ này.",
+      });
+      return;
+    }
+
+    try {
+      await schedulingApi.assignTeacher({
         teacherId: selectedTeacherId,
         classId: form.classId,
         date: form.date,
         startTime: form.startTime,
         endTime: form.endTime,
         campus: form.campus,
-      },
-      {
-        id: "tc-001",
-        fullName: "Elena Nguyen",
-        role: "TC",
-      },
-    );
+      });
 
-    if (!result.ok) {
-      setMessage({ type: "error", text: result.reason });
-      return;
+      setMessage({
+        type: "success",
+        text:
+          "Đã phân công " +
+          (selectedTeacher?.fullName || "giáo viên") +
+          " cho " +
+          (selectedClass?.classCode || "lớp đã chọn") +
+          ".",
+      });
+      await loadData();
+    } catch (error) {
+      setMessage({
+        type: "error",
+        text: error?.message || "Không thể lưu phân công.",
+      });
     }
-
-    setMessage({
-      type: "success",
-      text: "Đã phân công " + selectedTeacher?.fullName + " cho " + selectedClass?.classCode + ".",
-    });
   }
 
   return (
@@ -224,17 +320,38 @@ export default function TeacherAssignmentView() {
           ))}
         </select>
         <div className="flex items-center rounded-md border border-slate-200 bg-white">
-          <button type="button" className="px-2.5 py-2 text-slate-400 hover:bg-slate-50">
+          <button
+            type="button"
+            onClick={() => setWeekStart((current) => addDays(current, -7))}
+            className="px-2.5 py-2 text-slate-400 hover:bg-slate-50"
+          >
             <ChevronLeft size={15} />
           </button>
           <span className="border-x border-slate-200 px-3 py-2 text-xs font-medium text-slate-700">
-            Tuần 42 · 12/10 – 18/10/2026
+            {formatWeekLabel(weekStart)}
           </span>
-          <button type="button" className="px-2.5 py-2 text-slate-400 hover:bg-slate-50">
+          <button
+            type="button"
+            onClick={() => setWeekStart((current) => addDays(current, 7))}
+            className="px-2.5 py-2 text-slate-400 hover:bg-slate-50"
+          >
             <ChevronRight size={15} />
           </button>
         </div>
       </section>
+
+      {(loading || loadError) && (
+        <div
+          className={
+            "rounded-lg border px-4 py-3 text-sm " +
+            (loadError
+              ? "border-red-200 bg-red-50 text-red-700"
+              : "border-slate-200 bg-white text-slate-500")
+          }
+        >
+          {loadError || "Đang tải lịch giáo viên..."}
+        </div>
+      )}
 
       <div className="grid items-start gap-4 2xl:grid-cols-[minmax(0,1fr)_360px]">
         <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">

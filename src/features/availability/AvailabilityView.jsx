@@ -17,16 +17,6 @@ import {
   weekDayDefinitions,
 } from "./mockAvailability";
 
-const dateByDay = {
-  mon: "14/10",
-  tue: "15/10",
-  wed: "16/10",
-  thu: "17/10",
-  fri: "18/10",
-  sat: "19/10",
-  sun: "20/10",
-};
-
 function StatusLegend({ tone, label }) {
   return (
     <span className="inline-flex items-center gap-1.5 text-xs text-slate-500">
@@ -88,8 +78,20 @@ export default function AvailabilityView({
   onEdit,
   onDelete,
   onResetDemo,
+  weekDays = weekDayDefinitions,
+  weekLabel = "",
+  onPreviousWeek,
+  onNextWeek,
+  loading = false,
+  error = "",
+  actionMessage = "",
+  personName = "Tài khoản hiện tại",
+  roleLabel = "",
 }) {
   const selected = slots.find((slot) => slot.id === selectedId) || null;
+  const dateByDay = Object.fromEntries(
+    weekDays.map((day) => [day.key, day.displayDate || day.date || ""]),
+  );
   const totalHours = slots.reduce(
     (sum, slot) => sum + getDurationHours(slot.start, slot.end),
     0,
@@ -109,7 +111,7 @@ export default function AvailabilityView({
         <div className="flex flex-wrap items-center gap-2">
           <Button onClick={onResetDemo}>
             <RotateCcw size={15} />
-            Khôi phục mẫu
+            Làm mới
           </Button>
           <Button variant="primary" onClick={onAdd}>
             <Plus size={16} />
@@ -117,6 +119,21 @@ export default function AvailabilityView({
           </Button>
         </div>
       </section>
+
+      {(loading || error || actionMessage) && (
+        <div
+          className={
+            "mb-4 rounded-lg border px-4 py-3 text-sm " +
+            (error
+              ? "border-red-200 bg-red-50 text-red-700"
+              : actionMessage
+                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                : "border-slate-200 bg-white text-slate-500")
+          }
+        >
+          {error || actionMessage || "Đang tải lịch rảnh..."}
+        </div>
+      )}
 
       <section className="mb-4 grid gap-3 sm:grid-cols-3">
         <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
@@ -158,13 +175,13 @@ export default function AvailabilityView({
             <strong className="font-semibold text-slate-700">HK1 2024</strong>
           </div>
           <div className="flex items-center rounded-md border border-slate-200 bg-white">
-            <button type="button" className="px-2.5 py-2 text-slate-400 hover:bg-slate-50" aria-label="Tuần trước">
+            <button type="button" onClick={onPreviousWeek} className="px-2.5 py-2 text-slate-400 hover:bg-slate-50" aria-label="Tuần trước">
               <ChevronLeft size={15} />
             </button>
             <span className="border-x border-slate-200 px-4 py-2 text-xs font-medium text-slate-700">
-              Tuần 42 · 14/10 – 20/10/2024
+              {weekLabel}
             </span>
-            <button type="button" className="px-2.5 py-2 text-slate-400 hover:bg-slate-50" aria-label="Tuần sau">
+            <button type="button" onClick={onNextWeek} className="px-2.5 py-2 text-slate-400 hover:bg-slate-50" aria-label="Tuần sau">
               <ChevronRight size={15} />
             </button>
           </div>
@@ -191,7 +208,7 @@ export default function AvailabilityView({
                 <div className="px-3 py-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                   Ca / Giờ
                 </div>
-                {weekDayDefinitions.map((day) => (
+                {weekDays.map((day) => (
                   <div key={day.key} className="border-l border-slate-200 px-2 py-2.5 text-center">
                     <strong className="block text-xs font-semibold text-slate-700">{day.label}</strong>
                     <span className="text-[11px] text-slate-400">{dateByDay[day.key]}</span>
@@ -268,11 +285,11 @@ export default function AvailabilityView({
 
           {selected ? (
             <div className="p-4">
-              <DetailRow label="Nhân sự">Nguyễn Phát Tín</DetailRow>
-              <DetailRow label="Vai trò">Giáo viên</DetailRow>
+              <DetailRow label="Nhân sự">{personName}</DetailRow>
+              <DetailRow label="Vai trò">{roleLabel || "—"}</DetailRow>
               <DetailRow label="Ngày">
-                {weekDayDefinitions.find((day) => day.key === selected.day)?.label || selected.day},
-                {" "}{dateByDay[selected.day]}/2024
+                {weekDays.find((day) => day.key === selected.day)?.label || selected.day},
+                {" "}{weekDays.find((day) => day.key === selected.day)?.date || dateByDay[selected.day]}
               </DetailRow>
               <DetailRow label="Ca">
                 {shiftDefinitions.find((shift) => shift.key === selected.shift)?.label || selected.shift}
