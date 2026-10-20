@@ -1,24 +1,12 @@
 import { useMemo } from "react";
-import {
-  BrowserRouter,
-  Navigate,
-  Route,
-  Routes,
-} from "react-router-dom";
-
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 import Layout from "./components/layout/Layout";
-import ProtectedRoute from "./components/auth/ProtectedRoute";
-
 import Dashboard from "./pages/Dashboard";
 import Students from "./pages/Students";
 import Classes from "./pages/Classes";
-import AvailabilityRegister from "./pages/AvailabilityRegister";
-import TeacherAssignment from "./pages/TeacherAssignment";
-import StaffAssignment from "./pages/StaffAssignment";
-import MySchedule from "./pages/MySchedule";
 import AccountManagement from "./pages/AccountManagement";
 import LoginPage from "./pages/LoginPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
@@ -31,13 +19,11 @@ import AvailabilityRegister from "./pages/AvailabilityRegister";
 import TeacherAssignment from "./pages/TeacherAssignment";
 import StaffAssignment from "./pages/StaffAssignment";
 import MySchedule from "./pages/MySchedule";
+
 import { AcademicDataProvider } from "./features/academic/AcademicDataContext";
 import AccountDataProvider from "./features/accounts/AccountDataProvider";
-
-import {
-  useAccountData,
-} from "./features/accounts/hooks/useAccountData";
-
+import { useAccountData } from "./features/accounts/hooks/useAccountData";
+import ProtectedRoute from "./components/auth/ProtectedRoute";
 import { ROLES } from "./config/roles";
 
 
