@@ -173,6 +173,8 @@ export default function StaffAssignmentView({ staffRole = "SALE" }) {
       availability.employeeId === selectedUserId &&
       availability.staffRole === role &&
       availability.day === selectedDay?.key &&
+      (!availability.availableDate ||
+        availability.availableDate === form.date) &&
       isInsideAvailability(
         availability,
         form.startTime,
