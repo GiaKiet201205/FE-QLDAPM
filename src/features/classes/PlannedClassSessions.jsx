@@ -20,6 +20,8 @@ function normalized(slot) {
     date: dateOnly(slot.date),
     startTime: String(slot.startTime).slice(0, 5),
     endTime: String(slot.endTime).slice(0, 5),
+    id: slot.id,
+    status: slot.status || "PLANNED",
   };
 }
 
@@ -35,11 +37,18 @@ export default function PlannedClassSessions({
   canManage,
   teachingSchedules = [],
   supportSchedules = [],
+  onChanged,
 }) {
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [rescheduling, setRescheduling] = useState(null);
+  const [reason, setReason] = useState("");
+  const [makeUp, setMakeUp] = useState(false);
+  const [newDate, setNewDate] = useState("");
+  const [newFrom, setNewFrom] = useState("");
+  const [newTo, setNewTo] = useState("");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [weekday, setWeekday] = useState("1");
@@ -47,6 +56,11 @@ export default function PlannedClassSessions({
   const [to, setTo] = useState("20:00");
   const [singleDate, setSingleDate] = useState(classItem.startDate);
   const editable = canManage && ["DRAFT", "READY"].includes(classItem.status);
+  const canReschedule = canManage && classItem.status === "RUNNING";
+  const today = new Date();
+  const todayIso = [today.getFullYear(), String(today.getMonth()+1).padStart(2,"0"),
+    String(today.getDate()).padStart(2,"0")].join("-");
+  const plannedOnly = arrangedLater => arrangedLater.filter((s) => s.status === "PLANNED");
 
   useEffect(() => {
     let active = true;
@@ -54,6 +68,7 @@ export default function PlannedClassSessions({
     setLoading(true);
     setError("");
     setDirty(false);
+    setRescheduling(null);
     setSingleDate(classItem.startDate);
     classApi.plannedSessions(classItem.id)
       .then((items) => {
@@ -147,12 +162,61 @@ export default function PlannedClassSessions({
     setMessage("");
     setSaving(true);
     try {
-      const result = await classApi.savePlannedSessions(classItem.id, arranged);
+      const result = await classApi.savePlannedSessions(classItem.id, arranged.map(
+        (s) => ({date:s.date,startTime:s.startTime,endTime:s.endTime})
+      ));
       setSessions((result || []).map(normalized));
       setDirty(false);
+      await onChanged?.();
       setMessage("Đã lưu lịch học dự kiến vào PostgreSQL. TC/CM có thể dùng các buổi này để phân công.");
     } catch (e) {
       setError(e?.message ?? "Không lưu được lịch học.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function beginReschedule(item) {
+    setRescheduling(item);
+    setReason("");
+    setMakeUp(false);
+    setNewDate(item.date);
+    setNewFrom(item.startTime);
+    setNewTo(item.endTime);
+    setError("");
+    setMessage("");
+  }
+
+  async function confirmReschedule() {
+    if (!rescheduling || reason.trim().length < 5) {
+      setError("Cần nhập lý do ít nhất 5 ký tự.");
+      return;
+    }
+    if (makeUp && (!newDate || !newFrom || !newTo || newFrom >= newTo)) {
+      setError("Ngày/giờ học bù không hợp lệ.");
+      return;
+    }
+    const ok = window.confirm(
+      "Buổi cũ và mọi phân công Teacher/CS của buổi đó sẽ được hủy. " +
+      "Nếu có buổi bù, TC/CM phải phân công lại. Bạn xác nhận?"
+    );
+    if (!ok) return;
+    setSaving(true);
+    setError("");
+    try {
+      const next = await classApi.reschedule(classItem.id, {
+        originalSessionId: rescheduling.id,
+        newDate: makeUp ? newDate : null,
+        newStartTime: makeUp ? newFrom : null,
+        newEndTime: makeUp ? newTo : null,
+        reason: reason.trim(),
+      });
+      setSessions((next || []).map(normalized));
+      setRescheduling(null);
+      await onChanged?.();
+      setMessage("Đã ghi nhận thay đổi lịch và hủy phân công cũ. TC/CM cần kiểm tra lại ca chưa được phân công.");
+    } catch(e) {
+      setError(e?.message || "Không thể điều chỉnh buổi học.");
     } finally {
       setSaving(false);
     }
@@ -216,18 +280,56 @@ export default function PlannedClassSessions({
             className="flex items-center justify-between gap-2 rounded border border-slate-100 px-2 py-1.5 text-xs">
             <span>{formatDay(item.date)} · {item.startTime}–{item.endTime}</span>
             <div className="flex items-center gap-2">
-              {assigned.has(slotKey(item)) ?
-                <span className="text-emerald-700">Đã phân công</span> :
-                <span className="text-slate-500">Chưa phân công</span>}
-              {editable ?
+              {item.status === "CANCELLED" ?
+                <span className="text-slate-400">Buổi đã hủy</span> :
+                assigned.has(slotKey(item)) ?
+                  <span className="text-emerald-700">Đã phân công</span> :
+                  <span className="text-slate-500">Chưa phân công</span>}
+              {editable && item.status === "PLANNED" ?
                 <button type="button" className="text-red-600 hover:underline"
                   onClick={() => remove(item)}>Bỏ</button> : null}
+              {canReschedule && item.status === "PLANNED" && item.date > todayIso ?
+                <button type="button" className="text-blue-700 hover:underline"
+                  onClick={() => beginReschedule(item)}>Nghỉ / dời buổi</button> : null}
             </div>
           </div>
         ))}
         {!arranged.length && !loading ?
           <p className="py-2 text-xs text-slate-500">Chưa có lịch học dự kiến.</p> : null}
       </div>
+      {rescheduling && canReschedule ? (
+        <div className="space-y-2 rounded-md border border-amber-200 bg-amber-50 p-3">
+          <h4 className="text-xs font-semibold">Điều chỉnh buổi {rescheduling.date} · {rescheduling.startTime}–{rescheduling.endTime}</h4>
+          <p className="text-xs text-amber-800">Phân công Teacher/CS hiện tại của buổi cũ sẽ bị hủy và được ghi vào lịch sử.</p>
+          <label className="block text-xs">Lý do bắt buộc
+            <textarea className={field} value={reason} onChange={(e) => setReason(e.target.value)}
+              minLength={5} maxLength={500} rows={2} />
+          </label>
+          <label className="flex items-center gap-2 text-xs">
+            <input type="checkbox" checked={makeUp} onChange={(e) => setMakeUp(e.target.checked)} />
+            Tạo thêm buổi học bù
+          </label>
+          {makeUp ? (
+            <div className="grid gap-2 sm:grid-cols-3">
+              <label className="text-xs">Ngày bù
+                <input className={field} type="date" min={classItem.startDate}
+                  max={classItem.endDate} value={newDate} onChange={(e) => setNewDate(e.target.value)} />
+              </label>
+              <label className="text-xs">Giờ bắt đầu
+                <input className={field} type="time" value={newFrom} onChange={(e) => setNewFrom(e.target.value)} />
+              </label>
+              <label className="text-xs">Giờ kết thúc
+                <input className={field} type="time" value={newTo} onChange={(e) => setNewTo(e.target.value)} />
+              </label>
+            </div>
+          ) : null}
+          <div className="flex gap-2">
+            <button type="button" className={action} disabled={saving}
+              onClick={confirmReschedule}>{saving ? "Đang xử lý..." : "Xác nhận điều chỉnh"}</button>
+            <button type="button" className={action} onClick={() => setRescheduling(null)}>Đóng</button>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }
