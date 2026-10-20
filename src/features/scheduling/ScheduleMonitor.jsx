@@ -29,7 +29,7 @@ export default function ScheduleMonitor() {
       const [classRows, teacherRows, csRows] = await Promise.all([
         classApi.planningClasses(),
         schedulingApi.teaching(iso(week)),
-        schedulingApi.staff(null, iso(week)),
+        schedulingApi.staff("CS", iso(week)),
       ]);
       const rows = Array.isArray(classRows) ? classRows : [];
       const sessions = await Promise.all(rows.map(async (item) => {
