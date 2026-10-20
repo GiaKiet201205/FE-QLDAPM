@@ -36,6 +36,7 @@ export default function Classes({ role }) {
     auditLogs,
     courses: apiCourses,
     loadError,
+    refreshData,
     getStudentClassEligibility,
     getClassStudentCandidates,
     assignStudentsToClass,
@@ -416,6 +417,7 @@ export default function Classes({ role }) {
         roleKey={roleKey}
         canManageCore={canManageCore}
         canManageStudents={canManageStudents}
+        onPlannedSessionsChanged={refreshData}
         canTeach={canTeach}
         search={search}
         onSearch={(value) => changeFilter(setSearch, value)}
