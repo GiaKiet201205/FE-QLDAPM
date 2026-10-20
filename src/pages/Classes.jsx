@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import ClassesView from "../features/classes/ClassesView";
 import ClassFormModal from "../features/classes/ClassFormModal";
 import SupportOverrideModal from "../features/classes/SupportOverrideModal";
@@ -67,6 +67,12 @@ export default function Classes({ role }) {
   const [editingActivity, setEditingActivity] = useState(null);
   const [grading, setGrading] = useState(false);
   const [message, setMessage] = useState("");
+
+  // Refresh the role-scoped roster and staff assignments when returning to
+  // Classes from TC/CM screens in the same authenticated layout.
+  useEffect(() => {
+    refreshData().catch(() => {});
+  }, [refreshData]);
 
   const courseOptions = apiCourses.length ? apiCourses : fallbackCourses;
 
