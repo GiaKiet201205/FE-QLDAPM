@@ -15,11 +15,10 @@ import PlaceholderPage from "./pages/PlaceholderPage";
 import PayrollPage from "./pages/PayrollPage";
 import StatisticsPage from "./pages/StatisticsPage";
 
-import {
-  AvailabilityScreen,
-  AssignmentScreen,
-  MyScheduleScreen,
-} from "./features/scheduling/SchedulingApiScreens";
+import AvailabilityRegister from "./pages/AvailabilityRegister";
+import TeacherAssignment from "./pages/TeacherAssignment";
+import StaffAssignment from "./pages/StaffAssignment";
+import MySchedule from "./pages/MySchedule";
 import { AcademicDataProvider } from "./features/academic/AcademicDataContext";
 import AccountDataProvider from "./features/accounts/AccountDataProvider";
 import { useAccountData } from "./features/accounts/hooks/useAccountData";
@@ -40,19 +39,19 @@ function resolveElement(item, roleKey) {
     case "statistics":
       return <StatisticsPage />;
     case "teacher-assignment":
-      return <AssignmentScreen role="TEACHER" />;
+      return <TeacherAssignment />;
     case "staff-assignment":
       return (
-        <AssignmentScreen
+        <StaffAssignment
           key={item.meta.staffRole}
-          role={item.meta.staffRole}
+          staffRole={item.meta.staffRole}
         />
       );
     case "my-schedule":
       return (
-        <MyScheduleScreen
+        <MySchedule
           key={item.meta.roleKey}
-          role={item.meta.roleKey}
+          roleKey={item.meta.roleKey}
         />
       );
     default:
@@ -115,7 +114,7 @@ function AppRoutes() {
                 ) {
                   element = <Classes role={role} />;
                 } else if (item.path === "/availability/register") {
-                  element = <AvailabilityScreen />;
+                  element = <AvailabilityRegister />;
                 } else if (item.path === "/accounts") {
                   element = (
                     <ProtectedRoute allowedRoles={["ADMIN"]}>

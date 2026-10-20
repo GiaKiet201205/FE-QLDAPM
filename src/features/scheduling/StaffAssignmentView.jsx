@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   BriefcaseBusiness,
   CalendarCheck2,
@@ -11,16 +11,22 @@ import {
   Users,
 } from "lucide-react";
 import Button from "../../components/ui/Button";
-import { useAcademicData } from "../academic/AcademicDataContext";
-import { csUsers, saleUsers } from "../classes/mockClassOperations";
+import { apiRequest, schedulingApi } from "../../services/api";
 import {
   csWorkTypes,
-  isStaffTimeInsideAvailability,
   saleWorkTypes,
-  staffAvailability,
-  staffWeekDays,
   workplaceOptions,
 } from "./mockStaffAssignment";
+import { addDays, iso, mondayOf } from "./schedulingUtils";
+import {
+  buildWeekDays,
+  formatWeekLabel,
+  isInsideAvailability,
+  normalizeAvailability,
+  normalizeClass,
+  normalizeEmployee,
+  normalizeSchedule,
+} from "./schedulingApiAdapters";
 
 const fieldClass =
   "h-9 w-full rounded-md border border-slate-300 bg-white px-3 text-[13px] text-slate-700 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100";
@@ -54,31 +60,83 @@ function getWorkTypeLabel(role, value) {
 export default function StaffAssignmentView({ staffRole = "SALE" }) {
   const role = staffRole === "CS" ? "CS" : "SALE";
   const isSale = role === "SALE";
-  const { classes, staffSchedules, assignStaffSchedule } = useAcademicData();
-
-  const staff = useMemo(
-    () =>
-      (isSale ? saleUsers : csUsers).map((item) => ({
-        ...item,
-        role,
-      })),
-    [isSale, role],
-  );
-
+  const [weekStart, setWeekStart] = useState(() => mondayOf());
+  const [staff, setStaff] = useState([]);
+  const [staffAvailability, setStaffAvailability] = useState([]);
+  const [staffSchedules, setStaffSchedules] = useState([]);
+  const [classes, setClasses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [staffFilter, setStaffFilter] = useState("all");
   const [search, setSearch] = useState("");
-  const [selectedUserId, setSelectedUserId] = useState(
-    isSale ? "sale-001" : "cs-001",
-  );
+  const [selectedUserId, setSelectedUserId] = useState("");
   const [form, setForm] = useState({
-    date: "2026-10-12",
+    date: iso(mondayOf()),
     startTime: isSale ? "08:30" : "17:30",
     endTime: isSale ? "11:30" : "20:30",
     workplaceId: "center-01",
     workType: isSale ? "SALES_SHIFT" : "CLASS_SUPPORT",
-    classId: "class-0001",
+    classId: "",
   });
   const [message, setMessage] = useState(null);
+
+  const staffWeekDays = useMemo(() => buildWeekDays(weekStart), [weekStart]);
+
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    setLoadError("");
+
+    try {
+      const [peopleRows, availabilityRows, scheduleRows, classRows] =
+        await Promise.all([
+          schedulingApi.employees(role),
+          schedulingApi.availability(role, iso(weekStart)),
+          schedulingApi.staff(role, iso(weekStart)),
+          apiRequest("/classes").catch(() => []),
+        ]);
+
+      const nextStaff = (Array.isArray(peopleRows) ? peopleRows : []).map(
+        (row) => normalizeEmployee(row, role),
+      );
+      const nextAvailability = (
+        Array.isArray(availabilityRows) ? availabilityRows : []
+      ).map((row) => normalizeAvailability(row, role));
+      const nextSchedules = (
+        Array.isArray(scheduleRows) ? scheduleRows : []
+      ).map((row) => normalizeSchedule(row, role));
+      const nextClasses = (Array.isArray(classRows) ? classRows : []).map(
+        normalizeClass,
+      );
+
+      setStaff(nextStaff);
+      setStaffAvailability(nextAvailability);
+      setStaffSchedules(nextSchedules);
+      setClasses(nextClasses);
+      setSelectedUserId((current) =>
+        nextStaff.some((person) => person.id === current)
+          ? current
+          : nextStaff[0]?.id || "",
+      );
+      setForm((current) => ({
+        ...current,
+        date: iso(weekStart),
+        classId:
+          nextClasses.some((item) => item.id === current.classId)
+            ? current.classId
+            : nextClasses.find((item) =>
+                ["READY", "RUNNING"].includes(item.status),
+              )?.id || "",
+      }));
+    } catch (error) {
+      setLoadError(error?.message || "Không thể tải dữ liệu phân công.");
+    } finally {
+      setLoading(false);
+    }
+  }, [role, weekStart]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const workTypes = isSale ? saleWorkTypes : csWorkTypes;
   const selectedStaff = staff.find((item) => item.id === selectedUserId);
@@ -109,10 +167,10 @@ export default function StaffAssignmentView({ staffRole = "SALE" }) {
   const selectedDay = staffWeekDays.find((day) => day.date === form.date);
   const selectedAvailability = staffAvailability.find(
     (availability) =>
-      availability.userId === selectedUserId &&
+      availability.employeeId === selectedUserId &&
       availability.staffRole === role &&
       availability.day === selectedDay?.key &&
-      isStaffTimeInsideAvailability(
+      isInsideAvailability(
         availability,
         form.startTime,
         form.endTime,
@@ -121,7 +179,7 @@ export default function StaffAssignmentView({ staffRole = "SALE" }) {
 
   const conflictingSchedule = staffSchedules.find(
     (schedule) =>
-      schedule.userId === selectedUserId &&
+      schedule.employeeId === selectedUserId &&
       schedule.date === form.date &&
       schedule.status === "ASSIGNED" &&
       form.startTime < schedule.endTime &&
@@ -151,7 +209,7 @@ export default function StaffAssignmentView({ staffRole = "SALE" }) {
     setMessage(null);
   }
 
-  function submitAssignment() {
+  async function submitAssignment() {
     setMessage(null);
 
     if (!selectedStaff) {
@@ -167,38 +225,45 @@ export default function StaffAssignmentView({ staffRole = "SALE" }) {
       return;
     }
 
-    const result = assignStaffSchedule(
-      {
-        userId: selectedStaff.id,
+    if (conflictingSchedule) {
+      setMessage({
+        type: "error",
+        text: "Nhân viên đã có ca làm trùng với khung giờ này.",
+      });
+      return;
+    }
+
+    try {
+      await schedulingApi.assignStaff({
+        employeeId: selectedStaff.id,
         staffRole: role,
         workplaceId: form.workplaceId,
-        classId: form.classId,
+        classId:
+          role === "CS" && form.workType === "CLASS_SUPPORT"
+            ? form.classId || null
+            : null,
         date: form.date,
         startTime: form.startTime,
         endTime: form.endTime,
         workType: form.workType,
-      },
-      {
-        id: "cm-001",
-        fullName: "Center Manager",
-        role: "CM",
-      },
-    );
+      });
 
-    if (!result.ok) {
-      setMessage({ type: "error", text: result.reason });
-      return;
+      setMessage({
+        type: "success",
+        text:
+          "Đã phân công " +
+          selectedStaff.fullName +
+          " vào " +
+          getWorkTypeLabel(role, form.workType) +
+          ".",
+      });
+      await loadData();
+    } catch (error) {
+      setMessage({
+        type: "error",
+        text: error?.message || "Không thể lưu phân công.",
+      });
     }
-
-    setMessage({
-      type: "success",
-      text:
-        "Đã phân công " +
-        selectedStaff.fullName +
-        " vào " +
-        getWorkTypeLabel(role, form.workType) +
-        ".",
-    });
   }
 
   return (
@@ -267,21 +332,36 @@ export default function StaffAssignmentView({ staffRole = "SALE" }) {
         <div className="flex items-center rounded-md border border-slate-200 bg-white">
           <button
             type="button"
+            onClick={() => setWeekStart((current) => addDays(current, -7))}
             className="px-2.5 py-2 text-slate-400 hover:bg-slate-50"
           >
             <ChevronLeft size={15} />
           </button>
           <span className="border-x border-slate-200 px-3 py-2 text-xs font-medium text-slate-700">
-            Tuần 42 · 12/10 – 18/10/2026
+            {formatWeekLabel(weekStart)}
           </span>
           <button
             type="button"
+            onClick={() => setWeekStart((current) => addDays(current, 7))}
             className="px-2.5 py-2 text-slate-400 hover:bg-slate-50"
           >
             <ChevronRight size={15} />
           </button>
         </div>
       </section>
+
+      {(loading || loadError) && (
+        <div
+          className={
+            "rounded-lg border px-4 py-3 text-sm " +
+            (loadError
+              ? "border-red-200 bg-red-50 text-red-700"
+              : "border-slate-200 bg-white text-slate-500")
+          }
+        >
+          {loadError || "Đang tải lịch nhân sự..."}
+        </div>
+      )}
 
       <div className="grid items-start gap-4 2xl:grid-cols-[minmax(0,1fr)_370px]">
         <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
@@ -344,13 +424,13 @@ export default function StaffAssignmentView({ staffRole = "SALE" }) {
                   {staffWeekDays.map((day) => {
                     const availabilities = staffAvailability.filter(
                       (item) =>
-                        item.userId === person.id &&
+                        item.employeeId === person.id &&
                         item.staffRole === role &&
                         item.day === day.key,
                     );
                     const schedules = staffSchedules.filter(
                       (schedule) =>
-                        schedule.userId === person.id &&
+                        schedule.employeeId === person.id &&
                         schedule.staffRole === role &&
                         schedule.date === day.date &&
                         schedule.status === "ASSIGNED",
