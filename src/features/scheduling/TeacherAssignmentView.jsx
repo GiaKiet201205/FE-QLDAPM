@@ -205,6 +205,8 @@ export default function TeacherAssignmentView() {
     (availability) =>
       availability.teacherId === selectedTeacherId &&
       availability.day === selectedDay?.key &&
+      (!availability.availableDate ||
+        availability.availableDate === form.date) &&
       isInsideAvailability(
         availability,
         form.startTime,
