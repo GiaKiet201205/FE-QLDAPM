@@ -3,10 +3,7 @@ import { CalendarDays, ChevronDown, ChevronUp, AlertTriangle, Plus, Trash2 } fro
 import Button from "../../components/ui/Button";
 import Modal from "../../components/ui/Modal";
 import { courses as fallbackCourses } from "./mockClasses";
-import {
-  courseTargetDefinitions,
-  getCourseTargetDefinition,
-} from "../academic/targetEligibility";
+import { getCourseTargetDefinition } from "../academic/targetEligibility";
 
 const inputClass =
   "h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-[13px] font-normal text-slate-800 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100";
@@ -88,17 +85,28 @@ export default function ClassFormModal({
       }
       items.push({ date: oneOffDate, startTime: sessionFrom, endTime: sessionTo });
     }
-    const combined = [...plannedSessions, ...items];
+    // A repeated click on the same weekday must not duplicate already-added lessons.
+    const keyed = new Map(
+      [...plannedSessions, ...items].map((slot) => [
+        [slot.date, slot.startTime, slot.endTime].join("|"), slot,
+      ]),
+    );
+    const combined = [...keyed.values()].sort(
+      (left, right) =>
+        (left.date + left.startTime).localeCompare(right.date + right.startTime),
+    );
     if (combined.length > 400) {
-      setSubmitError("Mỗi lớp được lập tối đa 400 buổi; hãy giảm khoảng ngày.");
+      setSubmitError("Mỗi lớp được lập tối đa 400 buổi; hãy giảm ngày học hoặc khoảng ngày.");
       return;
     }
-    for (const slot of items) {
-      const overlapping = combined.some((other) =>
-        other !== slot && other.date === slot.date &&
-        slot.startTime < other.endTime && slot.endTime > other.startTime &&
-        !(slot.startTime === other.startTime && slot.endTime === other.endTime));
-      if (overlapping) {
+    for (let i = 1; i < combined.length; i += 1) {
+      const previous = combined[i - 1];
+      const current = combined[i];
+      if (
+        previous.date === current.date &&
+        previous.startTime < current.endTime &&
+        previous.endTime > current.startTime
+      ) {
         setSubmitError("Lịch học có hai khung giờ chồng lên nhau trong cùng một ngày.");
         return;
       }
