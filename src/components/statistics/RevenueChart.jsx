@@ -6,10 +6,10 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
 } from 'recharts'
 
 function formatCurrency(value) {
+  if (value == null) return '—'
   if (value >= 1000) return `$${(value / 1000).toFixed(1)}k`
   return `$${value}`
 }
@@ -23,7 +23,7 @@ function CustomTooltip({ active, payload, label }) {
         <div key={p.dataKey} className="flex items-center gap-2" style={{ color: p.color }}>
           <span className="w-2 h-2 rounded-full" style={{ backgroundColor: p.color }} />
           <span className="text-slate-600">{p.name}:</span>
-          <span className="font-semibold">${p.value.toLocaleString()}</span>
+          <span className="font-semibold">{p.value == null ? 'Chưa có dữ liệu' : `$${Number(p.value).toLocaleString()}`}</span>
         </div>
       ))}
     </div>
