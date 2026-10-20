@@ -26,6 +26,78 @@ export default function ClassFormModal({
       : { ...emptyForm, status: "DRAFT" },
   );
   const isEditing = Boolean(classItem);
+  const [plannedSessions, setPlannedSessions] = useState([]);
+  const [sessionDay, setSessionDay] = useState("1");
+  const [sessionFrom, setSessionFrom] = useState("18:00");
+  const [sessionTo, setSessionTo] = useState("20:00");
+  const [oneOffDate, setOneOffDate] = useState("");
+  const [submitError, setSubmitError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const weekdayOptions = [
+    ["1", "Thứ 2"], ["2", "Thứ 3"], ["3", "Thứ 4"], ["4", "Thứ 5"],
+    ["5", "Thứ 6"], ["6", "Thứ 7"], ["0", "Chủ nhật"],
+  ];
+
+  function appendSessions(items) {
+    setSubmitError("");
+    setPlannedSessions((current) => {
+      const unique = new Map(current.map((slot) => [
+        slot.date + "|" + slot.startTime + "|" + slot.endTime, slot,
+      ]));
+      for (const slot of items) {
+        unique.set(slot.date + "|" + slot.startTime + "|" + slot.endTime, slot);
+      }
+      return [...unique.values()].sort((a, b) =>
+        (a.date + a.startTime).localeCompare(b.date + b.startTime));
+    });
+  }
+
+  function addPlannedSessions(weekly) {
+    if (!form.startDate || !form.endDate || invalidDateRange) {
+      setSubmitError("Hãy chọn ngày bắt đầu và kết thúc lớp hợp lệ trước.");
+      return;
+    }
+    if (!sessionFrom || !sessionTo || sessionFrom >= sessionTo) {
+      setSubmitError("Giờ kết thúc phải sau giờ bắt đầu.");
+      return;
+    }
+    const items = [];
+    if (weekly) {
+      const start = new Date(form.startDate + "T12:00:00");
+      const end = new Date(form.endDate + "T12:00:00");
+      for (const date = new Date(start); date <= end; date.setDate(date.getDate() + 1)) {
+        if (date.getDay() === Number(sessionDay)) {
+          const iso = [date.getFullYear(), String(date.getMonth() + 1).padStart(2, "0"),
+            String(date.getDate()).padStart(2, "0")].join("-");
+          items.push({ date: iso, startTime: sessionFrom, endTime: sessionTo });
+        }
+        if (items.length > 400) break;
+      }
+    } else {
+      if (!oneOffDate || oneOffDate < form.startDate || oneOffDate > form.endDate) {
+        setSubmitError("Ngày học lẻ phải nằm trong khoảng ngày của lớp.");
+        return;
+      }
+      items.push({ date: oneOffDate, startTime: sessionFrom, endTime: sessionTo });
+    }
+    const combined = [...plannedSessions, ...items];
+    if (combined.length > 400) {
+      setSubmitError("Mỗi lớp được lập tối đa 400 buổi; hãy giảm khoảng ngày.");
+      return;
+    }
+    for (const slot of items) {
+      const overlapping = combined.some((other) =>
+        other !== slot && other.date === slot.date &&
+        slot.startTime < other.endTime && slot.endTime > other.startTime &&
+        !(slot.startTime === other.startTime && slot.endTime === other.endTime));
+      if (overlapping) {
+        setSubmitError("Lịch học có hai khung giờ chồng lên nhau trong cùng một ngày.");
+        return;
+      }
+    }
+    appendSessions(items);
+  }
+
   const definition = getCourseTargetDefinition(form.courseId);
 
   const invalidDateRange = useMemo(
@@ -66,13 +138,29 @@ export default function ClassFormModal({
     }));
   }
 
-  function submit(event) {
+  async function submit(event) {
     event.preventDefault();
-    if (invalidDateRange || missingRequiredTarget) return;
-    onSave({
-      ...form,
-      status: isEditing ? classItem.status : "DRAFT",
-    });
+    setSubmitError("");
+    if (invalidDateRange || missingRequiredTarget || saving) return;
+    if (!isEditing && plannedSessions.some((slot) =>
+      slot.date < form.startDate || slot.date > form.endDate
+    )) {
+      setSubmitError("Có buổi học nằm ngoài ngày bắt đầu/kết thúc lớp.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const result = await onSave({
+        ...form,
+        status: isEditing ? classItem.status : "DRAFT",
+        ...(!isEditing ? { plannedSessions } : {}),
+      });
+      if (result === false) setSubmitError("Không thể lưu lớp. Kiểm tra lỗi API và thử lại.");
+    } catch (error) {
+      setSubmitError(error?.message || "Không thể lưu lớp.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -205,6 +293,51 @@ export default function ClassFormModal({
             End date must be on or after start date.
           </p>
         )}
+        {!isEditing && (
+          <section className="space-y-3 rounded-md border border-slate-200 bg-slate-50 p-3">
+            <div>
+              <strong className="text-sm font-semibold">Lịch học dự kiến (không bắt buộc khi tạo DRAFT)</strong>
+              <p className="text-xs text-slate-500">Admin/CS chọn giờ học trước; TC phân công giáo viên sau. Có thể bổ sung lịch tại tab Schedule trước khi chuyển READY.</p>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <label className="text-xs">Bắt đầu
+                <input className={inputClass} type="time" value={sessionFrom} onChange={(e) => setSessionFrom(e.target.value)} />
+              </label>
+              <label className="text-xs">Kết thúc
+                <input className={inputClass} type="time" value={sessionTo} onChange={(e) => setSessionTo(e.target.value)} />
+              </label>
+              <label className="text-xs">Thứ hằng tuần
+                <select className={inputClass} value={sessionDay} onChange={(e) => setSessionDay(e.target.value)}>
+                  {weekdayOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                </select>
+              </label>
+              <div className="flex items-end">
+                <Button type="button" onClick={() => addPlannedSessions(true)}>Thêm lịch hằng tuần</Button>
+              </div>
+              <label className="text-xs">Buổi lẻ
+                <input className={inputClass} type="date" min={form.startDate || undefined}
+                  max={form.endDate || undefined} value={oneOffDate}
+                  onChange={(e) => setOneOffDate(e.target.value)} />
+              </label>
+              <div className="flex items-end">
+                <Button type="button" onClick={() => addPlannedSessions(false)}>Thêm buổi lẻ</Button>
+              </div>
+            </div>
+            <div className="max-h-32 space-y-1 overflow-auto">
+              {plannedSessions.map((slot) => (
+                <div key={slot.date + slot.startTime + slot.endTime} className="flex items-center justify-between rounded bg-white px-2 py-1 text-xs">
+                  <span>{slot.date} · {slot.startTime}–{slot.endTime}</span>
+                  <button type="button" className="text-red-600" onClick={() =>
+                    setPlannedSessions((current) => current.filter((item) => item !== slot))
+                  }>Bỏ</button>
+                </div>
+              ))}
+              {!plannedSessions.length && <p className="text-xs text-slate-500">Chưa chọn buổi nào: lớp vẫn có thể được lưu DRAFT.</p>}
+            </div>
+            <p className="text-xs text-slate-500">{plannedSessions.length} buổi dự kiến</p>
+          </section>
+        )}
+        {submitError && <p role="alert" className="text-xs text-red-700">{submitError}</p>}
 
         <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-500">
           Status is managed by the class workflow. New classes start as
@@ -218,9 +351,9 @@ export default function ClassFormModal({
           <Button
             type="submit"
             variant="primary"
-            disabled={invalidDateRange || missingRequiredTarget}
+            disabled={invalidDateRange || missingRequiredTarget || saving}
           >
-            {isEditing ? "Save Changes" : "Create Class"}
+            {saving ? "Đang lưu..." : isEditing ? "Save Changes" : "Create Class"}
           </Button>
         </div>
       </form>
