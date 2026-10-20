@@ -239,6 +239,7 @@ function classPayload(form) {
     name: form.name?.trim(),
     startDate: form.startDate,
     endDate: form.endDate,
+    ...(Array.isArray(form.plannedSessions) ? { plannedSessions: form.plannedSessions } : {}),
     targetRequirements: Object.entries(values)
       .filter(([, value]) => value !== "" && value != null)
       .map(([targetType, requiredTarget]) => ({
