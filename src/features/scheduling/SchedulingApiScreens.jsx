@@ -132,6 +132,12 @@ export function AssignmentScreen({role}) {
   const plannedKey=s=>[String(s.date).slice(0,10),String(s.startTime).slice(0,5),String(s.endTime).slice(0,5)].join('|');
   const activeKey=[form.date,form.startTime,form.endTime].join('|');
   const matchingSession=plannedForWeek.some(s=>plannedKey(s)===activeKey);
+  const occupied=new Set(
+    shifts.filter(s=>s.status==='ASSIGNED' && s.classId===form.classId &&
+      (role==='TEACHER' || s.workType==='CLASS_SUPPORT'))
+      .map(plannedKey)
+  );
+  const unassigned=plannedForWeek.filter(s=>!occupied.has(plannedKey(s)));
   function chooseSlot(key){
     const s=plannedForWeek.find(row=>plannedKey(row)===key);
     if(s)setForm(old=>({...old,date:String(s.date).slice(0,10),startTime:String(s.startTime).slice(0,5),endTime:String(s.endTime).slice(0,5)}));
@@ -155,13 +161,67 @@ export function AssignmentScreen({role}) {
       setMessage('Phân công đã lưu vào cơ sở dữ liệu.');await refresh();
     } catch(ex){setActionError(ex.message);} finally{setSaving(false);}
   }
+  async function assignRemainingWeek() {
+    setMessage('');setActionError('');
+    if (!form.classId || !selected || !unassigned.length) return;
+    setSaving(true);
+    try {
+      const sessionIds=unassigned.map(s=>s.id);
+      if (role==='TEACHER') {
+        await schedulingApi.assignTeacherBatch({
+          teacherId:selected, classId:form.classId, campus:form.campus, sessionIds,
+        });
+      } else if (role==='CS' && form.workType==='CLASS_SUPPORT') {
+        await schedulingApi.assignSupportBatch({
+          employeeId:selected, classId:form.classId, workplaceId:form.workplaceId, sessionIds,
+        });
+      } else {
+        throw new Error('Phân công hàng loạt chỉ áp dụng cho Teacher/CS hỗ trợ lớp.');
+      }
+      setMessage(`Đã phân công ${sessionIds.length} buổi. Tất cả buổi được kiểm tra và lưu cùng một giao dịch.`);
+      await refresh();
+    } catch(e) {
+      setActionError(e.message||'Có buổi không hợp lệ. Chưa phân công buổi nào.');
+    } finally {setSaving(false);}
+  }
+  async function replaceAssigned(row) {
+    setActionError('');setMessage('');
+    if (!selected || selected===(role==='TEACHER'?row.teacherId:row.employeeId)) return;
+    const approved=window.confirm('Đổi nhân sự được phân công cho ca này sang người đang chọn?');
+    if(!approved) return;
+    setSaving(true);
+    try {
+      if(role==='TEACHER') {
+        await schedulingApi.updateTeacher(row.id, {
+          teacherId:selected,classId:row.classId,date:String(row.date).slice(0,10),
+          startTime:String(row.startTime).slice(0,5),
+          endTime:String(row.endTime).slice(0,5),
+          campus:form.campus,
+        });
+      } else {
+        await schedulingApi.updateStaff(row.id, {
+          employeeId:selected,staffRole:role,
+          workplaceId:row.workplaceId||form.workplaceId,
+          classId:row.classId||null,date:String(row.date).slice(0,10),
+          startTime:String(row.startTime).slice(0,5),endTime:String(row.endTime).slice(0,5),
+          workType:row.workType,
+        });
+      }
+      setMessage('Đã thay nhân sự. Ngày và giờ học của lớp được giữ nguyên.');
+      await refresh();
+    }catch(e){setActionError(e.message||'Không đổi được nhân sự.');}
+    finally{setSaving(false);}
+  }
   async function cancel(row) {
     if(!window.confirm('Hủy lịch phân công này?'))return;
     setActionError('');setMessage('');
     try {if(role==='TEACHER') await schedulingApi.cancelTeacher(row.id);else await schedulingApi.cancelStaff(row.id);setMessage('Đã hủy phân công.');await refresh();}
     catch(ex){setActionError(ex.message);}
   }
-  const relevant=shifts.filter(x=>(role==='TEACHER'?x.teacherId:x.employeeId)===selected && x.status==='ASSIGNED');
+  const relevant=shifts.filter(x=>x.status==='ASSIGNED' && (
+    (form.classId && needsClassSlot && x.classId===form.classId) ||
+    (role==='TEACHER'?x.teacherId:x.employeeId)===selected
+  ));
   return <div className="space-y-4">
     <h2 className="text-xl font-semibold">Lịch rảnh & Phân công {role==='TEACHER'?'Giáo viên':role}</h2>
     <WeekPicker week={week} setWeek={setWeek}/><Notice error={error||actionError||planError} success={message}/>
@@ -213,12 +273,30 @@ export function AssignmentScreen({role}) {
           {role==='TEACHER'?<label>Cơ sở<select className={input} value={form.campus} onChange={e=>setForm({...form,campus:e.target.value})}>{campuses.map(c=><option key={c}>{c}</option>)}</select></label>:
             <><label>Cơ sở<select className={input} value={form.workplaceId} onChange={e=>setForm({...form,workplaceId:e.target.value})}>{workplaces.map(w=><option value={w.id} key={w.id}>{w.label}</option>)}</select></label>
             <label>Loại công việc<select className={input} value={form.workType} onChange={e=>setForm({...form,workType:e.target.value})}>{workTypes[role].map(w=><option key={w.value} value={w.value}>{w.label}</option>)}</select></label></>}
-          </div><button className={primary} disabled={saving||!selected||form.startTime>=form.endTime||(needsClassSlot&&!matchingSession)}>Xác nhận phân công</button>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button className={primary} disabled={saving||!selected||form.startTime>=form.endTime||(needsClassSlot&&!matchingSession)}>Xác nhận phân công</button>
+            {needsClassSlot && form.classId ?
+              <button type="button" className={btn}
+                disabled={saving||!selected||!unassigned.length}
+                onClick={assignRemainingWeek}>
+                Phân công {unassigned.length} buổi chưa có nhân sự trong tuần
+              </button> : null}
+          </div>
+          {needsClassSlot ? <p className="text-xs text-slate-500">
+            Phân công hàng loạt là một giao dịch: nếu bất kỳ buổi nào thiếu lịch rảnh đã duyệt hoặc trùng ca, backend hủy toàn bộ.
+          </p> : null}
         </form>
         <section className="rounded-lg border bg-white p-3"><h3 className="mb-2 font-semibold">Lịch đã phân công</h3>
           {relevant.map(row=><div className="flex items-center justify-between gap-3 border-b py-2 text-sm" key={row.id}>
-          <span>{String(row.date).slice(0,10)} · {row.startTime}–{row.endTime} · {row.classCode||row.workType||row.classId}</span>
-          <button className={btn} onClick={()=>cancel(row)}>Hủy ca</button></div>)}
+          <span>{String(row.date).slice(0,10)} · {row.startTime}–{row.endTime} · {row.teacherName||row.employeeName||''} · {row.classCode||row.workType||row.classId}</span>
+          <div className="flex gap-2">
+            {selected !== (role==='TEACHER'?row.teacherId:row.employeeId) ?
+              <button className={btn} disabled={saving} onClick={()=>replaceAssigned(row)}>
+                Đổi sang nhân sự đang chọn
+              </button> : null}
+            <button className={btn} disabled={saving} onClick={()=>cancel(row)}>Hủy ca</button>
+          </div></div>)}
           {!relevant.length&&<p className="text-sm text-slate-500">Chưa có lịch phân công.</p>}
         </section>
       </div></div>
