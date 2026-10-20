@@ -263,7 +263,7 @@ export async function apiRequest(
 
   return body
 }
-
+export const login = (username, password) => apiRequest('/auth/login', { method: 'POST', body: JSON.stringify({ username, password }) });
 
 /* =========================================================
    AUTH
@@ -286,11 +286,26 @@ export function login(
   )
 }
 
+export const dashboardApi = {
+  overview() {
+    return apiRequest('/dashboard')
+  },
+}
+
+export const statisticsApi = {
+  summary({ period, year, month, date }) {
+    const params = new URLSearchParams({ period })
+    if (year != null) params.set('year', String(year))
+    if (month != null) params.set('month', String(month))
+    if (date) params.set('date', date)
+    return apiRequest(`/statistics?${params.toString()}`)
+  },
+}
+
 
 /* =========================================================
    SCHEDULING API
 ========================================================= */
-
 export const schedulingApi = {
   /* =======================================================
      EMPLOYEES
