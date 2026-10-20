@@ -12,6 +12,11 @@ export const classApi = {
       body: JSON.stringify(sessions),
     }),
   planningClasses: () => apiRequest("/class-planning"),
+  reschedule: (classId, body) =>
+    apiRequest(`/classes/${classId}/reschedule`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
   create: (payload) =>
     apiRequest("/classes", {
       method: "POST",
