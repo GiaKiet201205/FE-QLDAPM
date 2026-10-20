@@ -519,6 +519,7 @@ function ClassDetail({
   tab,
   setTab,
   onClose,
+  onPlannedSessionsChanged,
   onEdit,
   onAdvanceStatus,
   students,
@@ -690,6 +691,7 @@ function ClassDetail({
                 canManage={canManageCore}
                 teachingSchedules={teachingSchedules}
                 supportSchedules={supportSchedules}
+                onChanged={onPlannedSessionsChanged}
               />
               <ScheduleTab schedules={teachingSchedules} />
             </div>
@@ -744,6 +746,7 @@ function ClassDetail({
 export default function ClassesView({
   roleKey,
   canManageCore,
+  onPlannedSessionsChanged,
   search,
   onSearch,
   course,
@@ -915,6 +918,7 @@ export default function ClassesView({
           classItem={selected}
           roleKey={roleKey}
           canManageCore={canManageCore}
+          onPlannedSessionsChanged={onPlannedSessionsChanged}
           tab={tab}
           setTab={setTab}
           onClose={onCloseDetail}
