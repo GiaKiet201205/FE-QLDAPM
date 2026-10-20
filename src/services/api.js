@@ -263,7 +263,6 @@ export async function apiRequest(
 
   return body
 }
-export const login = (username, password) => apiRequest('/auth/login', { method: 'POST', body: JSON.stringify({ username, password }) });
 
 /* =========================================================
    AUTH
