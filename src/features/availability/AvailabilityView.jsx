@@ -226,17 +226,22 @@ export default function AvailabilityView({
                     <span className="text-[11px] text-slate-400">{shift.range}</span>
                   </div>
                   {weekDayDefinitions.map((day) => {
-                    const slot = slots.find(
-                      (item) => item.day === day.key && item.shift === shift.key,
-                    );
+                    const matchingSlots = slots
+                      .filter((item) => item.day === day.key && item.shift === shift.key)
+                      .sort((a, b) => a.start.localeCompare(b.start));
                     return (
                       <div key={day.key} className="flex min-h-28 items-center border-l border-slate-200 p-2">
-                        {slot ? (
-                          <SlotCard
-                            slot={slot}
-                            selected={selectedId === slot.id}
-                            onSelect={onSelect}
-                          />
+                        {matchingSlots.length > 0 ? (
+                          <div className="flex w-full flex-col gap-1.5">
+                            {matchingSlots.map((slot) => (
+                              <SlotCard
+                                key={slot.id}
+                                slot={slot}
+                                selected={selectedId === slot.id}
+                                onSelect={onSelect}
+                              />
+                            ))}
+                          </div>
                         ) : (
                           <div className="w-full text-center text-lg text-slate-300">—</div>
                         )}
