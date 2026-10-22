@@ -83,6 +83,7 @@ function FilterSelect({ value, onChange, label, options }) {
 
 function StudentDetail({
   student,
+  targetDefinitions,
   classes,
   results,
   tab,
@@ -208,7 +209,7 @@ function StudentDetail({
               <div className="border-b border-slate-100 py-3.5 text-[13px]">
                 <span className={labelClass}>Course targets</span>
                 <div className="grid gap-2">
-                  {Object.entries(courseTargetDefinitions).map(
+                  {Object.entries(targetDefinitions).map(
                     ([courseId, definition]) => {
                       const targets = studentTargets.filter(
                         (target) =>
@@ -345,6 +346,7 @@ function StudentDetail({
 }
 
 export default function StudentsView({
+  targetDefinitions = courseTargetDefinitions,
   roleKey,
   canManage,
   search,
