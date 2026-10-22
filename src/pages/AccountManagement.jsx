@@ -22,10 +22,10 @@ const AccountManagement = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isChangeRoleModalOpen, setIsChangeRoleModalOpen] = useState(false);
 
-  const onToggleLockAccount = () => {
+  const onToggleLockAccount = async () => {
     if (!selectedAccount) return;
-    handleToggleLock(selectedAccount.id);
-    
+    const result = await handleToggleLock(selectedAccount.id);
+    if (!result?.ok) return;
     const newStatus = selectedAccount.status === 'Active' ? 'Locked' : 'Active';
     
     toast.success(`Đã ${newStatus === 'Locked' ? 'khóa' : 'mở khóa'} tài khoản ${selectedAccount.user}`);
