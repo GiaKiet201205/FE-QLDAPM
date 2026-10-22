@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   BriefcaseBusiness,
   CalendarCheck2,
@@ -85,7 +85,12 @@ export default function StaffAssignmentView({ staffRole = "SALE" }) {
 
   const staffWeekDays = useMemo(() => buildWeekDays(weekStart), [weekStart]);
 
+  const latestLoad = useRef(0);
+  const currentWeekRef = useRef(iso(weekStart));
+  currentWeekRef.current = iso(weekStart);
   const loadData = useCallback(async () => {
+    const requestedWeek = iso(weekStart);
+    const loadId = ++latestLoad.current;
     setLoading(true);
     setLoadError("");
 
@@ -111,6 +116,7 @@ export default function StaffAssignmentView({ staffRole = "SALE" }) {
         normalizeClass,
       );
 
+      if (loadId !== latestLoad.current || requestedWeek !== currentWeekRef.current) return;
       setStaff(nextStaff);
       setStaffAvailability(nextAvailability);
       setStaffSchedules(nextSchedules);
@@ -131,14 +137,16 @@ export default function StaffAssignmentView({ staffRole = "SALE" }) {
               )?.id || "",
       }));
     } catch (error) {
+      if (loadId !== latestLoad.current || requestedWeek !== currentWeekRef.current) return;
       setLoadError(error?.message || "Không thể tải dữ liệu phân công.");
     } finally {
-      setLoading(false);
+      if (loadId === latestLoad.current && requestedWeek === currentWeekRef.current) setLoading(false);
     }
   }, [role, weekStart]);
 
   useEffect(() => {
     loadData();
+    return () => { latestLoad.current += 1; };
   }, [loadData]);
 
   const workTypes = isSale ? saleWorkTypes : csWorkTypes;
