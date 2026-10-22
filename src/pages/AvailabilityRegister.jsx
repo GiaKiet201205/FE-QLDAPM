@@ -101,7 +101,9 @@ export default function AvailabilityRegister() {
       availabilityType: availabilityTypeToApi(form.type),
       availableDate:
         availabilityTypeToApi(form.type) === "WEEKLY" && dayIndex >= 0
-          ? (editing?.availableDate || iso(addDays(weekStart, dayIndex)))
+          ? (editing?.availableDate && editing.day === form.day
+              ? editing.availableDate
+              : iso(addDays(weekStart, dayIndex)))
           : null,
       campus: form.campus,
       note: form.note,
