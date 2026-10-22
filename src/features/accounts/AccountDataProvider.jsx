@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AccountDataContext } from './hooks/useAccountData';
 import {
-  ACCOUNTS_STORAGE_KEY,
   createProfileUpdate,
   getNextAccountCode,
 } from './accountStore';
