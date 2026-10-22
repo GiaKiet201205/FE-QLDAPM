@@ -37,6 +37,9 @@ export default function ClassFormModal({
   const [oneOffDate, setOneOffDate] = useState("");
   const [submitError, setSubmitError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [customTargetType, setCustomTargetType] = useState(
+    () => Object.keys(classItem?.requiredTargets?.[classItem.courseId] ?? {})[0] || "OVERALL_SCORE",
+  );
   const weekdayOptions = [
     [1, "T2"], [2, "T3"], [3, "T4"], [4, "T5"],
     [5, "T6"], [6, "T7"], [0, "CN"],
@@ -128,19 +131,35 @@ export default function ClassFormModal({
     [form.startDate, form.endDate],
   );
 
-  const missingRequiredTarget =
-    !definition ||
-    definition.targets.some(
-      (target) =>
+  const missingRequiredTarget = definition
+    ? definition.targets.some((target) =>
         form.requiredTargets?.[form.courseId]?.[target.type] === "" ||
-        form.requiredTargets?.[form.courseId]?.[target.type] == null,
-    );
+        form.requiredTargets?.[form.courseId]?.[target.type] == null)
+    : !customTargetType.trim() ||
+      form.requiredTargets?.[form.courseId]?.[customTargetType] === "" ||
+      form.requiredTargets?.[form.courseId]?.[customTargetType] == null;
 
   function update(event) {
     setForm((current) => ({
       ...current,
       [event.target.name]: event.target.value,
     }));
+  }
+
+  function updateCustomTargetType(value) {
+    const next = value.toUpperCase().replace(/[^A-Z0-9_]/g, "");
+    setForm((current) => {
+      const previous = current.requiredTargets?.[current.courseId] ?? {};
+      const amount = previous[customTargetType] ?? "";
+      const updated = { ...previous };
+      delete updated[customTargetType];
+      if (next) updated[next] = amount;
+      return {
+        ...current,
+        requiredTargets: { ...(current.requiredTargets ?? {}), [current.courseId]: updated },
+      };
+    });
+    setCustomTargetType(next);
   }
 
   function updateRequiredTarget(targetType, value) {
@@ -279,9 +298,22 @@ export default function ClassFormModal({
               ))}
             </div>
           ) : (
-            <p className="text-xs text-red-600">
-              No target model is configured for this course.
-            </p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <label className="grid gap-1 text-xs font-medium">Mã tiêu chí tùy chỉnh
+                <input className={inputClass} value={customTargetType} required
+                  onChange={(event) => updateCustomTargetType(event.target.value)}
+                  placeholder="OVERALL_SCORE" />
+              </label>
+              <label className="grid gap-1 text-xs font-medium">Mức mục tiêu tối thiểu
+                <input className={inputClass} type="number" min="0" step="any" required
+                  value={form.requiredTargets?.[form.courseId]?.[customTargetType] ?? ""}
+                  onChange={(event) => updateRequiredTarget(customTargetType, event.target.value)} />
+              </label>
+              <p className="text-xs text-slate-500 sm:col-span-2">
+                Khóa học này không có thang điểm cố định. Tên tiêu chí và mức mục tiêu
+                được lưu cùng lớp để so sánh với target học viên.
+              </p>
+            </div>
           )}
         </div>
 
