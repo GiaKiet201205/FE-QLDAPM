@@ -166,8 +166,10 @@ export default function AvailabilityView({
           <span className="text-xs font-medium uppercase tracking-wide text-slate-400">
             Trạng thái
           </span>
-          <strong className="mt-1 flex items-center gap-2 text-sm font-semibold text-emerald-700">
-            <CheckCircle2 size={17} />
+          <strong className={"mt-1 flex items-center gap-2 text-sm font-semibold " +
+            (activeSlots.length === 0 ? "text-slate-500" : pendingCount ? "text-amber-700" : "text-emerald-700")}>
+            {activeSlots.length === 0 ? <Info size={17} /> :
+              pendingCount ? <Clock3 size={17} /> : <CheckCircle2 size={17} />}
             {activeSlots.length === 0 ? "Chưa có lịch hợp lệ" : pendingCount > 0 ? "Có lịch đang chờ duyệt" : "Đã xử lý các lịch đăng ký"}
           </strong>
           <span className="text-xs text-slate-500">
