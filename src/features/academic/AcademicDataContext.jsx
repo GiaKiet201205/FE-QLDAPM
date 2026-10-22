@@ -352,8 +352,15 @@ export function AcademicDataProvider({ children }) {
     async (request, successValue = {}) => {
       try {
         const response = await request();
-        await refreshData();
-        return { ok: true, ...successValue, response };
+        try {
+          await refreshData();
+          return { ok: true, ...successValue, response };
+        } catch (refreshError) {
+          // The write succeeded on the server. Do not report it as failed and
+          // encourage users to submit a duplicate record.
+          return { ok: true, ...successValue, response,
+            refreshWarning: refreshError?.message || "Không thể tải lại dữ liệu." };
+        }
       } catch (error) {
         return failure(error);
       }
