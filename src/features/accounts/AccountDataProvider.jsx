@@ -2,13 +2,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { AccountDataContext } from './hooks/useAccountData';
 import {
   ACCOUNTS_STORAGE_KEY,
-  createAccount,
   createProfileUpdate,
   getNextAccountCode,
-  loadAccounts,
 } from './accountStore';
 import { getRoleKeyFromAccountRole } from '../../config/roles';
-import { getSession, login as backendLogin, saveSession } from '../../services/api';
+import { accountAdminApi, getSession, login as backendLogin, saveSession } from '../../services/api';
 
 const ROLE_LABELS = {
   ADMIN: 'Admin',
@@ -37,6 +35,22 @@ function backendUsername(identifier, accounts) {
   return USERNAME_ALIASES[username] ?? username;
 }
 
+function serverAccount(item) {
+  return {
+    id: item.username,
+    code: item.employeeCode || `BE-${item.username.toUpperCase()}`,
+    user: item.fullName || item.username,
+    username: item.username,
+    email: item.email || '',
+    role: ROLE_LABELS[item.role] || item.role,
+    status: item.status === 'ACTIVE' ? 'Active' : 'Locked',
+    department: '',
+    phone: '',
+    initials: (item.fullName || item.username).slice(0, 2).toUpperCase(),
+    createdDate: item.createdAt ? String(item.createdAt).slice(0, 10) : '',
+  };
+}
+
 function accountForSession(accounts, session) {
   if (!session?.token || !session.username || !ROLE_LABELS[session.role]) return null;
 
@@ -63,7 +77,7 @@ function accountForSession(accounts, session) {
 }
 
 export default function AccountDataProvider({ children }) {
-  const [accounts, setAccounts] = useState(() => loadAccounts(localStorage));
+  const [accounts, setAccounts] = useState([]);
   const [session, setSession] = useState(() => getSession());
 
   // Only the backend JWT authorizes access. UI account records can never
@@ -85,8 +99,16 @@ export default function AccountDataProvider({ children }) {
   }, [currentAccount, session]);
 
   useEffect(() => {
-    localStorage.setItem(ACCOUNTS_STORAGE_KEY, JSON.stringify(accounts));
-  }, [accounts]);
+    let active = true;
+    if (session?.token && session.role === 'ADMIN') {
+      accountAdminApi.list().then((rows) => {
+        if (active) setAccounts((rows || []).map(serverAccount));
+      }).catch(() => { if (active) setAccounts([]); });
+    } else {
+      setAccounts([]);
+    }
+    return () => { active = false; };
+  }, [session?.token, session?.role]);
 
   useEffect(() => {
     function handleExpiredSession() {
@@ -134,31 +156,48 @@ export default function AccountDataProvider({ children }) {
     setSession(null);
   }
 
-  function addAccount(form) {
-    const result = createAccount(accounts, form);
-    if (result.ok) setAccounts((current) => [result.account, ...current]);
-    return result;
-  }
-
-  function toggleLock(id) {
-    setAccounts((current) =>
-      current.map((account) =>
-        account.id === id
-          ? { ...account, status: account.status === 'Active' ? 'Locked' : 'Active' }
-          : account,
-      ),
-    );
-    // Local mock account status is not a backend revocation or user lock.
-  }
-
-  function changeRole(id, role) {
-    if (!getRoleKeyFromAccountRole(role)) {
-      return { ok: false, reason: 'Vai trò không hợp lệ.' };
+  async function addAccount(form) {
+    const role = getRoleKeyFromAccountRole(form.role);
+    if (!role) return { ok: false, errors: { role: 'Vai trò không hợp lệ.' } };
+    try {
+      const created = await accountAdminApi.create({
+        username: form.username?.trim(),
+        email: form.email?.trim(),
+        password: form.password,
+        employeeCode: form.code?.trim(),
+        fullName: form.user?.trim(),
+        role,
+      });
+      setAccounts((current) => [serverAccount(created), ...current]);
+      return { ok: true, account: serverAccount(created) };
+    } catch (error) {
+      return { ok: false, errors: { general: error.message || 'Không thể tạo tài khoản.' } };
     }
-    setAccounts((current) =>
-      current.map((account) => account.id === id ? { ...account, role } : account),
-    );
-    return { ok: true };
+  }
+
+  async function toggleLock(id) {
+    const account = accounts.find((item) => item.id === id);
+    if (!account) return { ok: false, reason: 'Không tìm thấy tài khoản.' };
+    try {
+      const result = await accountAdminApi.status(account.username, account.status === 'Active' ? 'LOCKED' : 'ACTIVE');
+      setAccounts((current) => current.map((item) => item.id === id ? serverAccount(result) : item));
+      return { ok: true };
+    } catch (error) {
+      return { ok: false, reason: error.message };
+    }
+  }
+
+  async function changeRole(id, role) {
+    const roleKey = getRoleKeyFromAccountRole(role);
+    const account = accounts.find((item) => item.id === id);
+    if (!roleKey || !account) return { ok: false, reason: 'Tài khoản hoặc vai trò không hợp lệ.' };
+    try {
+      const result = await accountAdminApi.role(account.username, roleKey);
+      setAccounts((current) => current.map((item) => item.id === id ? serverAccount(result) : item));
+      return { ok: true };
+    } catch (error) {
+      return { ok: false, reason: error.message };
+    }
   }
 
   function updateProfile(form) {
