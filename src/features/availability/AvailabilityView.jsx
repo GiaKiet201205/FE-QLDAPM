@@ -160,7 +160,7 @@ export default function AvailabilityView({
           <strong className="mt-1 block text-2xl font-semibold text-slate-900">
             {totalHours.toFixed(1)}h
           </strong>
-          <span className="text-xs text-slate-500">mục tiêu gợi ý 16–22h</span>
+          <span className="text-xs text-slate-500">Không bao gồm lịch bị từ chối</span>
         </div>
         <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <span className="text-xs font-medium uppercase tracking-wide text-slate-400">
@@ -179,7 +179,7 @@ export default function AvailabilityView({
       <section className="mb-4 flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm xl:flex-row xl:items-center xl:justify-between">
         <div className="flex flex-wrap items-center gap-2">
           <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
-            <span className="text-slate-400">Học kỳ:</span>{" "}
+            <span className="text-slate-400">Năm:</span>{" "}
             <strong className="font-semibold text-slate-700">{weekDays[0]?.date?.slice(0, 4) || "—"}</strong>
           </div>
           <div className="flex items-center rounded-md border border-slate-200 bg-white">
