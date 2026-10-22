@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AccountDataContext } from './hooks/useAccountData';
 import {
+  ACCOUNTS_STORAGE_KEY,
+  loadAccounts,
   createProfileUpdate,
   getNextAccountCode,
 } from './accountStore';
@@ -103,6 +105,9 @@ export default function AccountDataProvider({ children }) {
       accountAdminApi.list().then((rows) => {
         if (active) setAccounts((rows || []).map(serverAccount));
       }).catch(() => { if (active) setAccounts([]); });
+    } else if (session?.token) {
+      const saved = loadAccounts(localStorage);
+      setAccounts(saved.filter((item) => item.username?.toLowerCase() === session.username?.toLowerCase()));
     } else {
       setAccounts([]);
     }
@@ -211,6 +216,14 @@ export default function AccountDataProvider({ children }) {
     if (!result.ok) return result;
 
     const profile = { ...profileAccount, ...result.profile };
+    if (session.role !== 'ADMIN') {
+      const saved = loadAccounts(localStorage);
+      const existing = saved.find((item) => item.username?.toLowerCase() === session.username.toLowerCase());
+      const updated = existing
+        ? saved.map((item) => item.username?.toLowerCase() === session.username.toLowerCase() ? { ...item, ...result.profile } : item)
+        : [...saved, profile];
+      localStorage.setItem(ACCOUNTS_STORAGE_KEY, JSON.stringify(updated));
+    }
     setAccounts((current) => {
       const existing = current.find(
         (item) => item.username?.toLowerCase() === session.username.toLowerCase(),
