@@ -10,6 +10,7 @@ const AddAccountModal = ({ onClose, onSubmit, nextAccountCode }) => {
     user: '',
     username: '',
     email: '',
+    password: '',
     role: 'Teacher',
     department: 'Hanoi Main Campus',
     passwordPolicy: 'Standard',
@@ -22,9 +23,9 @@ const AddAccountModal = ({ onClose, onSubmit, nextAccountCode }) => {
     setErrors(prev => ({ ...prev, [name]: undefined }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const result = onSubmit(formData);
+    const result = await onSubmit(formData);
     if (!result?.ok) {
       setErrors(result?.errors || { general: 'Không thể thêm tài khoản.' });
       return;
@@ -80,10 +81,11 @@ const AddAccountModal = ({ onClose, onSubmit, nextAccountCode }) => {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-900 mb-1.5">
-                  Email <span className="text-gray-400 font-normal">(optional)</span>
+                  Email (required)
                 </label>
                 <input 
-                  type="email" 
+                  type="email"
+                  required
                   name="email" 
                   value={formData.email} 
                   onChange={handleChange} 
@@ -92,6 +94,16 @@ const AddAccountModal = ({ onClose, onSubmit, nextAccountCode }) => {
               </div>
             </div>
 
+            <label className="block text-sm font-medium text-gray-900">
+              Initial password (at least 8 characters)
+              <input required type="password" name="password" minLength={8}
+                autoComplete="new-password" value={formData.password}
+                onChange={handleChange}
+                className="mt-1.5 w-full border border-gray-300 rounded px-3 py-2 text-sm" />
+              <span className="mt-1 block text-xs text-gray-500">
+                Nhập mật khẩu riêng và chuyển cho nhân sự qua kênh bảo mật.
+              </span>
+            </label>
             {/*  Role & Department  */}
             <div className="border border-gray-200 rounded-lg p-5">
               <h3 className="text-sm font-medium text-gray-900 mb-1">Role & Department</h3>
