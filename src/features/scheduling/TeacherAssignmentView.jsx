@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   CalendarCheck2,
   CheckCircle2,
@@ -65,7 +65,12 @@ export default function TeacherAssignmentView() {
 
   const weekDays = useMemo(() => buildWeekDays(weekStart), [weekStart]);
 
+  const latestLoad = useRef(0);
+  const currentWeekRef = useRef(iso(weekStart));
+  currentWeekRef.current = iso(weekStart);
   const loadData = useCallback(async () => {
+    const requestedWeek = iso(weekStart);
+    const loadId = ++latestLoad.current;
     setLoading(true);
     setLoadError("");
 
@@ -91,6 +96,7 @@ export default function TeacherAssignmentView() {
         normalizeClass,
       );
 
+      if (loadId !== latestLoad.current || requestedWeek !== currentWeekRef.current) return;
       setTeachers(nextTeachers);
       setTeacherAvailability(nextAvailability);
       setTeachingSchedules(nextSchedules);
@@ -111,14 +117,16 @@ export default function TeacherAssignmentView() {
         date: iso(weekStart),
       }));
     } catch (error) {
+      if (loadId !== latestLoad.current || requestedWeek !== currentWeekRef.current) return;
       setLoadError(error?.message || "Không thể tải dữ liệu phân công.");
     } finally {
-      setLoading(false);
+      if (loadId === latestLoad.current && requestedWeek === currentWeekRef.current) setLoading(false);
     }
   }, [weekStart]);
 
   useEffect(() => {
     loadData();
+    return () => { latestLoad.current += 1; };
   }, [loadData]);
 
   const assignableClasses = classes.filter((item) =>
