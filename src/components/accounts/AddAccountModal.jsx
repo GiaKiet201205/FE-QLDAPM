@@ -118,7 +118,7 @@ const AddAccountModal = ({ onClose, onSubmit, nextAccountCode }) => {
                     onChange={handleChange} 
                     className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#1a365d] focus:border-[#1a365d] bg-white"
                   >
-                    {ACCOUNT_ROLE_OPTIONS.map(value => <option key={value} value={value}>{value}</option>)}
+                    {ACCOUNT_ROLE_OPTIONS.filter(value => value !== "Admin").map(value => <option key={value} value={value}>{value}</option>)}
                   </select>
                 </div>
                 <div>
@@ -141,7 +141,7 @@ const AddAccountModal = ({ onClose, onSubmit, nextAccountCode }) => {
             {/* Security & Authentication */}
             <div className="border border-gray-200 rounded-lg p-5">
               <h3 className="text-sm font-medium text-gray-900 mb-1">Security & Authentication</h3>
-              <p className="text-xs text-gray-500 mb-4">Configure password policies and multi-factor authentication requirements.</p>
+              <p className="text-xs text-amber-800 mb-4">MFA và chính sách mật khẩu chưa có API cấu hình. Các tùy chọn bên dưới hiện chưa được áp dụng trên server.</p>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
