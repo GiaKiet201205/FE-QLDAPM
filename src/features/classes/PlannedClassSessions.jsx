@@ -288,7 +288,7 @@ export default function PlannedClassSessions({
               {editable && item.status === "PLANNED" ?
                 <button type="button" className="text-red-600 hover:underline"
                   onClick={() => remove(item)}>Bỏ</button> : null}
-              {canReschedule && item.status === "PLANNED" && item.date > todayIso ?
+              {canReschedule && item.status === "PLANNED" && (item.date > todayIso || (item.date === todayIso && item.startTime > new Date().toTimeString().slice(0, 5))) ?
                 <button type="button" className="text-blue-700 hover:underline"
                   onClick={() => beginReschedule(item)}>Nghỉ / dời buổi</button> : null}
             </div>
