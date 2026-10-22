@@ -162,7 +162,7 @@ export default function PlannedClassSessions({
     setMessage("");
     setSaving(true);
     try {
-      const result = await classApi.savePlannedSessions(classItem.id, arranged.map(
+      const result = await classApi.savePlannedSessions(classItem.id, arranged.filter((s) => s.status === "PLANNED").map(
         (s) => ({date:s.date,startTime:s.startTime,endTime:s.endTime})
       ));
       setSessions((result || []).map(normalized));
