@@ -552,6 +552,7 @@ export default function StudentsView({
 
         <StudentDetail
           student={selected}
+          targetDefinitions={targetDefinitions}
           classes={selectedClasses}
           results={selectedResults}
           tab={tab}
