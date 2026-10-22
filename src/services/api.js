@@ -567,3 +567,17 @@ export const schedulingApi = {
     )
   },
 }
+export const accountAdminApi = {
+  list: () => apiRequest('/admin/accounts'),
+  create: (data) => apiRequest('/admin/accounts', {
+    method: 'POST', body: JSON.stringify(data),
+  }),
+  role: (username, role) => apiRequest(
+    `/admin/accounts/${encodeURIComponent(username)}/role`,
+    {method:'PATCH', body:JSON.stringify({role})},
+  ),
+  status: (username, status) => apiRequest(
+    `/admin/accounts/${encodeURIComponent(username)}/status`,
+    {method:'PATCH', body:JSON.stringify({status})},
+  ),
+};
