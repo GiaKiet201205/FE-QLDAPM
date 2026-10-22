@@ -28,11 +28,16 @@ function StatusLegend({ tone, label }) {
 
 function SlotCard({ slot, selected, onSelect }) {
   const pending = slot.status === "pending";
+  const rejected = slot.status === "rejected";
+  const label = rejected ? "Đã từ chối" : pending ? "Chờ duyệt" : "Đã duyệt";
+  const dot = rejected ? "bg-red-500" : pending ? "bg-amber-500" : "bg-blue-500";
   const styleClass = selected
     ? "border-[#173557] bg-[#edf3f9] ring-1 ring-[#173557]"
-    : pending
-      ? "border-amber-300 bg-amber-50 hover:bg-amber-100"
-      : "border-blue-200 bg-blue-50 hover:bg-blue-100";
+    : rejected
+      ? "border-red-200 bg-red-50 hover:bg-red-100"
+      : pending
+        ? "border-amber-300 bg-amber-50 hover:bg-amber-100"
+        : "border-blue-200 bg-blue-50 hover:bg-blue-100";
 
   return (
     <button
@@ -43,16 +48,16 @@ function SlotCard({ slot, selected, onSelect }) {
       <span
         className={
           "mb-1 flex items-center gap-1.5 text-[11px] font-semibold " +
-          (pending ? "text-amber-800" : "text-[#173557]")
+          (rejected ? "text-red-700" : pending ? "text-amber-800" : "text-[#173557]")
         }
       >
         <span
           className={
             "h-1.5 w-1.5 rounded-full " +
-            (pending ? "bg-amber-500" : "bg-blue-500")
+            dot
           }
         />
-        {pending ? "Chờ duyệt" : "Đã đăng ký"}
+        {label}
       </span>
       <span className="block text-xs font-medium text-slate-700">
         {slot.start} – {slot.end}
@@ -92,7 +97,10 @@ export default function AvailabilityView({
   const dateByDay = Object.fromEntries(
     weekDays.map((day) => [day.key, day.displayDate || day.date || ""]),
   );
-  const totalHours = slots.reduce(
+  const activeSlots = slots.filter((slot) => slot.status !== "rejected");
+  const approvedCount = slots.filter((slot) => slot.status === "verified").length;
+  const pendingCount = slots.filter((slot) => slot.status === "pending").length;
+  const totalHours = activeSlots.reduce(
     (sum, slot) => sum + getDurationHours(slot.start, slot.end),
     0,
   );
@@ -141,7 +149,7 @@ export default function AvailabilityView({
             Số khung giờ
           </span>
           <strong className="mt-1 block text-2xl font-semibold text-slate-900">
-            {slots.length}
+            {activeSlots.length}
           </strong>
           <span className="text-xs text-slate-500">đã đăng ký trong tuần</span>
         </div>
@@ -160,10 +168,10 @@ export default function AvailabilityView({
           </span>
           <strong className="mt-1 flex items-center gap-2 text-sm font-semibold text-emerald-700">
             <CheckCircle2 size={17} />
-            Đã gửi lịch tuần này
+            {activeSlots.length === 0 ? "Chưa có lịch hợp lệ" : pendingCount > 0 ? "Có lịch đang chờ duyệt" : "Đã xử lý các lịch đăng ký"}
           </strong>
           <span className="text-xs text-slate-500">
-            {slots.filter((slot) => slot.status === "pending").length} khung giờ đang chờ duyệt
+            {approvedCount} đã duyệt · {pendingCount} chờ duyệt · {slots.length - activeSlots.length} từ chối
           </span>
         </div>
       </section>
@@ -172,7 +180,7 @@ export default function AvailabilityView({
         <div className="flex flex-wrap items-center gap-2">
           <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
             <span className="text-slate-400">Học kỳ:</span>{" "}
-            <strong className="font-semibold text-slate-700">HK1 2024</strong>
+            <strong className="font-semibold text-slate-700">{weekDays[0]?.date?.slice(0, 4) || "—"}</strong>
           </div>
           <div className="flex items-center rounded-md border border-slate-200 bg-white">
             <button type="button" onClick={onPreviousWeek} className="px-2.5 py-2 text-slate-400 hover:bg-slate-50" aria-label="Tuần trước">
@@ -187,7 +195,8 @@ export default function AvailabilityView({
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-4 px-1">
-          <StatusLegend tone="bg-blue-500" label="Đã đăng ký" />
+          <StatusLegend tone="bg-blue-500" label="Đã duyệt" />
+          <StatusLegend tone="bg-red-500" label="Đã từ chối" />
           <StatusLegend tone="bg-amber-500" label="Chờ duyệt" />
           <StatusLegend tone="bg-slate-300" label="Chưa đăng ký" />
         </div>
@@ -274,16 +283,16 @@ export default function AvailabilityView({
               <span
                 className={
                   "inline-flex items-center gap-1.5 text-xs font-medium " +
-                  (selected.status === "pending" ? "text-amber-700" : "text-emerald-700")
+                  (selected.status === "rejected" ? "text-red-700" : selected.status === "pending" ? "text-amber-700" : "text-emerald-700")
                 }
               >
                 <span
                   className={
                     "h-1.5 w-1.5 rounded-full " +
-                    (selected.status === "pending" ? "bg-amber-500" : "bg-emerald-500")
+                    (selected.status === "rejected" ? "bg-red-500" : selected.status === "pending" ? "bg-amber-500" : "bg-emerald-500")
                   }
                 />
-                {selected.status === "pending" ? "Chờ duyệt" : "Đã xác nhận"}
+                {selected.status === "rejected" ? "Đã từ chối" : selected.status === "pending" ? "Chờ duyệt" : "Đã duyệt"}
               </span>
             )}
           </div>
@@ -335,7 +344,7 @@ export default function AvailabilityView({
                 </div>
                 {selected.reviewedAt && (
                   <div className="flex justify-between gap-3 py-1 text-xs text-slate-500">
-                    <span>Đã duyệt</span>
+                    <span>{selected.status === "rejected" ? "Đã từ chối" : "Đã duyệt"}</span>
                     <span>{selected.reviewedAt}</span>
                   </div>
                 )}
