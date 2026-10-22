@@ -6,9 +6,9 @@ import Button from '../ui/Button';
 const ChangeRoleModal = ({ onClose, onSubmit, currentRole, accountName }) => {
   const [role, setRole] = useState(currentRole || 'Teacher');
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const result = onSubmit(role);
+    const result = await onSubmit(role);
     if (result?.ok === false) return;
     onClose();
   };
