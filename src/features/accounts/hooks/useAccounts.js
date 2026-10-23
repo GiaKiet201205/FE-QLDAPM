@@ -78,8 +78,8 @@ export const useAccounts = () => {
     toast.success('Xuất file thành công!');
   };
 
-  const handleAddAccount = async (formData) => {
-    const result = await addAccount(formData);
+  const handleAddAccount = (formData) => {
+    const result = addAccount(formData);
     if (!result.ok) return result;
     setSearchTerm('');
     setSelectedRole('All Roles');
@@ -90,15 +90,13 @@ export const useAccounts = () => {
   };
 
   // HÀM KHÓA/MỞ KHÓA TÀI KHOẢN
-  const handleToggleLock = async (accountId) => {
-    const result = await toggleLock(accountId);
-    if (!result.ok) toast.error(result.reason || 'Không thể thay đổi trạng thái tài khoản.');
-    return result;
+  const handleToggleLock = (accountId) => {
+    toggleLock(accountId);
   };
 
   // HÀM ĐỔI VAI TRÒ
-  const handleChangeRole = async (accountId, newRole) => {
-    const result = await changeRole(accountId, newRole);
+  const handleChangeRole = (accountId, newRole) => {
+    const result = changeRole(accountId, newRole);
     if (!result.ok) { toast.error(result.reason); return result; }
     toast.success('Cập nhật vai trò thành công!');
     return result;
