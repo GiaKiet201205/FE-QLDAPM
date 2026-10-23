@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import ClassesView from "../features/classes/ClassesView";
 import ClassFormModal from "../features/classes/ClassFormModal";
 import SupportOverrideModal from "../features/classes/SupportOverrideModal";
@@ -36,6 +36,7 @@ export default function Classes({ role }) {
     auditLogs,
     courses: apiCourses,
     loadError,
+    refreshData,
     getStudentClassEligibility,
     getClassStudentCandidates,
     assignStudentsToClass,
@@ -66,6 +67,12 @@ export default function Classes({ role }) {
   const [editingActivity, setEditingActivity] = useState(null);
   const [grading, setGrading] = useState(false);
   const [message, setMessage] = useState("");
+
+  // Refresh the role-scoped roster and staff assignments when returning to
+  // Classes from TC/CM screens in the same authenticated layout.
+  useEffect(() => {
+    refreshData().catch(() => {});
+  }, [refreshData]);
 
   const courseOptions = apiCourses.length ? apiCourses : fallbackCourses;
 
@@ -221,13 +228,14 @@ export default function Classes({ role }) {
 
     if (!result.ok) {
       setMessage(result.reason);
-      return;
+      throw new Error(result.reason || 'Không thể lưu lớp.');
     }
 
     setSelectedId(editing?.id ?? result.classItem?.id ?? null);
     setEditing(undefined);
     setTab("Overview");
     setMessage("");
+    return true;
   }
 
   async function advanceStatus(nextStatus) {
@@ -416,6 +424,7 @@ export default function Classes({ role }) {
         roleKey={roleKey}
         canManageCore={canManageCore}
         canManageStudents={canManageStudents}
+        onPlannedSessionsChanged={refreshData}
         canTeach={canTeach}
         search={search}
         onSearch={(value) => changeFilter(setSearch, value)}

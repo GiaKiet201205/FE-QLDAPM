@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import AvailabilityFormModal from "../features/availability/AvailabilityFormModal";
 import AvailabilityView from "../features/availability/AvailabilityView";
 import { emptyAvailabilityForm } from "../features/availability/mockAvailability";
@@ -38,13 +38,19 @@ export default function AvailabilityRegister() {
   const [actionMessage, setActionMessage] = useState("");
 
   const weekDays = useMemo(() => buildWeekDays(weekStart), [weekStart]);
+  const requestVersion = useRef(0);
+  const weekRef = useRef(iso(weekStart));
+  weekRef.current = iso(weekStart);
 
   const loadAvailability = useCallback(async () => {
+    const requestedWeek = iso(weekStart);
+    const requestId = ++requestVersion.current;
     setLoading(true);
     setError("");
 
     try {
       const rows = await schedulingApi.mineAvailability(iso(weekStart));
+      if (requestId !== requestVersion.current || requestedWeek !== weekRef.current) return;
       const next = (Array.isArray(rows) ? rows : []).map((row) => {
         const item = normalizeAvailability(row, authUser?.roleKey);
         return {
@@ -68,16 +74,18 @@ export default function AvailabilityRegister() {
         next.some((slot) => slot.id === current) ? current : next[0]?.id || null,
       );
     } catch (requestError) {
+      if (requestId !== requestVersion.current || requestedWeek !== weekRef.current) return;
       setSlots([]);
       setSelectedId(null);
       setError(requestError?.message || "Không thể tải lịch rảnh.");
     } finally {
-      setLoading(false);
+      if (requestId === requestVersion.current && requestedWeek === weekRef.current) setLoading(false);
     }
   }, [weekStart, authUser?.roleKey]);
 
   useEffect(() => {
     loadAvailability();
+    return () => { requestVersion.current += 1; };
   }, [loadAvailability]);
 
   async function saveAvailability(form) {
@@ -93,7 +101,9 @@ export default function AvailabilityRegister() {
       availabilityType: availabilityTypeToApi(form.type),
       availableDate:
         availabilityTypeToApi(form.type) === "WEEKLY" && dayIndex >= 0
-          ? iso(addDays(weekStart, dayIndex))
+          ? (editing?.availableDate && editing.day === form.day
+              ? editing.availableDate
+              : iso(addDays(weekStart, dayIndex)))
           : null,
       campus: form.campus,
       note: form.note,

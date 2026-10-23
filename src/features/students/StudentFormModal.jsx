@@ -8,6 +8,7 @@ const inputClass =
 
 export default function StudentFormModal({
   student,
+  targetDefinitions = courseTargetDefinitions,
   onClose,
   onSave,
   emptyForm,
@@ -112,7 +113,7 @@ export default function StudentFormModal({
           </div>
 
           <div className="grid gap-3">
-            {Object.entries(courseTargetDefinitions).map(
+            {Object.entries(targetDefinitions).map(
               ([courseId, definition]) => (
                 <div
                   key={courseId}

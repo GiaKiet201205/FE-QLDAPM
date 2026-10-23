@@ -3,6 +3,7 @@ import StudentsView from "../features/students/StudentsView";
 import StudentFormModal from "../features/students/StudentFormModal";
 import AssignStudentsModal from "../features/students/AssignStudentsModal";
 import { PAGE_SIZE, emptyForm } from "../features/students/mockStudents";
+import { courseTargetDefinitions } from "../features/academic/targetEligibility";
 import { useAcademicData } from "../features/academic/AcademicDataContext";
 
 export default function Students({ role }) {
@@ -15,6 +16,8 @@ export default function Students({ role }) {
     classStudents,
     studentTargets,
     studentResults,
+    classTargetRequirements,
+    courses: apiCourses,
     loadError,
     addStudent,
     updateStudent,
@@ -23,6 +26,25 @@ export default function Students({ role }) {
     getStudentClassEligibility,
     assignStudentsToClass,
   } = useAcademicData();
+
+  const targetDefinitions = useMemo(() => {
+    const definitions = { ...courseTargetDefinitions };
+    for (const course of apiCourses) {
+      if (definitions[course.id]) continue;
+      const courseClasses = new Set(classes.filter((cls) => cls.courseId === course.id).map((cls) => cls.id));
+      const types = [...new Set([
+        ...classTargetRequirements.filter((row) => courseClasses.has(row.classId)).map((row) => row.targetType),
+        ...studentTargets.filter((row) => row.courseId === course.id).map((row) => row.targetType),
+      ])];
+      if (!types.length) continue;
+      definitions[course.id] = {
+        courseLabel: course.name,
+        scaleNote: "Tiêu chí tùy chỉnh theo yêu cầu của lớp.",
+        targets: types.map((type) => ({ type, label: type, min: 0, max: undefined, step: "any" })),
+      };
+    }
+    return definitions;
+  }, [apiCourses, classes, classTargetRequirements, studentTargets]);
 
   const [selectedId, setSelectedId] = useState(null);
   const [search, setSearch] = useState("");
@@ -232,6 +254,7 @@ export default function Students({ role }) {
     <>
       <StudentsView
         roleKey={roleKey}
+        targetDefinitions={targetDefinitions}
         canManage={canManage}
         search={search}
         onSearch={(value) => changeFilter(setSearch, value)}
@@ -300,6 +323,7 @@ export default function Students({ role }) {
       {editing !== undefined && (
         <StudentFormModal
           student={editing}
+          targetDefinitions={targetDefinitions}
           emptyForm={emptyForm}
           onClose={() => {
             setEditing(undefined);
