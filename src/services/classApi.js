@@ -4,6 +4,19 @@ export const classApi = {
   list: () => apiRequest("/classes"),
   detail: (classId) => apiRequest(`/classes/${classId}`),
   courses: () => apiRequest("/classes/courses"),
+  plannedSessions: (classId) =>
+    apiRequest(`/classes/${classId}/planned-sessions`),
+  savePlannedSessions: (classId, sessions) =>
+    apiRequest(`/classes/${classId}/planned-sessions`, {
+      method: "PUT",
+      body: JSON.stringify(sessions),
+    }),
+  planningClasses: () => apiRequest("/class-planning"),
+  reschedule: (classId, body) =>
+    apiRequest(`/classes/${classId}/reschedule`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
   create: (payload) =>
     apiRequest("/classes", {
       method: "POST",

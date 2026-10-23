@@ -8,6 +8,7 @@ import {
 } from "react";
 import { studentApi } from "../../services/studentApi";
 import { classApi } from "../../services/classApi";
+import { schedulingApi } from "../../services/api";
 
 const AcademicDataContext = createContext(null);
 
@@ -239,6 +240,7 @@ function classPayload(form) {
     name: form.name?.trim(),
     startDate: form.startDate,
     endDate: form.endDate,
+    ...(Array.isArray(form.plannedSessions) ? { plannedSessions: form.plannedSessions } : {}),
     targetRequirements: Object.entries(values)
       .filter(([, value]) => value !== "" && value != null)
       .map(([targetType, requiredTarget]) => ({
@@ -350,8 +352,15 @@ export function AcademicDataProvider({ children }) {
     async (request, successValue = {}) => {
       try {
         const response = await request();
-        await refreshData();
-        return { ok: true, ...successValue, response };
+        try {
+          await refreshData();
+          return { ok: true, ...successValue, response };
+        } catch (refreshError) {
+          // The write succeeded on the server. Do not report it as failed and
+          // encourage users to submit a duplicate record.
+          return { ok: true, ...successValue, response,
+            refreshWarning: refreshError?.message || "Không thể tải lại dữ liệu." };
+        }
       } catch (error) {
         return failure(error);
       }
@@ -635,385 +644,49 @@ export function AcademicDataProvider({ children }) {
     [mutate],
   );
 
-  function assignTeacherSchedule(data, actor) {
-    if (actor?.role !== "TC") {
-      return {
-        ok: false,
-        reason: "Only Teaching Coordinator can assign teachers.",
-      };
-    }
-
-    const classItem = classes.find((item) => item.id === data.classId);
-    if (!classItem) {
-      return { ok: false, reason: "Class not found." };
-    }
-
-    if (!["READY", "RUNNING"].includes(classItem.status)) {
-      return {
-        ok: false,
-        reason: "Only READY or RUNNING classes can receive teaching assignments.",
-      };
-    }
-
-    if (
-      !data.teacherId ||
-      !data.date ||
-      !data.startTime ||
-      !data.endTime ||
-      data.startTime >= data.endTime
-    ) {
-      return {
-        ok: false,
-        reason: "Teacher, date, start time and end time are required.",
-      };
-    }
-
-    if (classItem.startDate && data.date < classItem.startDate) {
-      return {
-        ok: false,
-        reason: "The teaching date is before the class start date.",
-      };
-    }
-
-    if (classItem.endDate && data.date > classItem.endDate) {
-      return {
-        ok: false,
-        reason: "The teaching date is after the class end date.",
-      };
-    }
-
-    const teacherConflict = teachingSchedules.find(
-      (schedule) =>
-        schedule.teacherId === data.teacherId &&
-        schedule.date === data.date &&
-        schedule.status === "ASSIGNED" &&
-        data.startTime < schedule.endTime &&
-        data.endTime > schedule.startTime,
-    );
-
-    if (teacherConflict) {
-      return {
-        ok: false,
-        code: "TEACHER_SCHEDULE_CONFLICT",
-        reason: "This teacher already has another class during the selected time.",
-        conflict: teacherConflict,
-      };
-    }
-
-    const duplicateClassSession = teachingSchedules.find(
-      (schedule) =>
-        schedule.classId === data.classId &&
-        schedule.date === data.date &&
-        schedule.status === "ASSIGNED" &&
-        data.startTime < schedule.endTime &&
-        data.endTime > schedule.startTime,
-    );
-
-    if (duplicateClassSession) {
-      return {
-        ok: false,
-        code: "CLASS_SCHEDULE_CONFLICT",
-        reason: "This class already has a teacher assigned during the selected time.",
-        conflict: duplicateClassSession,
-      };
-    }
-
-    const schedule = {
-      id: `teaching-${Date.now()}`,
-      teacherId: data.teacherId,
-      classId: data.classId,
-      date: data.date,
-      startTime: data.startTime,
-      endTime: data.endTime,
-      campus: data.campus ?? "Cơ sở chính",
-      status: "ASSIGNED",
-      assignedBy: actor.id,
-    };
-
-    setTeachingSchedules((current) => [...current, schedule]);
-    addAudit(actor, "ASSIGN_TEACHER", "TEACHING_SCHEDULE", schedule.id, {
-      teacherId: schedule.teacherId,
-      classId: schedule.classId,
-      date: schedule.date,
-      startTime: schedule.startTime,
-      endTime: schedule.endTime,
-    });
-
-    return { ok: true, schedule };
-  }
-
-  function assignStaffSchedule(data, actor) {
-    if (actor?.role !== "CM") {
-      return {
-        ok: false,
-        reason: "Only Center Management can assign Sale or CS work schedules.",
-      };
-    }
-
-    if (
-      !data.userId ||
-      !["SALE", "CS"].includes(data.staffRole) ||
-      !data.date ||
-      !data.startTime ||
-      !data.endTime ||
-      data.startTime >= data.endTime
-    ) {
-      return {
-        ok: false,
-        reason: "Staff, role, date, start time and end time are required.",
-      };
-    }
-
-    if (data.staffRole === "CS" && data.workType === "CLASS_SUPPORT") {
-      const classItem = classes.find((item) => item.id === data.classId);
-      if (!classItem) {
-        return { ok: false, reason: "A valid class is required for CS class support." };
+  // Scheduling operations always go through Spring Boot authorization,
+  // validation and PostgreSQL persistence. Never create local mock assignments.
+  const assignTeacherSchedule = useCallback(
+    async (data) => {
+      try {
+        const schedule = await schedulingApi.assignTeacher({
+          teacherId: data.teacherId,
+          classId: data.classId,
+          date: data.date,
+          startTime: data.startTime,
+          endTime: data.endTime,
+          campus: data.campus || "Cơ sở chính",
+        });
+        await refreshData();
+        return { ok: true, schedule };
+      } catch (error) {
+        return failure(error);
       }
-      if (!["READY", "RUNNING"].includes(classItem.status)) {
-        return {
-          ok: false,
-          reason: "CS can only be assigned to support READY or RUNNING classes.",
-        };
+    },
+    [refreshData],
+  );
+
+  const assignStaffSchedule = useCallback(
+    async (data) => {
+      try {
+        const schedule = await schedulingApi.assignStaff({
+          employeeId: data.employeeId || data.userId,
+          staffRole: data.staffRole,
+          workplaceId: data.workplaceId || "center-01",
+          classId: data.classId || null,
+          date: data.date,
+          startTime: data.startTime,
+          endTime: data.endTime,
+          workType: data.workType,
+        });
+        await refreshData();
+        return { ok: true, schedule };
+      } catch (error) {
+        return failure(error);
       }
-    }
-
-    const staffConflict = staffSchedules.find(
-      (schedule) =>
-        schedule.userId === data.userId &&
-        schedule.date === data.date &&
-        schedule.status === "ASSIGNED" &&
-        data.startTime < schedule.endTime &&
-        data.endTime > schedule.startTime,
-    );
-
-    if (staffConflict) {
-      return {
-        ok: false,
-        code: "STAFF_SCHEDULE_CONFLICT",
-        reason: "This staff member already has another assigned shift during the selected time.",
-        conflict: staffConflict,
-      };
-    }
-
-    const schedule = {
-      id: `staff-schedule-${Date.now()}`,
-      userId: data.userId,
-      staffRole: data.staffRole,
-      workplaceId: data.workplaceId ?? "center-01",
-      classId: data.staffRole === "CS" && data.workType === "CLASS_SUPPORT"
-        ? data.classId
-        : null,
-      date: data.date,
-      startTime: data.startTime,
-      endTime: data.endTime,
-      workType: data.workType ?? (data.staffRole === "SALE" ? "SALES_SHIFT" : "OPERATIONS_SUPPORT"),
-      status: "ASSIGNED",
-      assignedBy: actor.id,
-    };
-
-    setStaffSchedules((current) => [...current, schedule]);
-    addAudit(actor, "ASSIGN_STAFF_SHIFT", "STAFF_SCHEDULE", schedule.id, {
-      userId: schedule.userId,
-      staffRole: schedule.staffRole,
-      classId: schedule.classId,
-      date: schedule.date,
-      startTime: schedule.startTime,
-      endTime: schedule.endTime,
-      workType: schedule.workType,
-    });
-
-    return { ok: true, schedule };
-  }
-
-  function assignTeacherSchedule(data, actor) {
-    if (actor?.role !== "TC") {
-      return {
-        ok: false,
-        reason: "Only Teaching Coordinator can assign teachers.",
-      };
-    }
-
-    const classItem = classes.find((item) => item.id === data.classId);
-    if (!classItem) {
-      return { ok: false, reason: "Class not found." };
-    }
-
-    if (!["READY", "RUNNING"].includes(classItem.status)) {
-      return {
-        ok: false,
-        reason: "Only READY or RUNNING classes can receive teaching assignments.",
-      };
-    }
-
-    if (
-      !data.teacherId ||
-      !data.date ||
-      !data.startTime ||
-      !data.endTime ||
-      data.startTime >= data.endTime
-    ) {
-      return {
-        ok: false,
-        reason: "Teacher, date, start time and end time are required.",
-      };
-    }
-
-    if (classItem.startDate && data.date < classItem.startDate) {
-      return {
-        ok: false,
-        reason: "The teaching date is before the class start date.",
-      };
-    }
-
-    if (classItem.endDate && data.date > classItem.endDate) {
-      return {
-        ok: false,
-        reason: "The teaching date is after the class end date.",
-      };
-    }
-
-    const teacherConflict = teachingSchedules.find(
-      (schedule) =>
-        schedule.teacherId === data.teacherId &&
-        schedule.date === data.date &&
-        schedule.status === "ASSIGNED" &&
-        data.startTime < schedule.endTime &&
-        data.endTime > schedule.startTime,
-    );
-
-    if (teacherConflict) {
-      return {
-        ok: false,
-        code: "TEACHER_SCHEDULE_CONFLICT",
-        reason: "This teacher already has another class during the selected time.",
-        conflict: teacherConflict,
-      };
-    }
-
-    const duplicateClassSession = teachingSchedules.find(
-      (schedule) =>
-        schedule.classId === data.classId &&
-        schedule.date === data.date &&
-        schedule.status === "ASSIGNED" &&
-        data.startTime < schedule.endTime &&
-        data.endTime > schedule.startTime,
-    );
-
-    if (duplicateClassSession) {
-      return {
-        ok: false,
-        code: "CLASS_SCHEDULE_CONFLICT",
-        reason: "This class already has a teacher assigned during the selected time.",
-        conflict: duplicateClassSession,
-      };
-    }
-
-    const schedule = {
-      id: `teaching-${Date.now()}`,
-      teacherId: data.teacherId,
-      classId: data.classId,
-      date: data.date,
-      startTime: data.startTime,
-      endTime: data.endTime,
-      campus: data.campus ?? "Cơ sở chính",
-      status: "ASSIGNED",
-      assignedBy: actor.id,
-    };
-
-    setTeachingSchedules((current) => [...current, schedule]);
-    addAudit(actor, "ASSIGN_TEACHER", "TEACHING_SCHEDULE", schedule.id, {
-      teacherId: schedule.teacherId,
-      classId: schedule.classId,
-      date: schedule.date,
-      startTime: schedule.startTime,
-      endTime: schedule.endTime,
-    });
-
-    return { ok: true, schedule };
-  }
-
-  function assignStaffSchedule(data, actor) {
-    if (actor?.role !== "CM") {
-      return {
-        ok: false,
-        reason: "Only Center Management can assign Sale or CS work schedules.",
-      };
-    }
-
-    if (
-      !data.userId ||
-      !["SALE", "CS"].includes(data.staffRole) ||
-      !data.date ||
-      !data.startTime ||
-      !data.endTime ||
-      data.startTime >= data.endTime
-    ) {
-      return {
-        ok: false,
-        reason: "Staff, role, date, start time and end time are required.",
-      };
-    }
-
-    if (data.staffRole === "CS" && data.workType === "CLASS_SUPPORT") {
-      const classItem = classes.find((item) => item.id === data.classId);
-      if (!classItem) {
-        return { ok: false, reason: "A valid class is required for CS class support." };
-      }
-      if (!["READY", "RUNNING"].includes(classItem.status)) {
-        return {
-          ok: false,
-          reason: "CS can only be assigned to support READY or RUNNING classes.",
-        };
-      }
-    }
-
-    const staffConflict = staffSchedules.find(
-      (schedule) =>
-        schedule.userId === data.userId &&
-        schedule.date === data.date &&
-        schedule.status === "ASSIGNED" &&
-        data.startTime < schedule.endTime &&
-        data.endTime > schedule.startTime,
-    );
-
-    if (staffConflict) {
-      return {
-        ok: false,
-        code: "STAFF_SCHEDULE_CONFLICT",
-        reason: "This staff member already has another assigned shift during the selected time.",
-        conflict: staffConflict,
-      };
-    }
-
-    const schedule = {
-      id: `staff-schedule-${Date.now()}`,
-      userId: data.userId,
-      staffRole: data.staffRole,
-      workplaceId: data.workplaceId ?? "center-01",
-      classId: data.staffRole === "CS" && data.workType === "CLASS_SUPPORT"
-        ? data.classId
-        : null,
-      date: data.date,
-      startTime: data.startTime,
-      endTime: data.endTime,
-      workType: data.workType ?? (data.staffRole === "SALE" ? "SALES_SHIFT" : "OPERATIONS_SUPPORT"),
-      status: "ASSIGNED",
-      assignedBy: actor.id,
-    };
-
-    setStaffSchedules((current) => [...current, schedule]);
-    addAudit(actor, "ASSIGN_STAFF_SHIFT", "STAFF_SCHEDULE", schedule.id, {
-      userId: schedule.userId,
-      staffRole: schedule.staffRole,
-      classId: schedule.classId,
-      date: schedule.date,
-      startTime: schedule.startTime,
-      endTime: schedule.endTime,
-      workType: schedule.workType,
-    });
-
-    return { ok: true, schedule };
-  }
+    },
+    [refreshData],
+  );
 
   const value = useMemo(
     () => ({
@@ -1063,7 +736,9 @@ export function AcademicDataProvider({ children }) {
       classTargetRequirements,
       classAccessScopes,
       teachingSchedules,
+      assignTeacherSchedule,
       staffSchedules,
+      assignStaffSchedule,
       assignments,
       exams,
       studentResults,

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   CalendarCheck2,
   CheckCircle2,
@@ -10,7 +10,8 @@ import {
   Users,
 } from "lucide-react";
 import Button from "../../components/ui/Button";
-import { apiRequest, schedulingApi } from "../../services/api";
+import { schedulingApi } from "../../services/api";
+import { classApi } from "../../services/classApi";
 import { addDays, iso, mondayOf } from "./schedulingUtils";
 import {
   buildWeekDays,
@@ -45,6 +46,8 @@ export default function TeacherAssignmentView() {
   const [teacherAvailability, setTeacherAvailability] = useState([]);
   const [teachingSchedules, setTeachingSchedules] = useState([]);
   const [classes, setClasses] = useState([]);
+  const [planned, setPlanned] = useState([]);
+  const [planError, setPlanError] = useState("");
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [teacherFilter, setTeacherFilter] = useState("all");
@@ -62,7 +65,12 @@ export default function TeacherAssignmentView() {
 
   const weekDays = useMemo(() => buildWeekDays(weekStart), [weekStart]);
 
+  const latestLoad = useRef(0);
+  const currentWeekRef = useRef(iso(weekStart));
+  currentWeekRef.current = iso(weekStart);
   const loadData = useCallback(async () => {
+    const requestedWeek = iso(weekStart);
+    const loadId = ++latestLoad.current;
     setLoading(true);
     setLoadError("");
 
@@ -72,7 +80,7 @@ export default function TeacherAssignmentView() {
           schedulingApi.employees("TEACHER"),
           schedulingApi.availability("TEACHER", iso(weekStart)),
           schedulingApi.teaching(iso(weekStart)),
-          apiRequest("/classes").catch(() => []),
+          classApi.planningClasses(),
         ]);
 
       const nextTeachers = (Array.isArray(peopleRows) ? peopleRows : []).map(
@@ -88,6 +96,7 @@ export default function TeacherAssignmentView() {
         normalizeClass,
       );
 
+      if (loadId !== latestLoad.current || requestedWeek !== currentWeekRef.current) return;
       setTeachers(nextTeachers);
       setTeacherAvailability(nextAvailability);
       setTeachingSchedules(nextSchedules);
@@ -108,19 +117,56 @@ export default function TeacherAssignmentView() {
         date: iso(weekStart),
       }));
     } catch (error) {
+      if (loadId !== latestLoad.current || requestedWeek !== currentWeekRef.current) return;
       setLoadError(error?.message || "Không thể tải dữ liệu phân công.");
     } finally {
-      setLoading(false);
+      if (loadId === latestLoad.current && requestedWeek === currentWeekRef.current) setLoading(false);
     }
   }, [weekStart]);
 
   useEffect(() => {
     loadData();
+    return () => { latestLoad.current += 1; };
   }, [loadData]);
 
   const assignableClasses = classes.filter((item) =>
     ["READY", "RUNNING"].includes(item.status),
   );
+
+  useEffect(() => {
+    let active = true;
+    setPlanned([]);
+    setPlanError("");
+    if (!form.classId) return () => { active = false; };
+    classApi.plannedSessions(form.classId)
+      .then((rows) => { if (active) setPlanned((rows || []).filter((s) => s.status === "PLANNED")); })
+      .catch((error) => { if (active) setPlanError(error.message || "Không tải được lịch học của lớp."); });
+    return () => { active = false; };
+  }, [form.classId]);
+
+  const planKey = (item) =>
+    [String(item.date).slice(0,10), String(item.startTime).slice(0,5), String(item.endTime).slice(0,5)].join("|");
+  const currentKey = [form.date, form.startTime, form.endTime].join("|");
+  const plannedForWeek = planned.filter((item) =>
+    String(item.date).slice(0,10) >= iso(weekStart) &&
+    String(item.date).slice(0,10) <= iso(addDays(weekStart,6))
+  );
+  const matchingPlan = plannedForWeek.find((item) => planKey(item) === currentKey);
+  const occupiedSlots = new Set(teachingSchedules
+    .filter((item) => item.classId === form.classId && item.status === "ASSIGNED")
+    .map(planKey));
+  const uncoveredSlots = plannedForWeek.filter((item) => !occupiedSlots.has(planKey(item)));
+
+  function choosePlannedSlot(key) {
+    const item = plannedForWeek.find((slot) => planKey(slot) === key);
+    if (item) setForm((current) => ({
+      ...current,
+      date: String(item.date).slice(0,10),
+      startTime: String(item.startTime).slice(0,5),
+      endTime: String(item.endTime).slice(0,5),
+    }));
+    setMessage(null);
+  }
 
   const courses = useMemo(() => {
     const seen = new Set();
@@ -167,6 +213,8 @@ export default function TeacherAssignmentView() {
     (availability) =>
       availability.teacherId === selectedTeacherId &&
       availability.day === selectedDay?.key &&
+      (!availability.availableDate ||
+        availability.availableDate === form.date) &&
       isInsideAvailability(
         availability,
         form.startTime,
@@ -193,11 +241,18 @@ export default function TeacherAssignmentView() {
   function selectAvailability(teacherId, availability) {
     const day = weekDays.find((item) => item.key === availability.day);
     setSelectedTeacherId(teacherId);
+    const candidate = plannedForWeek.find((item) =>
+      String(item.date).slice(0,10) === day?.date &&
+      String(item.startTime).slice(0,5) >= availability.startTime &&
+      String(item.endTime).slice(0,5) <= availability.endTime,
+    );
     setForm((current) => ({
       ...current,
-      date: day?.date ?? current.date,
-      startTime: availability.startTime,
-      endTime: availability.endTime,
+      ...(candidate ? {
+        date: String(candidate.date).slice(0,10),
+        startTime: String(candidate.startTime).slice(0,5),
+        endTime: String(candidate.endTime).slice(0,5),
+      } : {}),
       campus: availability.campus,
     }));
     setMessage(null);
@@ -211,6 +266,10 @@ export default function TeacherAssignmentView() {
       return;
     }
 
+    if (!matchingPlan) {
+      setMessage({ type: "error", text: "Phải chọn buổi học đã được Admin/CS lập trước." });
+      return;
+    }
     if (!selectedAvailability) {
       setMessage({
         type: "error",
@@ -252,6 +311,49 @@ export default function TeacherAssignmentView() {
         type: "error",
         text: error?.message || "Không thể lưu phân công.",
       });
+    }
+  }
+
+  async function reviewSlot(item, status) {
+    try {
+      await schedulingApi.reviewAvailability(item.id, status);
+      setMessage({ type: "success", text: "Đã cập nhật xét duyệt lịch rảnh." });
+      await loadData();
+    } catch (error) {
+      setMessage({ type: "error", text: error.message || "Không duyệt được lịch rảnh." });
+    }
+  }
+
+  async function assignWeek() {
+    setMessage(null);
+    if (!selectedTeacherId || !form.classId || !uncoveredSlots.length) return;
+    try {
+      await schedulingApi.assignTeacherBatch({
+        teacherId: selectedTeacherId,
+        classId: form.classId,
+        campus: form.campus,
+        sessionIds: uncoveredSlots.map((item) => item.id),
+      });
+      setMessage({ type: "success", text: `Đã phân công ${uncoveredSlots.length} buổi trong tuần.` });
+      await loadData();
+    } catch (error) {
+      setMessage({ type: "error", text: error.message || "Không thể phân công tuần. Không có buổi nào được lưu." });
+    }
+  }
+
+  async function replaceTeacher(schedule) {
+    if (!selectedTeacherId || selectedTeacherId === schedule.teacherId) return;
+    if (!window.confirm("Đổi giáo viên cho buổi này sang giáo viên đang chọn?")) return;
+    try {
+      await schedulingApi.updateTeacher(schedule.id, {
+        teacherId: selectedTeacherId, classId: schedule.classId,
+        date: schedule.date, startTime: schedule.startTime,
+        endTime: schedule.endTime, campus: form.campus,
+      });
+      setMessage({ type: "success", text: "Đã thay giáo viên, giữ nguyên lịch học của lớp." });
+      await loadData();
+    } catch (error) {
+      setMessage({ type: "error", text: error.message || "Không thay được giáo viên." });
     }
   }
 
@@ -437,6 +539,14 @@ export default function TeacherAssignmentView() {
                             </span>
                           </button>
                         ))}
+                        {availabilities.filter((item) => item.status === "PENDING").map((item) => (
+                          <div key={`review-${item.id}`} className="flex gap-1 text-[10px]">
+                            <button type="button" className="text-emerald-700 underline"
+                              onClick={() => reviewSlot(item,"APPROVED")}>Duyệt</button>
+                            <button type="button" className="text-red-700 underline"
+                              onClick={() => reviewSlot(item,"REJECTED")}>Từ chối</button>
+                          </div>
+                        ))}
 
                         {schedules.map((schedule) => {
                           const classItem = classes.find(
@@ -456,6 +566,10 @@ export default function TeacherAssignmentView() {
                               <span className="block truncate text-[10px] text-slate-500">
                                 {classItem?.classCode}
                               </span>
+                              <button type="button" className="mt-1 text-[10px] underline text-blue-700"
+                                onClick={() => replaceTeacher(schedule)}>
+                                Đổi sang giáo viên đang chọn
+                              </button>
                             </div>
                           );
                         })}
@@ -512,7 +626,7 @@ export default function TeacherAssignmentView() {
                 className={fieldClass}
                 value={form.classId}
                 onChange={(event) =>
-                  setForm((current) => ({ ...current, classId: event.target.value }))
+                  setForm((current) => ({ ...current, classId: event.target.value, date: "", startTime: "", endTime: "" }))
                 }
               >
                 {assignableClasses.map((classItem) => (
@@ -530,57 +644,26 @@ export default function TeacherAssignmentView() {
 
             <label className="block">
               <span className="mb-1.5 block text-xs font-medium text-slate-600">
-                Ngày dạy
+                Buổi học trong kế hoạch của lớp
               </span>
-              <select
-                className={fieldClass}
-                value={form.date}
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, date: event.target.value }))
-                }
-              >
-                {weekDays.map((day) => (
-                  <option key={day.date} value={day.date}>
-                    {day.label} · {day.displayDate}/2026
+              <select className={fieldClass}
+                value={matchingPlan ? currentKey : ""}
+                onChange={(event) => choosePlannedSlot(event.target.value)}>
+                <option value="">Chọn buổi học đã được Admin/CS tạo</option>
+                {plannedForWeek.map((slot) => (
+                  <option key={slot.id} value={planKey(slot)}>
+                    {String(slot.date).slice(0,10)} · {String(slot.startTime).slice(0,5)}–{String(slot.endTime).slice(0,5)}
                   </option>
                 ))}
               </select>
+              <span className="mt-1 block text-[11px] text-slate-500">
+                Thời gian do Admin/CS xác nhận. TC chỉ chọn giáo viên, không tự đổi giờ.
+              </span>
+              {planError ? <span className="text-xs text-red-600">{planError}</span> : null}
+              {!plannedForWeek.length ? <span className="block text-xs text-amber-700">
+                Lớp chưa có buổi học trong tuần đang chọn.
+              </span> : null}
             </label>
-
-            <div className="grid grid-cols-2 gap-3">
-              <label>
-                <span className="mb-1.5 block text-xs font-medium text-slate-600">
-                  Bắt đầu
-                </span>
-                <input
-                  type="time"
-                  className={fieldClass}
-                  value={form.startTime}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      startTime: event.target.value,
-                    }))
-                  }
-                />
-              </label>
-              <label>
-                <span className="mb-1.5 block text-xs font-medium text-slate-600">
-                  Kết thúc
-                </span>
-                <input
-                  type="time"
-                  className={fieldClass}
-                  value={form.endTime}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      endTime: event.target.value,
-                    }))
-                  }
-                />
-              </label>
-            </div>
 
             <label className="block">
               <span className="mb-1.5 block text-xs font-medium text-slate-600">
@@ -644,10 +727,14 @@ export default function TeacherAssignmentView() {
               variant="primary"
               className="w-full"
               onClick={submitAssignment}
-              disabled={!selectedTeacherId || !form.classId}
+              disabled={!selectedTeacherId || !form.classId || !matchingPlan}
             >
               <UserCheck size={16} />
               Xác nhận phân công
+            </Button>
+            <Button className="w-full" onClick={assignWeek}
+              disabled={!selectedTeacherId || !form.classId || !uncoveredSlots.length}>
+              Phân công {uncoveredSlots.length} buổi chưa có GV trong tuần (atomic)
             </Button>
           </div>
         </aside>
