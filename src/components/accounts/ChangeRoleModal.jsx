@@ -6,9 +6,9 @@ import Button from '../ui/Button';
 const ChangeRoleModal = ({ onClose, onSubmit, currentRole, accountName }) => {
   const [role, setRole] = useState(currentRole || 'Teacher');
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
-    const result = await onSubmit(role);
+    const result = onSubmit(role);
     if (result?.ok === false) return;
     onClose();
   };
@@ -31,7 +31,7 @@ const ChangeRoleModal = ({ onClose, onSubmit, currentRole, accountName }) => {
             onChange={(e) => setRole(e.target.value)}
             className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#173557] focus:border-[#173557]"
           >
-            {ACCOUNT_ROLE_OPTIONS.filter(value => value !== "Admin").map(value => <option key={value} value={value}>{value}</option>)}
+            {ACCOUNT_ROLE_OPTIONS.map(value => <option key={value} value={value}>{value}</option>)}
           </select>
         </div>
 
