@@ -10,8 +10,10 @@ const AddAccountModal = ({ onClose, onSubmit, nextAccountCode }) => {
     user: '',
     username: '',
     email: '',
-    password: '',
-    role: 'Teacher'
+    role: 'Teacher',
+    department: 'Hanoi Main Campus',
+    passwordPolicy: 'Standard',
+    mfaStatus: 'Pending'
   });
 
   const handleChange = (e) => {
@@ -20,9 +22,9 @@ const AddAccountModal = ({ onClose, onSubmit, nextAccountCode }) => {
     setErrors(prev => ({ ...prev, [name]: undefined }));
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
-    const result = await onSubmit(formData);
+    const result = onSubmit(formData);
     if (!result?.ok) {
       setErrors(result?.errors || { general: 'Không thể thêm tài khoản.' });
       return;
@@ -78,11 +80,10 @@ const AddAccountModal = ({ onClose, onSubmit, nextAccountCode }) => {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-900 mb-1.5">
-                  Email (required)
+                  Email <span className="text-gray-400 font-normal">(optional)</span>
                 </label>
                 <input 
-                  type="email"
-                  required
+                  type="email" 
                   name="email" 
                   value={formData.email} 
                   onChange={handleChange} 
@@ -91,30 +92,74 @@ const AddAccountModal = ({ onClose, onSubmit, nextAccountCode }) => {
               </div>
             </div>
 
-            <label className="block text-sm font-medium text-gray-900">
-              Initial password (at least 8 characters)
-              <input required type="password" name="password" minLength={8}
-                autoComplete="new-password" value={formData.password}
-                onChange={handleChange}
-                className="mt-1.5 w-full border border-gray-300 rounded px-3 py-2 text-sm" />
-              <span className="mt-1 block text-xs text-gray-500">
-                Nhập mật khẩu riêng và chuyển cho nhân sự qua kênh bảo mật.
-              </span>
-            </label>
-            <div className="rounded-lg border border-gray-200 p-4">
-              <label className="block text-sm font-medium text-gray-900">
-                Vai trò nhân sự
-                <select name="role" value={formData.role} onChange={handleChange}
-                  className="mt-1.5 w-full rounded border border-gray-300 bg-white px-3 py-2">
-                  {ACCOUNT_ROLE_OPTIONS.filter(value => value !== "Admin").map(value =>
-                    <option key={value} value={value}>{value}</option>)}
-                </select>
-              </label>
-              <p className="mt-2 text-xs text-gray-500">
-                Chỉ role, thông tin nhân sự và mật khẩu ban đầu được lưu trên BE.
-                Department và MFA chưa có API cấu hình và không được giả lập.
-              </p>
+            {/*  Role & Department  */}
+            <div className="border border-gray-200 rounded-lg p-5">
+              <h3 className="text-sm font-medium text-gray-900 mb-1">Role & Department</h3>
+              <p className="text-xs text-gray-500 mb-4">Assign the appropriate access level and primary working location for this account.</p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-900 mb-1.5">Assigned Role</label>
+                  <select 
+                    name="role" 
+                    value={formData.role} 
+                    onChange={handleChange} 
+                    className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#1a365d] focus:border-[#1a365d] bg-white"
+                  >
+                    {ACCOUNT_ROLE_OPTIONS.map(value => <option key={value} value={value}>{value}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-900 mb-1.5">Department</label>
+                  <select 
+                    name="department" 
+                    value={formData.department} 
+                    onChange={handleChange} 
+                    className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#1a365d] focus:border-[#1a365d] bg-white"
+                  >
+                    <option value="Hanoi Main Campus">Hanoi Main Campus</option>
+                    <option value="HCM Branch">HCM Branch</option>
+                    <option value="Da Nang Branch">Da Nang Branch</option>
+                    <option value="Headquarters">Headquarters</option>
+                  </select>
+                </div>
+              </div>
             </div>
+
+            {/* Security & Authentication */}
+            <div className="border border-gray-200 rounded-lg p-5">
+              <h3 className="text-sm font-medium text-gray-900 mb-1">Security & Authentication</h3>
+              <p className="text-xs text-gray-500 mb-4">Configure password policies and multi-factor authentication requirements.</p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-900 mb-1.5">Password Policy</label>
+                  <select 
+                    name="passwordPolicy" 
+                    value={formData.passwordPolicy} 
+                    onChange={handleChange} 
+                    className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#1a365d] focus:border-[#1a365d] bg-white"
+                  >
+                    <option value="Standard">Standard</option>
+                    <option value="SSO Managed">SSO Managed</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-900 mb-1.5">MFA Status</label>
+                  <select 
+                    name="mfaStatus" 
+                    value={formData.mfaStatus} 
+                    onChange={handleChange} 
+                    className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#1a365d] focus:border-[#1a365d] bg-white"
+                  >
+                    <option value="Pending">Pending</option>
+                    <option value="Disabled">Disabled</option>
+                    <option value="Enforced">Enforced</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            
         </div>
         {Object.values(errors).filter(Boolean).length > 0 && (
           <div role="alert" className="space-y-1 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-600">
