@@ -19,21 +19,27 @@ const statusClass = {
   LATE: "bg-amber-50 text-amber-700",
 };
 
-function hasStarted(slot) {
+function hasStarted(slot, now) {
   const date = String(slot.date ?? "").slice(0, 10);
   const time = String(slot.startTime ?? "").slice(0, 5);
   if (!date || !time) return false;
   const start = new Date(`${date}T${time}:00+07:00`).getTime();
-  return Number.isFinite(start) && start <= Date.now();
+  return Number.isFinite(start) && start <= now;
 }
 
 export default function TeacherAttendanceTab({ classId }) {
   const [rows, setRows] = useState([]);
+  const [now, setNow] = useState(() => Date.now());
   const [drafts, setDrafts] = useState({});
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState(null);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 30000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -98,14 +104,14 @@ export default function TeacherAttendanceTab({ classId }) {
       {success && <p role="status" className="rounded-md bg-emerald-50 px-3 py-2 text-xs text-emerald-700">{success}</p>}
       {loading ? (
         <p className="text-xs text-slate-500">Đang tải lịch giảng dạy…</p>
-      ) : rows.length === 0 ? (
+      ) : !error && rows.length === 0 ? (
         <p className="rounded-md border border-dashed border-slate-200 p-4 text-xs text-slate-500">
           Lớp chưa có buổi học được phân công giáo viên.
         </p>
       ) : (
         <div className="space-y-2">
           {rows.map((slot) => {
-            const editable = Boolean(slot.assignedToMe) && hasStarted(slot);
+            const editable = Boolean(slot.assignedToMe) && hasStarted(slot, now);
             const saved = slot.attendanceStatus;
             const chosen = drafts[slot.id] ?? saved ?? "";
             const changed = chosen && chosen !== saved;
@@ -160,7 +166,7 @@ export default function TeacherAttendanceTab({ classId }) {
                     Chỉ CS được CM phân công hỗ trợ buổi này mới có quyền điểm danh.
                   </p>
                 )}
-                {slot.assignedToMe && !hasStarted(slot) && (
+                {slot.assignedToMe && !hasStarted(slot, now) && (
                   <p className="mt-2 text-[11px] text-amber-700">
                     Chỉ có thể điểm danh khi buổi học đã bắt đầu.
                   </p>
