@@ -129,7 +129,9 @@ export default function StaffAssignmentView({ staffRole = "SALE" }) {
       );
       setForm((current) => ({
         ...current,
-        date: iso(weekStart),
+        // Preserve the chosen lesson when refreshing after a successful
+        // course-wide assignment. Resetting to Monday made the weekly status
+        // show "outside availability" even though the range save succeeded.
         classId:
           nextClasses.some((item) => item.id === current.classId)
             ? current.classId
@@ -177,7 +179,10 @@ export default function StaffAssignmentView({ staffRole = "SALE" }) {
   ).length;
 
   const selectedDay = staffWeekDays.find((day) => day.date === form.date);
-  const selectedAvailability = staffAvailability.find(
+  const selectedCampus = workplaceOptions.find(
+    (place) => place.id === form.workplaceId,
+  )?.label;
+  const matchingApprovedSlots = staffAvailability.filter(
     (availability) =>
       availability.employeeId === selectedUserId &&
       availability.staffRole === role &&
@@ -189,6 +194,12 @@ export default function StaffAssignmentView({ staffRole = "SALE" }) {
         form.startTime,
         form.endTime,
       ),
+  );
+  const selectedAvailability = matchingApprovedSlots.find(
+    (availability) =>
+      !selectedCampus || !availability.campus ||
+      availability.campus.trim().toLocaleLowerCase("vi") ===
+        selectedCampus.trim().toLocaleLowerCase("vi"),
   );
 
   const conflictingSchedule = staffSchedules.find(
@@ -224,6 +235,14 @@ export default function StaffAssignmentView({ staffRole = "SALE" }) {
     String(item.date).slice(0,10) <= iso(addDays(weekStart,6))
   );
   const matchingPlan = plannedForWeek.find((item) => planKey(item) === currentKey);
+  const hasSelectedLesson = !needsPlan || Boolean(matchingPlan);
+  const availabilityLabel = !hasSelectedLesson
+    ? "Chưa chọn buổi"
+    : selectedAvailability
+      ? "Phù hợp buổi này"
+      : matchingApprovedSlots.length
+        ? "Khác cơ sở"
+        : "Ngoài lịch rảnh buổi này";
   const occupiedSlots = new Set(staffSchedules
     .filter((s) => s.classId === form.classId && s.status === "ASSIGNED" &&
       s.workType === "CLASS_SUPPORT")
@@ -808,11 +827,9 @@ export default function StaffAssignmentView({ staffRole = "SALE" }) {
                   <Clock3 size={14} />
                   Kiểm tra lịch rảnh
                 </span>
-                {selectedAvailability ? (
-                  <StatusBadge tone="emerald">Phù hợp</StatusBadge>
-                ) : (
-                  <StatusBadge tone="amber">Ngoài lịch rảnh</StatusBadge>
-                )}
+                <StatusBadge tone={hasSelectedLesson && selectedAvailability ? "emerald" : "amber"}>
+                  {availabilityLabel}
+                </StatusBadge>
               </div>
 
               <div className="flex items-center justify-between gap-2">
@@ -820,13 +837,22 @@ export default function StaffAssignmentView({ staffRole = "SALE" }) {
                   <Users size={14} />
                   Trùng ca
                 </span>
-                {conflictingSchedule ? (
+                {!hasSelectedLesson ? (
+                  <StatusBadge tone="amber">Chưa chọn buổi</StatusBadge>
+                ) : conflictingSchedule ? (
                   <StatusBadge tone="amber">Có xung đột</StatusBadge>
                 ) : (
-                  <StatusBadge tone="emerald">Không xung đột</StatusBadge>
+                  <StatusBadge tone="emerald">Không xung đột buổi này</StatusBadge>
                 )}
               </div>
             </div>
+            {needsPlan && (
+              <p className="text-[11px] leading-5 text-slate-500">
+                Hai trạng thái phía trên chỉ kiểm tra buổi được chọn trong
+                phần “Phân công nhanh trong tuần đang xem”, không phản ánh toàn khóa.
+                Kết quả phân công toàn khóa được thể hiện riêng bên dưới.
+              </p>
+            )}
 
             {message && (
               <div
