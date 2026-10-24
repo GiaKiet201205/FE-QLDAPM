@@ -728,10 +728,12 @@ export default function TeacherAssignmentView() {
                   <Users size={14} />
                   Trùng lịch dạy
                 </span>
-                {conflictingSchedule ? (
+                {!matchingPlan ? (
+                  <StatusBadge tone="amber">Chưa chọn buổi</StatusBadge>
+                ) : conflictingSchedule ? (
                   <StatusBadge tone="amber">Có xung đột</StatusBadge>
                 ) : (
-                  <StatusBadge tone="emerald">Không xung đột</StatusBadge>
+                  <StatusBadge tone="emerald">Không xung đột buổi này</StatusBadge>
                 )}
               </div>
             </div>
