@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { classApi } from "../../services/classApi";
 
 const inputClass = "h-9 w-full rounded-md border border-slate-300 bg-white px-3 text-xs text-slate-700";
@@ -24,14 +24,18 @@ export default function RangeStaffingPanel({
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [revision, setRevision] = useState(0);
+  const previousClass = useRef(null);
 
   useEffect(() => {
     let active = true;
     setLoading(true);
     setCoverage([]);
     setError("");
-    setMessage("");
-    setReplace(false);
+    if (previousClass.current !== classId) {
+      previousClass.current = classId;
+      setMessage("");
+      setReplace(false);
+    }
     if (!classId) {
       setLoading(false);
       return () => { active = false; };
