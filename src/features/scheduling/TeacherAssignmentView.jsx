@@ -10,6 +10,7 @@ import {
   Users,
 } from "lucide-react";
 import Button from "../../components/ui/Button";
+import RangeStaffingPanel from "./RangeStaffingPanel";
 import { schedulingApi } from "../../services/api";
 import { classApi } from "../../services/classApi";
 import { addDays, iso, mondayOf } from "./schedulingUtils";
@@ -723,6 +724,16 @@ export default function TeacherAssignmentView() {
               </div>
             )}
 
+            <RangeStaffingPanel
+              role="TEACHER"
+              classId={form.classId}
+              employeeId={selectedTeacherId}
+              employeeName={selectedTeacher?.fullName}
+              campus={form.campus}
+              singleSessionId={matchingPlan?.id}
+              onApplied={loadData}
+            />
+            <p className="text-[11px] font-medium text-slate-500">Phân công nhanh trong tuần đang xem</p>
             <Button
               variant="primary"
               className="w-full"
@@ -730,7 +741,7 @@ export default function TeacherAssignmentView() {
               disabled={!selectedTeacherId || !form.classId || !matchingPlan}
             >
               <UserCheck size={16} />
-              Xác nhận phân công
+              Phân công riêng buổi đã chọn
             </Button>
             <Button className="w-full" onClick={assignWeek}
               disabled={!selectedTeacherId || !form.classId || !uncoveredSlots.length}>
