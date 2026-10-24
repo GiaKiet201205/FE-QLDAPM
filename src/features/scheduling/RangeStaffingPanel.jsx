@@ -87,6 +87,7 @@ export default function RangeStaffingPanel({
       const result = await classApi.assignStaffingRange(classId, {
         role, employeeId, campus, workplaceId,
         mode: replace ? "REPLACE" : "FILL_EMPTY",
+        scope,
         sessionIds: selected.map((slot) => slot.id),
       });
       setMessage(`Đã phân công ${result.createdCount} buổi cho ${employeeName || employeeId}.`);
@@ -107,7 +108,7 @@ export default function RangeStaffingPanel({
       <div>
         <strong className="block text-sm text-slate-900">Phân công {noun} theo lịch lớp</strong>
         <p className="mt-1 text-[11px] text-slate-500">
-          Mặc định phân công toàn khóa. Chỉ lấy các buổi đã lập kế hoạch;
+          Phân công toàn khóa cấp quyền CS phụ trách lớp; phân công giai đoạn hoặc một buổi chỉ cấp quyền hỗ trợ buổi tương ứng. Chỉ lấy các buổi đã lập kế hoạch;
           hệ thống kiểm tra lịch rảnh và lịch trùng của từng buổi khi lưu.
         </p>
       </div>
