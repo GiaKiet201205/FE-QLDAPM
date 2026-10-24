@@ -357,12 +357,24 @@ export default function StaffAssignmentView({ staffRole = "SALE" }) {
     if (!selectedStaff || schedule.employeeId === selectedStaff.id) return;
     if (!window.confirm("Đổi nhân viên ca này sang nhân viên đang chọn?")) return;
     try {
-      await schedulingApi.updateStaff(schedule.id, {
-        employeeId:selectedStaff.id,staffRole:role,workplaceId:schedule.workplaceId,
-        classId:schedule.classId || null,date:schedule.date,
-        startTime:schedule.startTime,endTime:schedule.endTime,workType:schedule.workType,
-      });
-      setMessage({ type: "success", text: "Đã đổi nhân sự, giữ nguyên giờ phân công." });
+      if (role === "CS" && schedule.workType === "CLASS_SUPPORT" && schedule.classId) {
+        const sessions = await classApi.plannedSessions(schedule.classId);
+        const lesson = (sessions || []).find((slot) =>
+          slot.status === "PLANNED" && planKey(slot) === planKey(schedule));
+        if (!lesson) throw new Error("Không tìm thấy buổi hỗ trợ lớp đang hoạt động.");
+        await classApi.assignStaffingRange(schedule.classId, {
+          role: "CS", employeeId: selectedStaff.id,
+          workplaceId: schedule.workplaceId || form.workplaceId,
+          mode: "REPLACE", sessionIds: [lesson.id],
+        });
+      } else {
+        await schedulingApi.updateStaff(schedule.id, {
+          employeeId:selectedStaff.id,staffRole:role,workplaceId:schedule.workplaceId,
+          classId:schedule.classId || null,date:schedule.date,
+          startTime:schedule.startTime,endTime:schedule.endTime,workType:schedule.workType,
+        });
+      }
+      setMessage({ type: "success", text: "Đã thay nhân sự buổi này, giữ nguyên lịch cũ trong lịch sử." });
       await loadData();
     } catch (error) {
       setMessage({ type: "error", text: error.message || "Không đổi được nhân sự." });
