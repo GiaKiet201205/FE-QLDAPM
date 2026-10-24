@@ -33,6 +33,7 @@ export default function RangeStaffingPanel({
     setError("");
     if (previousClass.current !== classId) {
       previousClass.current = classId;
+      setScope("COURSE");
       setMessage("");
       setReplace(false);
     }
