@@ -346,12 +346,15 @@ export default function TeacherAssignmentView() {
     if (!selectedTeacherId || selectedTeacherId === schedule.teacherId) return;
     if (!window.confirm("Đổi giáo viên cho buổi này sang giáo viên đang chọn?")) return;
     try {
-      await schedulingApi.updateTeacher(schedule.id, {
-        teacherId: selectedTeacherId, classId: schedule.classId,
-        date: schedule.date, startTime: schedule.startTime,
-        endTime: schedule.endTime, campus: form.campus,
+      const sessions = await classApi.plannedSessions(schedule.classId);
+      const lesson = (sessions || []).find((slot) =>
+        slot.status === "PLANNED" && planKey(slot) === planKey(schedule));
+      if (!lesson) throw new Error("Không tìm thấy buổi học đang hoạt động để thay giáo viên.");
+      await classApi.assignStaffingRange(schedule.classId, {
+        role: "TEACHER", employeeId: selectedTeacherId,
+        campus: form.campus, mode: "REPLACE", sessionIds: [lesson.id],
       });
-      setMessage({ type: "success", text: "Đã thay giáo viên, giữ nguyên lịch học của lớp." });
+      setMessage({ type: "success", text: "Đã tạo phân công giáo viên thay thế cho riêng buổi này và giữ lịch sử cũ." });
       await loadData();
     } catch (error) {
       setMessage({ type: "error", text: error.message || "Không thay được giáo viên." });
