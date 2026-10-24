@@ -1,4 +1,5 @@
 import PlannedClassSessions from "./PlannedClassSessions";
+import TeacherAttendanceTab from "./TeacherAttendanceTab";
 import {
   ChevronDown,
   Download,
@@ -551,6 +552,7 @@ function ClassDetail({
         { key: "Overview", label: "Overview" },
         { key: "Students", label: "Students" },
         { key: "Schedule", label: "Schedule" },
+        ...(roleKey === "CS" ? [{ key: "TeacherAttendance", label: "Điểm danh GV" }] : []),
         ...(roleKey !== "TEACHER"
           ? [
               {
@@ -695,6 +697,10 @@ function ClassDetail({
               />
               <ScheduleTab schedules={teachingSchedules} />
             </div>
+          )}
+
+          {tab === "TeacherAttendance" && roleKey === "CS" && (
+            <TeacherAttendanceTab classId={classItem.id} />
           )}
 
           {tab === "Support" && roleKey !== "TEACHER" && (
