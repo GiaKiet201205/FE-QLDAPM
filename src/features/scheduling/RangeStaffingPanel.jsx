@@ -160,9 +160,13 @@ export default function RangeStaffingPanel({
           <>
             <div className="flex flex-wrap gap-x-3 gap-y-1">
               <span>Tổng trong phạm vi: <strong>{matching.length}</strong></span>
-              <span>Đã có người: <strong>{occupied}</strong></span>
+              <span>Buổi lớp đã có người: <strong>{occupied}</strong></span>
               <span>Sẽ {replace ? "thay / bổ sung" : "phân công"}: <strong>{selected.length}</strong></span>
             </div>
+            <p className="mt-1 text-slate-500">
+              Số buổi trên chỉ phản ánh lịch của lớp đang chọn, không xác nhận giáo viên/CS
+              có rảnh hoặc không dạy/làm tại lớp khác. BE kiểm tra từng buổi trước khi lưu.
+            </p>
             {otherAssigned > 0 && !replace && (
               <p className="mt-1 text-amber-700">{otherAssigned} buổi đã có người khác,
                 sẽ không bị ghi đè.</p>
