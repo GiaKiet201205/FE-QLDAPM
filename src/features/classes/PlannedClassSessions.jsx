@@ -102,19 +102,22 @@ export default function PlannedClassSessions({
       setError("Lớp đang học chỉ được bổ sung buổi có giờ bắt đầu trong tương lai.");
       return;
     }
+    const cancelled = new Set(sessions.filter((item) =>
+      item.status === "CANCELLED").map(slotKey));
+    if (items.some((item) => cancelled.has(slotKey(item)))) {
+      setError("Lịch đề xuất trùng một buổi đã hủy. Không được khôi phục buổi đã hủy; hãy chọn ngày hoặc giờ khác.");
+      return;
+    }
+    const existing = new Set(sessions.map(slotKey));
+    const fresh = items.filter((item) => !existing.has(slotKey(item)));
+    if (!fresh.length) {
+      setMessage("Các buổi được chọn đã nằm trong lịch lớp; không có buổi mới để lưu.");
+      setError("");
+      return;
+    }
     setError("");
     setMessage("");
-    setSessions((current) => {
-      const result = [...current];
-      const keys = new Set(current.map(slotKey));
-      for (const item of items) {
-        if (!keys.has(slotKey(item))) {
-          result.push(item);
-          keys.add(slotKey(item));
-        }
-      }
-      return result;
-    });
+    setSessions((current) => [...current, ...fresh]);
     setDirty(true);
   }
 
