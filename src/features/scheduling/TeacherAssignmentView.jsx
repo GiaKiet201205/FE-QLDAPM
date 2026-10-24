@@ -342,6 +342,17 @@ export default function TeacherAssignmentView() {
     }
   }
 
+  async function cancelTeacherAssignment(schedule) {
+    if (!window.confirm("Hủy phân công giáo viên riêng buổi này? Lịch sử vẫn được giữ lại.")) return;
+    try {
+      await schedulingApi.cancelTeacher(schedule.id);
+      setMessage({ type: "success", text: "Đã hủy phân công buổi này. Lịch học vẫn được giữ lại." });
+      await loadData();
+    } catch (error) {
+      setMessage({ type: "error", text: error?.message || "Không thể hủy phân công." });
+    }
+  }
+
   async function replaceTeacher(schedule) {
     if (!selectedTeacherId || selectedTeacherId === schedule.teacherId) return;
     if (!window.confirm("Đổi giáo viên cho buổi này sang giáo viên đang chọn?")) return;
@@ -570,10 +581,16 @@ export default function TeacherAssignmentView() {
                               <span className="block truncate text-[10px] text-slate-500">
                                 {classItem?.classCode}
                               </span>
-                              <button type="button" className="mt-1 text-[10px] underline text-blue-700"
-                                onClick={() => replaceTeacher(schedule)}>
-                                Đổi sang giáo viên đang chọn
-                              </button>
+                              <div className="mt-1 flex flex-wrap gap-2">
+                                <button type="button" className="text-[10px] underline text-blue-700"
+                                  onClick={() => replaceTeacher(schedule)}>
+                                  Đổi giáo viên
+                                </button>
+                                <button type="button" className="text-[10px] underline text-rose-700"
+                                  onClick={() => cancelTeacherAssignment(schedule)}>
+                                  Hủy phân công
+                                </button>
+                              </div>
                             </div>
                           );
                         })}
