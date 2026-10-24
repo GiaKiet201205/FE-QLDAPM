@@ -19,6 +19,7 @@ import AvailabilityRegister from "./pages/AvailabilityRegister";
 import TeacherAssignment from "./pages/TeacherAssignment";
 import StaffAssignment from "./pages/StaffAssignment";
 import MySchedule from "./pages/MySchedule";
+import ScheduleMonitor from "./features/scheduling/ScheduleMonitor";
 
 import { AcademicDataProvider } from "./features/academic/AcademicDataContext";
 import AccountDataProvider from "./features/accounts/AccountDataProvider";
@@ -332,6 +333,7 @@ function AppRoutes() {
                   item.path === "/my-classes"
                 ) {
                   element = <Classes role={role} />;
+<<<<<<< HEAD
                 } else if (item.path === "/availability/register") {
                   element = <AvailabilityRegister />;
                 } else if (item.path === "/accounts") {
@@ -354,6 +356,12 @@ function AppRoutes() {
                    gọi schedulingApi.
                 ======================================= */
 
+=======
+                } else if (item.path === "/monitor/schedules") {
+                  element = <ScheduleMonitor />;
+                }
+
+>>>>>>> main
                 else if (
                   item.path ===
                   "/availability/register"

@@ -1,75 +1,155 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import AvailabilityFormModal from "../features/availability/AvailabilityFormModal";
 import AvailabilityView from "../features/availability/AvailabilityView";
+import { emptyAvailabilityForm } from "../features/availability/mockAvailability";
+import { useAccountData } from "../features/accounts/hooks/useAccountData";
+import { schedulingApi } from "../services/api";
+import { addDays, days, iso, mondayOf } from "../features/scheduling/schedulingUtils";
 import {
-  emptyAvailabilityForm,
-  initialAvailability,
-} from "../features/availability/mockAvailability";
+  availabilityStatusToUi,
+  availabilityTypeToApi,
+  availabilityTypeToUi,
+  buildWeekDays,
+  formatWeekLabel,
+  normalizeAvailability,
+} from "../features/scheduling/schedulingApiAdapters";
+
+function formatDateTime(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return new Intl.DateTimeFormat("vi-VN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
 
 export default function AvailabilityRegister() {
-  const initial = useMemo(
-    () => initialAvailability.map((slot) => ({ ...slot })),
-    [],
-  );
-  const [slots, setSlots] = useState(initial);
-  const [selectedId, setSelectedId] = useState(initial[0]?.id || null);
+  const { authUser } = useAccountData();
+  const [weekStart, setWeekStart] = useState(() => mondayOf());
+  const [slots, setSlots] = useState([]);
+  const [selectedId, setSelectedId] = useState(null);
   const [editing, setEditing] = useState(undefined);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [actionMessage, setActionMessage] = useState("");
 
-  function saveAvailability(form) {
-    if (editing) {
-      setSlots((current) =>
-        current.map((slot) =>
-          slot.id === editing.id
-            ? {
-                ...slot,
-                ...form,
-                status: "pending",
-                reviewedAt: "",
-                submittedAt: "Vừa cập nhật",
-              }
-            : slot,
-        ),
+  const weekDays = useMemo(() => buildWeekDays(weekStart), [weekStart]);
+  const requestVersion = useRef(0);
+  const weekRef = useRef(iso(weekStart));
+  weekRef.current = iso(weekStart);
+
+  const loadAvailability = useCallback(async () => {
+    const requestedWeek = iso(weekStart);
+    const requestId = ++requestVersion.current;
+    setLoading(true);
+    setError("");
+
+    try {
+      const rows = await schedulingApi.mineAvailability(iso(weekStart));
+      if (requestId !== requestVersion.current || requestedWeek !== weekRef.current) return;
+      const next = (Array.isArray(rows) ? rows : []).map((row) => {
+        const item = normalizeAvailability(row, authUser?.roleKey);
+        return {
+          id: item.id,
+          day: item.day,
+          shift: item.shift,
+          start: item.startTime,
+          end: item.endTime,
+          status: availabilityStatusToUi(item.status),
+          type: availabilityTypeToUi(item.availabilityType),
+          campus: item.campus,
+          note: item.note,
+          availableDate: item.availableDate,
+          submittedAt: formatDateTime(item.createdAt),
+          reviewedAt: formatDateTime(item.reviewedAt),
+        };
+      });
+
+      setSlots(next);
+      setSelectedId((current) =>
+        next.some((slot) => slot.id === current) ? current : next[0]?.id || null,
       );
-      setSelectedId(editing.id);
-    } else {
-      const newSlot = {
-        ...form,
-        id: "slot-" + form.day + "-" + form.shift + "-" + Date.now(),
-        status: "pending",
-        submittedAt: "Vừa gửi",
-        reviewedAt: "",
-      };
-      setSlots((current) => [
-        ...current.filter(
-          (slot) => !(slot.day === form.day && slot.shift === form.shift),
-        ),
-        newSlot,
-      ]);
-      setSelectedId(newSlot.id);
+    } catch (requestError) {
+      if (requestId !== requestVersion.current || requestedWeek !== weekRef.current) return;
+      setSlots([]);
+      setSelectedId(null);
+      setError(requestError?.message || "Không thể tải lịch rảnh.");
+    } finally {
+      if (requestId === requestVersion.current && requestedWeek === weekRef.current) setLoading(false);
     }
-    setEditing(undefined);
+  }, [weekStart, authUser?.roleKey]);
+
+  useEffect(() => {
+    loadAvailability();
+    return () => { requestVersion.current += 1; };
+  }, [loadAvailability]);
+
+  async function saveAvailability(form) {
+    setError("");
+    setActionMessage("");
+
+    const dayIndex = days.indexOf(form.day);
+    const body = {
+      dayOfWeek: form.day,
+      shift: form.shift,
+      startTime: form.start,
+      endTime: form.end,
+      availabilityType: availabilityTypeToApi(form.type),
+      availableDate:
+        availabilityTypeToApi(form.type) === "WEEKLY" && dayIndex >= 0
+          ? (editing?.availableDate && editing.day === form.day
+              ? editing.availableDate
+              : iso(addDays(weekStart, dayIndex)))
+          : null,
+      campus: form.campus,
+      note: form.note,
+    };
+
+    try {
+      if (editing) {
+        await schedulingApi.updateAvailability(editing.id, body);
+        setActionMessage("Đã cập nhật lịch rảnh.");
+      } else {
+        await schedulingApi.createAvailability(body);
+        setActionMessage("Đã gửi lịch rảnh.");
+      }
+
+      setEditing(undefined);
+      await loadAvailability();
+    } catch (requestError) {
+      setError(requestError?.message || "Không thể lưu lịch rảnh.");
+    }
   }
 
-  function deleteAvailability(id) {
+  async function deleteAvailability(id) {
     const target = slots.find((slot) => slot.id === id);
     if (!target) return;
+
     const accepted = window.confirm(
-      "Xóa lịch rảnh " +
-        target.start +
-        " – " +
-        target.end +
-        "? Hành động này chỉ áp dụng trên dữ liệu demo giao diện.",
+      "Xóa lịch rảnh " + target.start + " – " + target.end + "?",
     );
     if (!accepted) return;
-    setSlots((current) => current.filter((slot) => slot.id !== id));
-    setSelectedId((current) => (current === id ? null : current));
+
+    setError("");
+    setActionMessage("");
+
+    try {
+      await schedulingApi.removeAvailability(id);
+      setActionMessage("Đã xóa lịch rảnh.");
+      await loadAvailability();
+    } catch (requestError) {
+      setError(requestError?.message || "Không thể xóa lịch rảnh.");
+    }
   }
 
-  function resetDemo() {
-    const next = initialAvailability.map((slot) => ({ ...slot }));
-    setSlots(next);
-    setSelectedId(next[0]?.id || null);
+  function moveWeek(offset) {
     setEditing(undefined);
+    setActionMessage("");
+    setWeekStart((current) => addDays(current, offset));
   }
 
   return (
@@ -81,7 +161,16 @@ export default function AvailabilityRegister() {
         onAdd={() => setEditing(null)}
         onEdit={setEditing}
         onDelete={deleteAvailability}
-        onResetDemo={resetDemo}
+        onResetDemo={loadAvailability}
+        weekDays={weekDays}
+        weekLabel={formatWeekLabel(weekStart)}
+        onPreviousWeek={() => moveWeek(-7)}
+        onNextWeek={() => moveWeek(7)}
+        loading={loading}
+        error={error}
+        actionMessage={actionMessage}
+        personName={authUser?.user || authUser?.username || "Tài khoản hiện tại"}
+        roleLabel={authUser?.role || authUser?.roleKey || ""}
       />
 
       {editing !== undefined && (

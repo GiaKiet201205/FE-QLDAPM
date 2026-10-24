@@ -1,11 +1,68 @@
-import StatCard from '../features/dashboard/components/StatCard'
-import DataTable from '../features/dashboard/components/DataTable'
-import { ActivityFeed } from '../features/dashboard/components/ActivityFeed'
-import StatusPanel from '../features/dashboard/components/StatusPanel'
-import { getDashboardData } from '../features/dashboard/mockData'
+import { useEffect, useState } from 'react'
+import StatCard from '../../src/components/dashboard/StatCard'
+import DataTable from '../../src/components/dashboard/DataTable'
+import { ActivityFeed } from '../../src/components/dashboard/ActivityFeed'
+import StatusPanel from '../../src/components/dashboard/StatusPanel'
+import { dashboardApi } from '../../src/services/api'
 
 export default function Dashboard({ role }) {
-  const data = getDashboardData(role.key)
+  const [data, setData] = useState(null)
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [retry, setRetry] = useState(0)
+
+  useEffect(() => {
+    let active = true
+
+    dashboardApi.overview()
+      .then((response) => {
+        if (active) {
+          setData(response)
+          setError('')
+        }
+      })
+      .catch((requestError) => {
+        if (active) {
+          setError(requestError instanceof Error ? requestError.message : 'Không thể tải dữ liệu dashboard.')
+        }
+      })
+      .finally(() => {
+        if (active) setLoading(false)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [role.key, retry])
+
+  if (loading) {
+    return (
+      <div role="status" className="rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-500">
+        Đang tải dữ liệu dashboard...
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div role="alert" className="rounded-xl border border-red-200 bg-white p-6">
+        <p className="text-sm text-red-700">{error}</p>
+        <button
+          type="button"
+          className="mt-3 text-sm font-medium text-blue-600 hover:underline"
+          onClick={() => {
+            setError('')
+            setLoading(true)
+            setRetry((value) => value + 1)
+          }}
+        >
+          Thử tải lại
+        </button>
+      </div>
+    )
+  }
+
+  if (!data) return null
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-6">
@@ -13,8 +70,8 @@ export default function Dashboard({ role }) {
       <div className="space-y-6 min-w-0">
         {/* Stat cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {data.stats.map((s, i) => (
-            <StatCard key={i} {...s} />
+          {data.stats.map((stat) => (
+            <StatCard key={stat.label} {...stat} />
           ))}
         </div>
 
@@ -23,7 +80,6 @@ export default function Dashboard({ role }) {
           title={data.tableTitle}
           columns={data.tableColumns}
           rows={data.tableRows}
-          viewAllLabel="Xem toàn bộ lịch"
         />
 
         {/* Activity feed */}
