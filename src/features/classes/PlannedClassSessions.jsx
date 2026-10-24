@@ -81,7 +81,7 @@ export default function PlannedClassSessions({
         if (active) setLoading(false);
       });
     return () => { active = false; };
-  }, [classItem.id, classItem.startDate]);
+  }, [classItem.id, classItem.startDate, classItem.endDate, classItem.status]);
 
   const arranged = useMemo(
     () => [...sessions].sort((a, b) => slotKey(a).localeCompare(slotKey(b))),
@@ -229,6 +229,8 @@ export default function PlannedClassSessions({
         <p className="mt-1 text-xs leading-5 text-slate-500">
           Admin/CS lập lịch trước. Chỉ khi có ít nhất một buổi mới chuyển lớp sang READY.
           TC và CM phân công nhân sự dựa trên đúng các buổi này.
+          Đổi ngày bắt đầu/kết thúc lớp không tự tạo, dời hay xóa những buổi học đã lưu.
+          Nếu gia hạn lớp, hãy thêm buổi học và lưu lịch trước khi TC/CM phân công bổ sung.
         </p>
       </div>
       {loading ? <p className="text-xs">Đang tải lịch...</p> : null}
