@@ -1,19 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AccountDataContext } from './hooks/useAccountData';
-<<<<<<< HEAD
-import { ACCOUNTS_STORAGE_KEY, authenticateAccount, createAccount, createPasswordChange, createProfileUpdate, getNextAccountCode, loadAccounts, loadSession, persistSession } from './accountStore';
-import { getRoleKeyFromAccountRole } from '../../config/roles';
-
-export default function AccountDataProvider({ children }) {
-  const [accounts, setAccounts] = useState(() => loadAccounts(localStorage));
-  const [session, setSession] = useState(() => loadSession(localStorage, sessionStorage));
-  const currentAccount = accounts.find((account) => account.id === session?.accountId);
-  const authUser = useMemo(() => {
-    if (currentAccount?.status !== 'Active' || !getRoleKeyFromAccountRole(currentAccount.role)) return null;
-    const { passwordCredential: _passwordCredential, ...profile } = currentAccount;
-    return { ...profile, roleKey: getRoleKeyFromAccountRole(currentAccount.role) };
-  }, [currentAccount]);
-=======
 import {
   ACCOUNTS_STORAGE_KEY,
   createAccount,
@@ -97,27 +83,12 @@ export default function AccountDataProvider({ children }) {
       roleKey: session.role,
     };
   }, [currentAccount, session]);
->>>>>>> main
 
   useEffect(() => {
     localStorage.setItem(ACCOUNTS_STORAGE_KEY, JSON.stringify(accounts));
   }, [accounts]);
 
   useEffect(() => {
-<<<<<<< HEAD
-    persistSession(localStorage, sessionStorage, session, authUser);
-  }, [session, authUser]);
-
-  async function login(identifier, password, remember) {
-    const result = await authenticateAccount(accounts, identifier, password);
-    if (!result.ok) return result;
-    const { account, roleKey } = result;
-    setAccounts((current) => current.map((item) => item.id === account.id
-      ? { ...item, lastLogin: new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }) }
-      : item));
-    setSession({ accountId: account.id, remember });
-    return { ok: true, user: account.user, roleKey };
-=======
     function handleExpiredSession() {
       setSession(null);
     }
@@ -161,7 +132,6 @@ export default function AccountDataProvider({ children }) {
   function logout() {
     saveSession(null);
     setSession(null);
->>>>>>> main
   }
 
   function addAccount(form) {
@@ -171,17 +141,6 @@ export default function AccountDataProvider({ children }) {
   }
 
   function toggleLock(id) {
-<<<<<<< HEAD
-    setAccounts((current) => current.map((account) => account.id === id
-      ? { ...account, status: account.status === 'Active' ? 'Locked' : 'Active' }
-      : account));
-    if (id === session?.accountId) setSession(null);
-  }
-
-  function changeRole(id, role) {
-    if (!getRoleKeyFromAccountRole(role)) return { ok: false, reason: 'Vai trò không hợp lệ.' };
-    setAccounts((current) => current.map((account) => account.id === id ? { ...account, role } : account));
-=======
     setAccounts((current) =>
       current.map((account) =>
         account.id === id
@@ -199,32 +158,10 @@ export default function AccountDataProvider({ children }) {
     setAccounts((current) =>
       current.map((account) => account.id === id ? { ...account, role } : account),
     );
->>>>>>> main
     return { ok: true };
   }
 
   function updateProfile(form) {
-<<<<<<< HEAD
-    if (!authUser) return { ok: false, errors: { user: 'Phiên đăng nhập đã hết hiệu lực.' } };
-    const result = createProfileUpdate(accounts, currentAccount, form);
-    if (!result.ok) return result;
-    setAccounts((current) => current.map((account) => account.id === authUser.id ? { ...account, ...result.profile } : account));
-    return { ok: true };
-  }
-
-  async function changePassword(form) {
-    if (!authUser) return { ok: false, errors: { general: 'Phiên đăng nhập đã hết hiệu lực.' } };
-    const result = await createPasswordChange(currentAccount, form);
-    if (!result.ok) return result;
-    setAccounts((current) => current.map((account) => account.id === authUser.id
-      ? { ...account, passwordCredential: result.passwordCredential }
-      : account));
-    return { ok: true };
-  }
-
-  return (
-    <AccountDataContext.Provider value={{ accounts, authUser, login, logout: () => setSession(null), addAccount, toggleLock, changeRole, updateProfile, changePassword, nextAccountCode: getNextAccountCode(accounts) }}>
-=======
     if (!authUser) {
       return { ok: false, errors: { user: 'Phiên đăng nhập đã hết hiệu lực.' } };
     }
@@ -276,7 +213,6 @@ export default function AccountDataProvider({ children }) {
         nextAccountCode: getNextAccountCode(accounts),
       }}
     >
->>>>>>> main
       {children}
     </AccountDataContext.Provider>
   );

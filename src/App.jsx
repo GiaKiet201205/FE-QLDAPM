@@ -333,35 +333,10 @@ function AppRoutes() {
                   item.path === "/my-classes"
                 ) {
                   element = <Classes role={role} />;
-<<<<<<< HEAD
-                } else if (item.path === "/availability/register") {
-                  element = <AvailabilityRegister />;
-                } else if (item.path === "/accounts") {
-                  element = (
-                    <Classes
-                      role={role}
-                    />
-                  );
-                }
-
-
-                /* =======================================
-                   ĐĂNG KÝ LỊCH RẢNH
-
-                   QUAN TRỌNG:
-                   Dùng AvailabilityRegister
-                   để giữ giao diện Figma cũ.
-
-                   AvailabilityRegister bên trong
-                   gọi schedulingApi.
-                ======================================= */
-
-=======
                 } else if (item.path === "/monitor/schedules") {
                   element = <ScheduleMonitor />;
                 }
 
->>>>>>> main
                 else if (
                   item.path ===
                   "/availability/register"
