@@ -11,6 +11,13 @@ export const classApi = {
       method: "PUT",
       body: JSON.stringify(sessions),
     }),
+  teacherAttendance: (classId) =>
+    apiRequest(`/classes/${classId}/teacher-attendance`),
+  markTeacherAttendance: (classId, teachingScheduleId, status) =>
+    apiRequest(`/classes/${classId}/teacher-attendance/${teachingScheduleId}`, {
+      method: "PUT",
+      body: JSON.stringify({ status }),
+    }),
   planningClasses: () => apiRequest("/class-planning"),
   reschedule: (classId, body) =>
     apiRequest(`/classes/${classId}/reschedule`, {
