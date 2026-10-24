@@ -55,7 +55,8 @@ export default function PlannedClassSessions({
   const [from, setFrom] = useState("18:00");
   const [to, setTo] = useState("20:00");
   const [singleDate, setSingleDate] = useState(classItem.startDate);
-  const editable = canManage && ["DRAFT", "READY"].includes(classItem.status);
+  const editable = canManage && ["DRAFT", "READY", "RUNNING"].includes(classItem.status);
+  const canRemove = canManage && ["DRAFT", "READY"].includes(classItem.status);
   const canReschedule = canManage && classItem.status === "RUNNING";
   const today = new Date();
   const todayIso = [today.getFullYear(), String(today.getMonth()+1).padStart(2,"0"),
@@ -81,7 +82,7 @@ export default function PlannedClassSessions({
         if (active) setLoading(false);
       });
     return () => { active = false; };
-  }, [classItem.id, classItem.startDate]);
+  }, [classItem.id, classItem.startDate, classItem.endDate, classItem.status]);
 
   const arranged = useMemo(
     () => [...sessions].sort((a, b) => slotKey(a).localeCompare(slotKey(b))),
@@ -95,19 +96,28 @@ export default function PlannedClassSessions({
   ), [teachingSchedules, supportSchedules]);
 
   function append(items) {
+    if (classItem.status === "RUNNING" && items.some((slot) =>
+      new Date(`${slot.date}T${slot.startTime}:00+07:00`).getTime() <= Date.now()
+    )) {
+      setError("Lớp đang học chỉ được bổ sung buổi có giờ bắt đầu trong tương lai.");
+      return;
+    }
+    const cancelled = new Set(sessions.filter((item) =>
+      item.status === "CANCELLED").map(slotKey));
+    if (items.some((item) => cancelled.has(slotKey(item)))) {
+      setError("Lịch đề xuất trùng một buổi đã hủy. Không được khôi phục buổi đã hủy; hãy chọn ngày hoặc giờ khác.");
+      return;
+    }
+    const existing = new Set(sessions.map(slotKey));
+    const fresh = items.filter((item) => !existing.has(slotKey(item)));
+    if (!fresh.length) {
+      setMessage("Các buổi được chọn đã nằm trong lịch lớp; không có buổi mới để lưu.");
+      setError("");
+      return;
+    }
     setError("");
     setMessage("");
-    setSessions((current) => {
-      const result = [...current];
-      const keys = new Set(current.map(slotKey));
-      for (const item of items) {
-        if (!keys.has(slotKey(item))) {
-          result.push(item);
-          keys.add(slotKey(item));
-        }
-      }
-      return result;
-    });
+    setSessions((current) => [...current, ...fresh]);
     setDirty(true);
   }
 
@@ -131,8 +141,17 @@ export default function PlannedClassSessions({
           String(day.getMonth() + 1).padStart(2, "0"),
           String(day.getDate()).padStart(2, "0"),
         ].join("-");
-        result.push({ date, startTime: from, endTime: to });
+        const proposed = { date, startTime: from, endTime: to };
+        // Extending an ongoing course must not synthesize lessons in the past.
+        if (classItem.status !== "RUNNING" ||
+            new Date(`${date}T${from}:00+07:00`).getTime() > Date.now()) {
+          result.push(proposed);
+        }
       }
+    }
+    if (!result.length) {
+      setError("Không có buổi tương lai phù hợp trong khoảng thời gian hiện tại của lớp.");
+      return;
     }
     append(result);
   }
@@ -147,6 +166,15 @@ export default function PlannedClassSessions({
   }
 
   function remove(item) {
+    if (classItem.status === "READY" &&
+        new Date(`${item.date}T${item.startTime}:00+07:00`).getTime() <= Date.now()) {
+      setError("Buổi học đã qua cần giữ lịch sử; không thể xóa khỏi kế hoạch.");
+      return;
+    }
+    if (!canRemove) {
+      setError("Lớp đang học chỉ được bổ sung buổi tương lai; muốn dời/hủy phải dùng luồng điều chỉnh buổi.");
+      return;
+    }
     if (assigned.has(slotKey(item))) {
       setError("Buổi học đã có phân công. TC/CM phải hủy phân công trước khi đổi lịch.");
       return;
@@ -168,7 +196,7 @@ export default function PlannedClassSessions({
       setSessions((result || []).map(normalized));
       setDirty(false);
       await onChanged?.();
-      setMessage("Đã lưu lịch học dự kiến vào PostgreSQL. TC/CM có thể dùng các buổi này để phân công.");
+      setMessage("Đã lưu lịch học vào PostgreSQL. Các buổi vừa bổ sung vẫn chưa có nhân sự; TC/CM cần phân công thêm.");
     } catch (e) {
       setError(e?.message ?? "Không lưu được lịch học.");
     } finally {
@@ -229,6 +257,10 @@ export default function PlannedClassSessions({
         <p className="mt-1 text-xs leading-5 text-slate-500">
           Admin/CS lập lịch trước. Chỉ khi có ít nhất một buổi mới chuyển lớp sang READY.
           TC và CM phân công nhân sự dựa trên đúng các buổi này.
+          {classItem.status === "RUNNING" &&
+            " Lớp đang học chỉ được bổ sung buổi tương lai; muốn đổi/hủy buổi cũ hãy dùng quy trình điều chỉnh riêng."}
+          Đổi ngày bắt đầu/kết thúc lớp không tự tạo, dời hay xóa những buổi học đã lưu.
+          Nếu gia hạn lớp, hãy thêm buổi học và lưu lịch trước khi TC/CM phân công bổ sung.
         </p>
       </div>
       {loading ? <p className="text-xs">Đang tải lịch...</p> : null}
@@ -285,7 +317,9 @@ export default function PlannedClassSessions({
                 assigned.has(slotKey(item)) ?
                   <span className="text-emerald-700">Đã phân công</span> :
                   <span className="text-slate-500">Chưa phân công</span>}
-              {editable && item.status === "PLANNED" ?
+              {canRemove && item.status === "PLANNED" &&
+                (classItem.status !== "READY" ||
+                new Date(`${item.date}T${item.startTime}:00+07:00`).getTime() > Date.now()) ?
                 <button type="button" className="text-red-600 hover:underline"
                   onClick={() => remove(item)}>Bỏ</button> : null}
               {canReschedule && item.status === "PLANNED" && (item.date > todayIso || (item.date === todayIso && item.startTime > new Date().toTimeString().slice(0, 5))) ?

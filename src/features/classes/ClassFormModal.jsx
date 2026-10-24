@@ -24,6 +24,10 @@ export default function ClassFormModal({
       : { ...emptyForm, status: "DRAFT" },
   );
   const isEditing = Boolean(classItem);
+  const lockDates = isEditing && ["COMPLETED", "CLOSED"].includes(classItem.status);
+  const lockStartDate = lockDates || (isEditing && classItem.status === "RUNNING");
+  const datesChanged = isEditing &&
+    (classItem.startDate !== form.startDate || classItem.endDate !== form.endDate);
   const [plannedSessions, setPlannedSessions] = useState([]);
   const [selectedDays, setSelectedDays] = useState([]);
   const [expanded, setExpanded] = useState(false);
@@ -326,6 +330,7 @@ export default function ClassFormModal({
               name="startDate"
               value={form.startDate}
               onChange={update}
+              disabled={lockStartDate}
               required
             />
           </label>
@@ -338,11 +343,29 @@ export default function ClassFormModal({
               name="endDate"
               value={form.endDate}
               onChange={update}
+              disabled={lockDates}
               required
             />
           </label>
         </div>
 
+        {isEditing && (
+          <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-600">
+            {lockDates
+              ? "Lớp đã hoàn thành/đóng: không thể đổi thời gian khóa học."
+              : lockStartDate
+                ? "Lớp đang diễn ra: ngày bắt đầu đã khóa. Chỉ có thể điều chỉnh ngày kết thúc có điều kiện."
+                : "Ngày lớp có thể chỉnh sửa nếu không làm mất những buổi học và phân công đã lưu."}
+            {datesChanged && (
+              <p className="mt-1 text-amber-700">
+                Thay đổi thời gian lớp không tự động chỉnh lịch buổi học.
+                Nếu rút ngắn làm buổi học nằm ngoài ngày mới, hãy xử lý các buổi
+                ở tab Schedule (và phân công TC/CM nếu có) trước khi lưu.
+                Nếu kéo dài, lưu ngày lớp trước rồi bổ sung các buổi trong Schedule.
+              </p>
+            )}
+          </div>
+        )}
         {invalidDateRange && (
           <p className="text-xs text-red-600">
             End date must be on or after start date.
