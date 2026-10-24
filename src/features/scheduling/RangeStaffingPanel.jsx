@@ -69,13 +69,17 @@ export default function RangeStaffingPanel({
     return !slot.assignmentId;
   }), [matching, replace, employeeId]);
 
+  const canConfirmExistingCourse =
+    role === "CS" && scope === "COURSE" && matching.length > 0 &&
+    matching.every((slot) => slot.employeeId === employeeId &&
+      Number(slot.assignedCount) === 1);
   const occupied = matching.filter((slot) => Boolean(slot.assignmentId)).length;
   const otherAssigned = matching.filter((slot) =>
     slot.assignmentId && slot.employeeId !== employeeId).length;
   const manyAssigned = matching.filter((slot) => Number(slot.assignedCount) > 1).length;
 
   async function applyRange() {
-    if (!classId || !employeeId || !selected.length || saving) return;
+    if (!classId || !employeeId || (!selected.length && !canConfirmExistingCourse) || saving) return;
     if (replace && !window.confirm(
       `Thay nhân sự cho ${selected.length} buổi được chọn? Các buổi khác và lịch sử điểm danh vẫn giữ nguyên.`
     )) return;
@@ -88,9 +92,13 @@ export default function RangeStaffingPanel({
         role, employeeId, campus, workplaceId,
         mode: replace ? "REPLACE" : "FILL_EMPTY",
         scope,
-        sessionIds: selected.map((slot) => slot.id),
+        // Existing full-course assignments can be confirmed without creating duplicates.
+        sessionIds: selected.length ? selected.map((slot) => slot.id)
+          : matching.map((slot) => slot.id),
       });
-      setMessage(`Đã phân công ${result.createdCount} buổi cho ${employeeName || employeeId}.`);
+      setMessage(role === "CS" && scope === "COURSE"
+        ? `Đã xác nhận CS ${employeeName || employeeId} phụ trách toàn khóa; tạo mới ${result.createdCount} buổi.`
+        : `Đã phân công ${result.createdCount} buổi cho ${employeeName || employeeId}.`);
       setRevision((previous) => previous + 1);
       await onApplied?.();
     } catch (e) {
@@ -179,10 +187,13 @@ export default function RangeStaffingPanel({
       {error && <p role="alert" className="text-xs text-red-700">{error}</p>}
       {message && <p role="status" className="text-xs text-emerald-700">{message}</p>}
       <button type="button" onClick={applyRange}
-        disabled={!classId || !employeeId || loading || saving || !selected.length || selected.length > 400 || (scope === "PERIOD" && from > to)}
+        disabled={!classId || !employeeId || loading || saving ||
+          (!selected.length && !canConfirmExistingCourse) ||
+          selected.length > 400 || (scope === "PERIOD" && from > to)}
         className="w-full rounded-md bg-[#173557] px-3 py-2 text-xs font-semibold text-white hover:bg-[#22486f] disabled:cursor-not-allowed disabled:opacity-40">
-        {saving ? "Đang lưu…" :
-          `Xác nhận ${replace ? "thay / phân công" : "phân công"} ${selected.length} buổi`}
+        {saving ? "Đang lưu…" : canConfirmExistingCourse && !selected.length
+          ? "Xác nhận CS phụ trách toàn khóa"
+          : `Xác nhận ${replace ? "thay / phân công" : "phân công"} ${selected.length} buổi`}
       </button>
     </section>
   );
