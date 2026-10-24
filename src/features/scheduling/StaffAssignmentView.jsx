@@ -353,6 +353,17 @@ export default function StaffAssignmentView({ staffRole = "SALE" }) {
     }
   }
 
+  async function cancelStaffAssignment(schedule) {
+    if (!window.confirm("Hủy phân công nhân sự của buổi này?")) return;
+    try {
+      await schedulingApi.cancelStaff(schedule.id);
+      setMessage({ type: "success", text: "Đã hủy phân công; lịch sử được giữ lại." });
+      await loadData();
+    } catch (error) {
+      setMessage({ type: "error", text: error?.message || "Không thể hủy phân công." });
+    }
+  }
+
   async function replaceStaff(schedule) {
     if (!selectedStaff || schedule.employeeId === selectedStaff.id) return;
     if (!window.confirm("Đổi nhân viên ca này sang nhân viên đang chọn?")) return;
@@ -603,8 +614,12 @@ export default function StaffAssignmentView({ staffRole = "SALE" }) {
                             <span className="block truncate text-[10px] text-slate-500">
                               {getWorkTypeLabel(role, schedule.workType)}
                             </span>
-                            <button type="button" className="mt-1 text-[10px] text-blue-700 underline"
-                              onClick={() => replaceStaff(schedule)}>Đổi sang nhân sự đang chọn</button>
+                            <div className="mt-1 flex flex-wrap gap-2">
+                              <button type="button" className="text-[10px] text-blue-700 underline"
+                                onClick={() => replaceStaff(schedule)}>Đổi nhân sự</button>
+                              <button type="button" className="text-[10px] text-rose-700 underline"
+                                onClick={() => cancelStaffAssignment(schedule)}>Hủy phân công</button>
+                            </div>
                           </div>
                         ))}
 
