@@ -210,18 +210,26 @@ export default function TeacherAssignmentView() {
   );
 
   const selectedDay = weekDays.find((day) => day.date === form.date);
-  const selectedAvailability = teacherAvailability.find(
+  // This indicator describes only the lesson selected in the weekly form.
+  // Course-wide validation is performed separately for each lesson by BE.
+  const matchingApprovedSlots = teacherAvailability.filter(
     (availability) =>
       availability.teacherId === selectedTeacherId &&
       availability.day === selectedDay?.key &&
       (!availability.availableDate ||
         availability.availableDate === form.date) &&
-      isInsideAvailability(
-        availability,
-        form.startTime,
-        form.endTime,
-      ),
+      isInsideAvailability(availability, form.startTime, form.endTime),
   );
+  const selectedAvailability = matchingApprovedSlots.find(
+    (availability) => !availability.campus || availability.campus === form.campus,
+  );
+  const availabilityLabel = !matchingPlan
+    ? "Chưa chọn buổi"
+    : selectedAvailability
+      ? "Phù hợp"
+      : matchingApprovedSlots.length
+        ? "Khác cơ sở"
+        : "Ngoài lịch rảnh";
 
   const selectedClass = assignableClasses.find(
     (item) => item.id === form.classId,
@@ -274,7 +282,9 @@ export default function TeacherAssignmentView() {
     if (!selectedAvailability) {
       setMessage({
         type: "error",
-        text: "Khung giờ đã chọn không nằm trọn trong lịch rảnh đã được duyệt của giáo viên.",
+        text: matchingApprovedSlots.length
+          ? "Giáo viên rảnh đúng giờ nhưng chưa đăng ký/được duyệt lịch rảnh tại cơ sở đã chọn."
+          : "Giáo viên chưa có lịch rảnh được duyệt bao phủ đúng ngày và khung giờ buổi học này.",
       });
       return;
     }
@@ -709,11 +719,9 @@ export default function TeacherAssignmentView() {
                   <Clock3 size={14} />
                   Kiểm tra lịch rảnh
                 </span>
-                {selectedAvailability ? (
-                  <StatusBadge tone="emerald">Phù hợp</StatusBadge>
-                ) : (
-                  <StatusBadge tone="amber">Ngoài lịch rảnh</StatusBadge>
-                )}
+                <StatusBadge tone={matchingPlan && selectedAvailability ? "emerald" : "amber"}>
+                  {availabilityLabel}
+                </StatusBadge>
               </div>
               <div className="flex items-center justify-between gap-2">
                 <span className="inline-flex items-center gap-1.5 text-xs text-slate-500">
@@ -727,6 +735,15 @@ export default function TeacherAssignmentView() {
                 )}
               </div>
             </div>
+            <p className="text-[11px] leading-5 text-slate-500">
+              Kiểm tra phía trên chỉ áp dụng cho
+              {matchingPlan
+                ? ` buổi ${form.date} ${form.startTime}–${form.endTime}`
+                : " buổi được chọn ở ô Buổi học trong kế hoạch"}.
+              Phân công toàn khóa sẽ kiểm tra riêng từng ngày, gồm lịch rảnh đã duyệt,
+              cơ sở và lịch dạy ở các lớp khác. Lịch rảnh hợp lệ không đồng nghĩa
+              không trùng lịch dạy.
+            </p>
 
             {message && (
               <div
