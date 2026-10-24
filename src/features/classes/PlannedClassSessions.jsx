@@ -138,8 +138,17 @@ export default function PlannedClassSessions({
           String(day.getMonth() + 1).padStart(2, "0"),
           String(day.getDate()).padStart(2, "0"),
         ].join("-");
-        result.push({ date, startTime: from, endTime: to });
+        const proposed = { date, startTime: from, endTime: to };
+        // Extending an ongoing course must not synthesize lessons in the past.
+        if (classItem.status !== "RUNNING" ||
+            new Date(`${date}T${from}:00+07:00`).getTime() > Date.now()) {
+          result.push(proposed);
+        }
       }
+    }
+    if (!result.length) {
+      setError("Không có buổi tương lai phù hợp trong khoảng thời gian hiện tại của lớp.");
+      return;
     }
     append(result);
   }
