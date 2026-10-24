@@ -10,6 +10,7 @@ import {
   Users,
 } from "lucide-react";
 import Button from "../../components/ui/Button";
+import RangeStaffingPanel from "./RangeStaffingPanel";
 import { schedulingApi } from "../../services/api";
 import { classApi } from "../../services/classApi";
 import { addDays, iso, mondayOf } from "./schedulingUtils";
@@ -209,18 +210,26 @@ export default function TeacherAssignmentView() {
   );
 
   const selectedDay = weekDays.find((day) => day.date === form.date);
-  const selectedAvailability = teacherAvailability.find(
+  // This indicator describes only the lesson selected in the weekly form.
+  // Course-wide validation is performed separately for each lesson by BE.
+  const matchingApprovedSlots = teacherAvailability.filter(
     (availability) =>
       availability.teacherId === selectedTeacherId &&
       availability.day === selectedDay?.key &&
       (!availability.availableDate ||
         availability.availableDate === form.date) &&
-      isInsideAvailability(
-        availability,
-        form.startTime,
-        form.endTime,
-      ),
+      isInsideAvailability(availability, form.startTime, form.endTime),
   );
+  const selectedAvailability = matchingApprovedSlots.find(
+    (availability) => !availability.campus || availability.campus === form.campus,
+  );
+  const availabilityLabel = !matchingPlan
+    ? "Chưa chọn buổi"
+    : selectedAvailability
+      ? "Phù hợp"
+      : matchingApprovedSlots.length
+        ? "Khác cơ sở"
+        : "Ngoài lịch rảnh";
 
   const selectedClass = assignableClasses.find(
     (item) => item.id === form.classId,
@@ -273,7 +282,9 @@ export default function TeacherAssignmentView() {
     if (!selectedAvailability) {
       setMessage({
         type: "error",
-        text: "Khung giờ đã chọn không nằm trọn trong lịch rảnh đã được duyệt của giáo viên.",
+        text: matchingApprovedSlots.length
+          ? "Giáo viên rảnh đúng giờ nhưng chưa đăng ký/được duyệt lịch rảnh tại cơ sở đã chọn."
+          : "Giáo viên chưa có lịch rảnh được duyệt bao phủ đúng ngày và khung giờ buổi học này.",
       });
       return;
     }
@@ -341,16 +352,30 @@ export default function TeacherAssignmentView() {
     }
   }
 
+  async function cancelTeacherAssignment(schedule) {
+    if (!window.confirm("Hủy phân công giáo viên riêng buổi này? Lịch sử vẫn được giữ lại.")) return;
+    try {
+      await schedulingApi.cancelTeacher(schedule.id);
+      setMessage({ type: "success", text: "Đã hủy phân công buổi này. Lịch học vẫn được giữ lại." });
+      await loadData();
+    } catch (error) {
+      setMessage({ type: "error", text: error?.message || "Không thể hủy phân công." });
+    }
+  }
+
   async function replaceTeacher(schedule) {
     if (!selectedTeacherId || selectedTeacherId === schedule.teacherId) return;
     if (!window.confirm("Đổi giáo viên cho buổi này sang giáo viên đang chọn?")) return;
     try {
-      await schedulingApi.updateTeacher(schedule.id, {
-        teacherId: selectedTeacherId, classId: schedule.classId,
-        date: schedule.date, startTime: schedule.startTime,
-        endTime: schedule.endTime, campus: form.campus,
+      const sessions = await classApi.plannedSessions(schedule.classId);
+      const lesson = (sessions || []).find((slot) =>
+        slot.status === "PLANNED" && planKey(slot) === planKey(schedule));
+      if (!lesson) throw new Error("Không tìm thấy buổi học đang hoạt động để thay giáo viên.");
+      await classApi.assignStaffingRange(schedule.classId, {
+        role: "TEACHER", employeeId: selectedTeacherId,
+        campus: form.campus, mode: "REPLACE", sessionIds: [lesson.id],
       });
-      setMessage({ type: "success", text: "Đã thay giáo viên, giữ nguyên lịch học của lớp." });
+      setMessage({ type: "success", text: "Đã tạo phân công giáo viên thay thế cho riêng buổi này và giữ lịch sử cũ." });
       await loadData();
     } catch (error) {
       setMessage({ type: "error", text: error.message || "Không thay được giáo viên." });
@@ -566,10 +591,16 @@ export default function TeacherAssignmentView() {
                               <span className="block truncate text-[10px] text-slate-500">
                                 {classItem?.classCode}
                               </span>
-                              <button type="button" className="mt-1 text-[10px] underline text-blue-700"
-                                onClick={() => replaceTeacher(schedule)}>
-                                Đổi sang giáo viên đang chọn
-                              </button>
+                              <div className="mt-1 flex flex-wrap gap-2">
+                                <button type="button" className="text-[10px] underline text-blue-700"
+                                  onClick={() => replaceTeacher(schedule)}>
+                                  Đổi giáo viên
+                                </button>
+                                <button type="button" className="text-[10px] underline text-rose-700"
+                                  onClick={() => cancelTeacherAssignment(schedule)}>
+                                  Hủy phân công
+                                </button>
+                              </div>
                             </div>
                           );
                         })}
@@ -688,24 +719,33 @@ export default function TeacherAssignmentView() {
                   <Clock3 size={14} />
                   Kiểm tra lịch rảnh
                 </span>
-                {selectedAvailability ? (
-                  <StatusBadge tone="emerald">Phù hợp</StatusBadge>
-                ) : (
-                  <StatusBadge tone="amber">Ngoài lịch rảnh</StatusBadge>
-                )}
+                <StatusBadge tone={matchingPlan && selectedAvailability ? "emerald" : "amber"}>
+                  {availabilityLabel}
+                </StatusBadge>
               </div>
               <div className="flex items-center justify-between gap-2">
                 <span className="inline-flex items-center gap-1.5 text-xs text-slate-500">
                   <Users size={14} />
                   Trùng lịch dạy
                 </span>
-                {conflictingSchedule ? (
+                {!matchingPlan ? (
+                  <StatusBadge tone="amber">Chưa chọn buổi</StatusBadge>
+                ) : conflictingSchedule ? (
                   <StatusBadge tone="amber">Có xung đột</StatusBadge>
                 ) : (
-                  <StatusBadge tone="emerald">Không xung đột</StatusBadge>
+                  <StatusBadge tone="emerald">Không xung đột buổi này</StatusBadge>
                 )}
               </div>
             </div>
+            <p className="text-[11px] leading-5 text-slate-500">
+              Kiểm tra phía trên chỉ áp dụng cho
+              {matchingPlan
+                ? ` buổi ${form.date} ${form.startTime}–${form.endTime}`
+                : " buổi được chọn ở ô Buổi học trong kế hoạch"}.
+              Phân công toàn khóa sẽ kiểm tra riêng từng ngày, gồm lịch rảnh đã duyệt,
+              cơ sở và lịch dạy ở các lớp khác. Lịch rảnh hợp lệ không đồng nghĩa
+              không trùng lịch dạy.
+            </p>
 
             {message && (
               <div
@@ -723,6 +763,16 @@ export default function TeacherAssignmentView() {
               </div>
             )}
 
+            <RangeStaffingPanel
+              role="TEACHER"
+              classId={form.classId}
+              employeeId={selectedTeacherId}
+              employeeName={selectedTeacher?.fullName}
+              campus={form.campus}
+              singleSessionId={matchingPlan?.id}
+              onApplied={loadData}
+            />
+            <p className="text-[11px] font-medium text-slate-500">Phân công nhanh trong tuần đang xem</p>
             <Button
               variant="primary"
               className="w-full"
@@ -730,7 +780,7 @@ export default function TeacherAssignmentView() {
               disabled={!selectedTeacherId || !form.classId || !matchingPlan}
             >
               <UserCheck size={16} />
-              Xác nhận phân công
+              Phân công riêng buổi đã chọn
             </Button>
             <Button className="w-full" onClick={assignWeek}
               disabled={!selectedTeacherId || !form.classId || !uncoveredSlots.length}>

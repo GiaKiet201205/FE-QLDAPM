@@ -100,6 +100,7 @@ function mapClassSummary(item) {
     createdAt: item.createdAt,
     studentCount: item.studentCount,
     teacherNames: item.teacherNames ?? [],
+    csAccessLevel: item.csAccessLevel ?? null,
   };
 }
 
@@ -115,6 +116,7 @@ function mapClassDetail(detail) {
     status: detail.status,
     createdBy: detail.createdBy,
     createdAt: detail.createdAt,
+    csAccessLevel: detail.csAccessLevel ?? null,
   };
 
   return {
