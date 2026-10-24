@@ -166,6 +166,11 @@ export default function PlannedClassSessions({
   }
 
   function remove(item) {
+    if (classItem.status === "READY" &&
+        new Date(`${item.date}T${item.startTime}:00+07:00`).getTime() <= Date.now()) {
+      setError("Buổi học đã qua cần giữ lịch sử; không thể xóa khỏi kế hoạch.");
+      return;
+    }
     if (!canRemove) {
       setError("Lớp đang học chỉ được bổ sung buổi tương lai; muốn dời/hủy phải dùng luồng điều chỉnh buổi.");
       return;
@@ -312,7 +317,9 @@ export default function PlannedClassSessions({
                 assigned.has(slotKey(item)) ?
                   <span className="text-emerald-700">Đã phân công</span> :
                   <span className="text-slate-500">Chưa phân công</span>}
-              {canRemove && item.status === "PLANNED" ?
+              {canRemove && item.status === "PLANNED" &&
+                (classItem.status !== "READY" ||
+                new Date(`${item.date}T${item.startTime}:00+07:00`).getTime() > Date.now()) ?
                 <button type="button" className="text-red-600 hover:underline"
                   onClick={() => remove(item)}>Bỏ</button> : null}
               {canReschedule && item.status === "PLANNED" && (item.date > todayIso || (item.date === todayIso && item.startTime > new Date().toTimeString().slice(0, 5))) ?
