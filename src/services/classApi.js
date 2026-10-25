@@ -4,6 +4,33 @@ export const classApi = {
   list: () => apiRequest("/classes"),
   detail: (classId) => apiRequest(`/classes/${classId}`),
   courses: () => apiRequest("/classes/courses"),
+  plannedSessions: (classId) =>
+    apiRequest(`/classes/${classId}/planned-sessions`),
+  savePlannedSessions: (classId, sessions) =>
+    apiRequest(`/classes/${classId}/planned-sessions`, {
+      method: "PUT",
+      body: JSON.stringify(sessions),
+    }),
+  teacherAttendance: (classId) =>
+    apiRequest(`/classes/${classId}/teacher-attendance`),
+  markTeacherAttendance: (classId, teachingScheduleId, status) =>
+    apiRequest(`/classes/${classId}/teacher-attendance/${teachingScheduleId}`, {
+      method: "PUT",
+      body: JSON.stringify({ status }),
+    }),
+  staffingCoverage: (classId, role) =>
+    apiRequest(`/class-planning/${classId}/staffing?role=${encodeURIComponent(role)}`),
+  assignStaffingRange: (classId, request) =>
+    apiRequest(`/class-planning/${classId}/staffing`, {
+      method: "POST",
+      body: JSON.stringify(request),
+    }),
+  planningClasses: () => apiRequest("/class-planning"),
+  reschedule: (classId, body) =>
+    apiRequest(`/classes/${classId}/reschedule`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
   create: (payload) =>
     apiRequest("/classes", {
       method: "POST",

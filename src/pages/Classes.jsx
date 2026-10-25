@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import ClassesView from "../features/classes/ClassesView";
 import ClassFormModal from "../features/classes/ClassFormModal";
 import SupportOverrideModal from "../features/classes/SupportOverrideModal";
@@ -19,8 +19,9 @@ export default function Classes({ role }) {
   const isAdmin = roleKey === "ADMIN";
   const isCs = roleKey === "CS";
   const isTeacher = roleKey === "TEACHER";
-  const canManageCore = isAdmin || isCs;
-  const canManageStudents = isAdmin || isCs;
+  // All CS can create Draft classes, but only an explicit class-level
+  // scope lets them manage an existing class (not a single support shift).
+  const canCreateClass = isAdmin || isCs;
   const canTeach = isTeacher;
 
   const {
@@ -36,6 +37,7 @@ export default function Classes({ role }) {
     auditLogs,
     courses: apiCourses,
     loadError,
+    refreshData,
     getStudentClassEligibility,
     getClassStudentCandidates,
     assignStudentsToClass,
@@ -66,6 +68,12 @@ export default function Classes({ role }) {
   const [editingActivity, setEditingActivity] = useState(null);
   const [grading, setGrading] = useState(false);
   const [message, setMessage] = useState("");
+
+  // Refresh the role-scoped roster and staff assignments when returning to
+  // Classes from TC/CM screens in the same authenticated layout.
+  useEffect(() => {
+    refreshData().catch(() => {});
+  }, [refreshData]);
 
   const courseOptions = apiCourses.length ? apiCourses : fallbackCourses;
 
@@ -100,9 +108,16 @@ export default function Classes({ role }) {
   const visible = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const selected =
     scopedClasses.find((classItem) => classItem.id === selectedId) ?? null;
+  const canManageSelected =
+    isAdmin ||
+    (isCs && selected && (
+      selected.csAccessLevel === "MANAGER" ||
+      (selected.csAccessLevel === "CREATOR" &&
+        ["DRAFT", "READY"].includes(selected.status))
+    ));
 
   const canModifySelectedRoster =
-    canManageStudents &&
+    canManageSelected &&
     selected &&
     assignableClassStatuses.includes(selected.status);
 
@@ -221,17 +236,18 @@ export default function Classes({ role }) {
 
     if (!result.ok) {
       setMessage(result.reason);
-      return;
+      throw new Error(result.reason || 'Không thể lưu lớp.');
     }
 
     setSelectedId(editing?.id ?? result.classItem?.id ?? null);
     setEditing(undefined);
     setTab("Overview");
     setMessage("");
+    return true;
   }
 
   async function advanceStatus(nextStatus) {
-    if (!selected || !canManageCore) return;
+    if (!selected || !canManageSelected) return;
 
     const result = await advanceClassStatus(selected.id, nextStatus);
     if (!result.ok) {
@@ -414,8 +430,9 @@ export default function Classes({ role }) {
     <>
       <ClassesView
         roleKey={roleKey}
-        canManageCore={canManageCore}
-        canManageStudents={canManageStudents}
+        canManageCore={canManageSelected}
+        canManageStudents={canManageSelected}
+        onPlannedSessionsChanged={refreshData}
         canTeach={canTeach}
         search={search}
         onSearch={(value) => changeFilter(setSearch, value)}
@@ -425,7 +442,7 @@ export default function Classes({ role }) {
         onStatus={(value) => changeFilter(setStatus, value)}
         courses={courseOptions}
         onExport={exportCsv}
-        onCreate={canManageCore ? () => setEditing(null) : undefined}
+        onCreate={canCreateClass ? () => setEditing(null) : undefined}
         visible={visible}
         onSelect={(id) => {
           setSelectedId(id);
@@ -442,7 +459,7 @@ export default function Classes({ role }) {
         setTab={setTab}
         onCloseDetail={() => setSelectedId(null)}
         onEdit={
-          canManageCore && selected && selected.status !== "CLOSED"
+          canManageSelected && selected && selected.status !== "CLOSED"
             ? () => {
                 const requiredTargets = classTargetRequirements
                   .filter(
@@ -464,7 +481,7 @@ export default function Classes({ role }) {
             : undefined
         }
         onAdvanceStatus={
-          canManageCore && selected?.status !== "CLOSED"
+          canManageSelected && selected?.status !== "CLOSED"
             ? advanceStatus
             : undefined
         }

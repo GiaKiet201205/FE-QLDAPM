@@ -1,3 +1,5 @@
+import PlannedClassSessions from "./PlannedClassSessions";
+import TeacherAttendanceTab from "./TeacherAttendanceTab";
 import {
   ChevronDown,
   Download,
@@ -518,6 +520,7 @@ function ClassDetail({
   tab,
   setTab,
   onClose,
+  onPlannedSessionsChanged,
   onEdit,
   onAdvanceStatus,
   students,
@@ -549,6 +552,7 @@ function ClassDetail({
         { key: "Overview", label: "Overview" },
         { key: "Students", label: "Students" },
         { key: "Schedule", label: "Schedule" },
+        ...(roleKey === "CS" ? [{ key: "TeacherAttendance", label: "Điểm danh GV" }] : []),
         ...(roleKey !== "TEACHER"
           ? [
               {
@@ -601,6 +605,15 @@ function ClassDetail({
             <strong className="block text-sm font-semibold text-slate-900">
               {classItem.name}
             </strong>
+            {roleKey === "CS" && (
+              <p className="mt-1 text-[11px] text-slate-500">
+                {classItem.csAccessLevel === "MANAGER"
+                  ? "Quyền: CS phụ trách toàn khóa. Điểm danh các buổi có lịch hỗ trợ của chính mình."
+                  : classItem.csAccessLevel === "CREATOR"
+                    ? "Quyền: CS tạo lớp. Có thể chuẩn bị lớp trước khi RUNNING; chỉ được điểm danh những buổi được CM phân công."
+                    : "Quyền: CS hỗ trợ từng buổi. Được xem lớp, không có quyền sửa toàn bộ lớp."}
+              </p>
+            )}
             <div className="mt-1 flex flex-wrap items-center gap-2">
               <span className="font-mono text-xs text-slate-400">
                 {classItem.classCode}
@@ -683,7 +696,20 @@ function ClassDetail({
           )}
 
           {tab === "Schedule" && (
-            <ScheduleTab schedules={teachingSchedules} />
+            <div className="space-y-4">
+              <PlannedClassSessions
+                classItem={classItem}
+                canManage={canManageCore}
+                teachingSchedules={teachingSchedules}
+                supportSchedules={supportSchedules}
+                onChanged={onPlannedSessionsChanged}
+              />
+              <ScheduleTab schedules={teachingSchedules} />
+            </div>
+          )}
+
+          {tab === "TeacherAttendance" && roleKey === "CS" && (
+            <TeacherAttendanceTab classId={classItem.id} />
           )}
 
           {tab === "Support" && roleKey !== "TEACHER" && (
@@ -735,6 +761,7 @@ function ClassDetail({
 export default function ClassesView({
   roleKey,
   canManageCore,
+  onPlannedSessionsChanged,
   search,
   onSearch,
   course,
@@ -779,12 +806,27 @@ export default function ClassesView({
   auditLogs,
   message,
 }) {
+  const csAccessLabels = {
+    CREATOR: "CS tạo lớp",
+    MANAGER: "Phụ trách toàn khóa",
+    SUPPORT: "Hỗ trợ từng buổi",
+  };
   const columns = [
     {
       key: "classCode",
       label: "Class Code",
       width: "w-[16%]",
       cellClassName: "font-mono text-xs",
+      render: (item) => (
+        <div className="space-y-1">
+          <span>{item.classCode}</span>
+          {roleKey === "CS" && (
+            <span className="block text-[10px] font-medium text-slate-500">
+              {csAccessLabels[item.csAccessLevel] || "Chỉ xem"}
+            </span>
+          )}
+        </div>
+      ),
     },
     {
       key: "name",
@@ -826,7 +868,7 @@ export default function ClassesView({
         {roleKey === "ADMIN"
           ? "Admin view: all classes and system-level supervision."
           : roleKey === "CS"
-            ? "CS view: classes within your assigned support scope or created by you."
+            ? "Lớp CS được tạo hoặc có phân công: nhãn dưới mã lớp cho biết quyền tạo lớp, phụ trách toàn khóa hay chỉ hỗ trợ từng buổi. Quyền điểm danh phụ thuộc đúng buổi được CM phân công."
             : "Teacher view: only classes assigned through TeachingSchedule."}
       </div>
 
@@ -906,6 +948,7 @@ export default function ClassesView({
           classItem={selected}
           roleKey={roleKey}
           canManageCore={canManageCore}
+          onPlannedSessionsChanged={onPlannedSessionsChanged}
           tab={tab}
           setTab={setTab}
           onClose={onCloseDetail}

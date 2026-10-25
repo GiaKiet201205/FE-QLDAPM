@@ -235,7 +235,9 @@ export async function apiRequest(
       response.status === 401 &&
       path !== '/auth/login'
     ) {
-      handleUnauthorized()
+      // A failed request from a previous login must not clear a newer session.
+      const currentToken = getAccessToken()
+      if (!currentToken || currentToken === token) handleUnauthorized()
     }
 
     let message =
@@ -263,7 +265,6 @@ export async function apiRequest(
 
   return body
 }
-
 /* =========================================================
    AUTH
 ========================================================= */
@@ -495,6 +496,19 @@ export const schedulingApi = {
   /* =======================================================
      TC ASSIGN TEACHER
   ======================================================= */
+
+  assignTeacherBatch(body) {
+    return apiRequest('/teaching-schedules/batch', { method: 'POST', body: JSON.stringify(body) })
+  },
+  assignSupportBatch(body) {
+    return apiRequest('/staff-schedules/batch', { method: 'POST', body: JSON.stringify(body) })
+  },
+  updateTeacher(id, body) {
+    return apiRequest(`/teaching-schedules/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(body) })
+  },
+  updateStaff(id, body) {
+    return apiRequest(`/staff-schedules/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(body) })
+  },
 
   assignTeacher(body) {
     return apiRequest(

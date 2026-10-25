@@ -1,7 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Button from "../../components/ui/Button";
 import Modal from "../../components/ui/Modal";
-import { csUsers } from "./mockClassOperations";
+import { schedulingApi } from "../../services/api";
 
 const inputClass =
   "h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-[13px] font-normal text-slate-800 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100";
@@ -16,8 +16,25 @@ export default function SupportOverrideModal({
   onClose,
   onConfirm,
 }) {
-  const alternatives = csUsers.filter((user) => user.id !== schedule.userId);
-  const [newCsId, setNewCsId] = useState(alternatives[0]?.id ?? "");
+  const [alternatives, setAlternatives] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [newCsId, setNewCsId] = useState("");
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    schedulingApi.employees("CS").then((rows) => {
+      if (!active) return;
+      const choices = (rows || []).filter((user) =>
+        (user.employeeId || user.id) !== (schedule.userId || schedule.employeeId));
+      setAlternatives(choices);
+      setNewCsId(choices[0]?.employeeId || choices[0]?.id || "");
+      setLoadError("");
+    }).catch((error) => {
+      if (active) setLoadError(error.message || "Không thể tải danh sách CS từ hệ thống.");
+    }).finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [schedule.userId, schedule.employeeId]);
   const [reason, setReason] = useState("");
   const [allowConflict, setAllowConflict] = useState(false);
 
@@ -71,6 +88,7 @@ export default function SupportOverrideModal({
           </span>
         </div>
 
+        {loadError && <p role="alert" className="text-xs text-red-700">{loadError}</p>}
         <label className="grid gap-1.5 text-[13px] font-medium">
           Replacement CS
           <select
@@ -83,7 +101,7 @@ export default function SupportOverrideModal({
             required
           >
             {alternatives.map((user) => (
-              <option key={user.id} value={user.id}>
+              <option key={user.employeeId || user.id} value={user.employeeId || user.id}>
                 {user.fullName} · {user.employeeCode}
               </option>
             ))}
@@ -138,7 +156,7 @@ export default function SupportOverrideModal({
             type="submit"
             variant="primary"
             disabled={
-              !newCsId ||
+              loading || !!loadError || !newCsId ||
               !reason.trim() ||
               (conflicts.length > 0 && !allowConflict)
             }

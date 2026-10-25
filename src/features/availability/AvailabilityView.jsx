@@ -17,16 +17,6 @@ import {
   weekDayDefinitions,
 } from "./mockAvailability";
 
-const dateByDay = {
-  mon: "14/10",
-  tue: "15/10",
-  wed: "16/10",
-  thu: "17/10",
-  fri: "18/10",
-  sat: "19/10",
-  sun: "20/10",
-};
-
 function StatusLegend({ tone, label }) {
   return (
     <span className="inline-flex items-center gap-1.5 text-xs text-slate-500">
@@ -38,11 +28,16 @@ function StatusLegend({ tone, label }) {
 
 function SlotCard({ slot, selected, onSelect }) {
   const pending = slot.status === "pending";
+  const rejected = slot.status === "rejected";
+  const label = rejected ? "Đã từ chối" : pending ? "Chờ duyệt" : "Đã duyệt";
+  const dot = rejected ? "bg-red-500" : pending ? "bg-amber-500" : "bg-blue-500";
   const styleClass = selected
     ? "border-[#173557] bg-[#edf3f9] ring-1 ring-[#173557]"
-    : pending
-      ? "border-amber-300 bg-amber-50 hover:bg-amber-100"
-      : "border-blue-200 bg-blue-50 hover:bg-blue-100";
+    : rejected
+      ? "border-red-200 bg-red-50 hover:bg-red-100"
+      : pending
+        ? "border-amber-300 bg-amber-50 hover:bg-amber-100"
+        : "border-blue-200 bg-blue-50 hover:bg-blue-100";
 
   return (
     <button
@@ -53,16 +48,16 @@ function SlotCard({ slot, selected, onSelect }) {
       <span
         className={
           "mb-1 flex items-center gap-1.5 text-[11px] font-semibold " +
-          (pending ? "text-amber-800" : "text-[#173557]")
+          (rejected ? "text-red-700" : pending ? "text-amber-800" : "text-[#173557]")
         }
       >
         <span
           className={
             "h-1.5 w-1.5 rounded-full " +
-            (pending ? "bg-amber-500" : "bg-blue-500")
+            dot
           }
         />
-        {pending ? "Chờ duyệt" : "Đã đăng ký"}
+        {label}
       </span>
       <span className="block text-xs font-medium text-slate-700">
         {slot.start} – {slot.end}
@@ -88,9 +83,24 @@ export default function AvailabilityView({
   onEdit,
   onDelete,
   onResetDemo,
+  weekDays = weekDayDefinitions,
+  weekLabel = "",
+  onPreviousWeek,
+  onNextWeek,
+  loading = false,
+  error = "",
+  actionMessage = "",
+  personName = "Tài khoản hiện tại",
+  roleLabel = "",
 }) {
   const selected = slots.find((slot) => slot.id === selectedId) || null;
-  const totalHours = slots.reduce(
+  const dateByDay = Object.fromEntries(
+    weekDays.map((day) => [day.key, day.displayDate || day.date || ""]),
+  );
+  const activeSlots = slots.filter((slot) => slot.status !== "rejected");
+  const approvedCount = slots.filter((slot) => slot.status === "verified").length;
+  const pendingCount = slots.filter((slot) => slot.status === "pending").length;
+  const totalHours = activeSlots.reduce(
     (sum, slot) => sum + getDurationHours(slot.start, slot.end),
     0,
   );
@@ -109,7 +119,7 @@ export default function AvailabilityView({
         <div className="flex flex-wrap items-center gap-2">
           <Button onClick={onResetDemo}>
             <RotateCcw size={15} />
-            Khôi phục mẫu
+            Làm mới
           </Button>
           <Button variant="primary" onClick={onAdd}>
             <Plus size={16} />
@@ -118,13 +128,28 @@ export default function AvailabilityView({
         </div>
       </section>
 
+      {(loading || error || actionMessage) && (
+        <div
+          className={
+            "mb-4 rounded-lg border px-4 py-3 text-sm " +
+            (error
+              ? "border-red-200 bg-red-50 text-red-700"
+              : actionMessage
+                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                : "border-slate-200 bg-white text-slate-500")
+          }
+        >
+          {error || actionMessage || "Đang tải lịch rảnh..."}
+        </div>
+      )}
+
       <section className="mb-4 grid gap-3 sm:grid-cols-3">
         <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <span className="text-xs font-medium uppercase tracking-wide text-slate-400">
             Số khung giờ
           </span>
           <strong className="mt-1 block text-2xl font-semibold text-slate-900">
-            {slots.length}
+            {activeSlots.length}
           </strong>
           <span className="text-xs text-slate-500">đã đăng ký trong tuần</span>
         </div>
@@ -135,18 +160,20 @@ export default function AvailabilityView({
           <strong className="mt-1 block text-2xl font-semibold text-slate-900">
             {totalHours.toFixed(1)}h
           </strong>
-          <span className="text-xs text-slate-500">mục tiêu gợi ý 16–22h</span>
+          <span className="text-xs text-slate-500">Không bao gồm lịch bị từ chối</span>
         </div>
         <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <span className="text-xs font-medium uppercase tracking-wide text-slate-400">
             Trạng thái
           </span>
-          <strong className="mt-1 flex items-center gap-2 text-sm font-semibold text-emerald-700">
-            <CheckCircle2 size={17} />
-            Đã gửi lịch tuần này
+          <strong className={"mt-1 flex items-center gap-2 text-sm font-semibold " +
+            (activeSlots.length === 0 ? "text-slate-500" : pendingCount ? "text-amber-700" : "text-emerald-700")}>
+            {activeSlots.length === 0 ? <Info size={17} /> :
+              pendingCount ? <Clock3 size={17} /> : <CheckCircle2 size={17} />}
+            {activeSlots.length === 0 ? "Chưa có lịch hợp lệ" : pendingCount > 0 ? "Có lịch đang chờ duyệt" : "Đã xử lý các lịch đăng ký"}
           </strong>
           <span className="text-xs text-slate-500">
-            {slots.filter((slot) => slot.status === "pending").length} khung giờ đang chờ duyệt
+            {approvedCount} đã duyệt · {pendingCount} chờ duyệt · {slots.length - activeSlots.length} từ chối
           </span>
         </div>
       </section>
@@ -154,23 +181,24 @@ export default function AvailabilityView({
       <section className="mb-4 flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm xl:flex-row xl:items-center xl:justify-between">
         <div className="flex flex-wrap items-center gap-2">
           <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
-            <span className="text-slate-400">Học kỳ:</span>{" "}
-            <strong className="font-semibold text-slate-700">HK1 2024</strong>
+            <span className="text-slate-400">Năm:</span>{" "}
+            <strong className="font-semibold text-slate-700">{weekDays[0]?.date?.slice(0, 4) || "—"}</strong>
           </div>
           <div className="flex items-center rounded-md border border-slate-200 bg-white">
-            <button type="button" className="px-2.5 py-2 text-slate-400 hover:bg-slate-50" aria-label="Tuần trước">
+            <button type="button" onClick={onPreviousWeek} className="px-2.5 py-2 text-slate-400 hover:bg-slate-50" aria-label="Tuần trước">
               <ChevronLeft size={15} />
             </button>
             <span className="border-x border-slate-200 px-4 py-2 text-xs font-medium text-slate-700">
-              Tuần 42 · 14/10 – 20/10/2024
+              {weekLabel}
             </span>
-            <button type="button" className="px-2.5 py-2 text-slate-400 hover:bg-slate-50" aria-label="Tuần sau">
+            <button type="button" onClick={onNextWeek} className="px-2.5 py-2 text-slate-400 hover:bg-slate-50" aria-label="Tuần sau">
               <ChevronRight size={15} />
             </button>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-4 px-1">
-          <StatusLegend tone="bg-blue-500" label="Đã đăng ký" />
+          <StatusLegend tone="bg-blue-500" label="Đã duyệt" />
+          <StatusLegend tone="bg-red-500" label="Đã từ chối" />
           <StatusLegend tone="bg-amber-500" label="Chờ duyệt" />
           <StatusLegend tone="bg-slate-300" label="Chưa đăng ký" />
         </div>
@@ -191,7 +219,7 @@ export default function AvailabilityView({
                 <div className="px-3 py-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                   Ca / Giờ
                 </div>
-                {weekDayDefinitions.map((day) => (
+                {weekDays.map((day) => (
                   <div key={day.key} className="border-l border-slate-200 px-2 py-2.5 text-center">
                     <strong className="block text-xs font-semibold text-slate-700">{day.label}</strong>
                     <span className="text-[11px] text-slate-400">{dateByDay[day.key]}</span>
@@ -209,17 +237,22 @@ export default function AvailabilityView({
                     <span className="text-[11px] text-slate-400">{shift.range}</span>
                   </div>
                   {weekDayDefinitions.map((day) => {
-                    const slot = slots.find(
-                      (item) => item.day === day.key && item.shift === shift.key,
-                    );
+                    const matchingSlots = slots
+                      .filter((item) => item.day === day.key && item.shift === shift.key)
+                      .sort((a, b) => a.start.localeCompare(b.start));
                     return (
                       <div key={day.key} className="flex min-h-28 items-center border-l border-slate-200 p-2">
-                        {slot ? (
-                          <SlotCard
-                            slot={slot}
-                            selected={selectedId === slot.id}
-                            onSelect={onSelect}
-                          />
+                        {matchingSlots.length > 0 ? (
+                          <div className="flex w-full flex-col gap-1.5">
+                            {matchingSlots.map((slot) => (
+                              <SlotCard
+                                key={slot.id}
+                                slot={slot}
+                                selected={selectedId === slot.id}
+                                onSelect={onSelect}
+                              />
+                            ))}
+                          </div>
                         ) : (
                           <div className="w-full text-center text-lg text-slate-300">—</div>
                         )}
@@ -252,27 +285,27 @@ export default function AvailabilityView({
               <span
                 className={
                   "inline-flex items-center gap-1.5 text-xs font-medium " +
-                  (selected.status === "pending" ? "text-amber-700" : "text-emerald-700")
+                  (selected.status === "rejected" ? "text-red-700" : selected.status === "pending" ? "text-amber-700" : "text-emerald-700")
                 }
               >
                 <span
                   className={
                     "h-1.5 w-1.5 rounded-full " +
-                    (selected.status === "pending" ? "bg-amber-500" : "bg-emerald-500")
+                    (selected.status === "rejected" ? "bg-red-500" : selected.status === "pending" ? "bg-amber-500" : "bg-emerald-500")
                   }
                 />
-                {selected.status === "pending" ? "Chờ duyệt" : "Đã xác nhận"}
+                {selected.status === "rejected" ? "Đã từ chối" : selected.status === "pending" ? "Chờ duyệt" : "Đã duyệt"}
               </span>
             )}
           </div>
 
           {selected ? (
             <div className="p-4">
-              <DetailRow label="Nhân sự">Nguyễn Phát Tín</DetailRow>
-              <DetailRow label="Vai trò">Giáo viên</DetailRow>
+              <DetailRow label="Nhân sự">{personName}</DetailRow>
+              <DetailRow label="Vai trò">{roleLabel || "—"}</DetailRow>
               <DetailRow label="Ngày">
-                {weekDayDefinitions.find((day) => day.key === selected.day)?.label || selected.day},
-                {" "}{dateByDay[selected.day]}/2024
+                {weekDays.find((day) => day.key === selected.day)?.label || selected.day},
+                {" "}{weekDays.find((day) => day.key === selected.day)?.date || dateByDay[selected.day]}
               </DetailRow>
               <DetailRow label="Ca">
                 {shiftDefinitions.find((shift) => shift.key === selected.shift)?.label || selected.shift}
@@ -313,7 +346,7 @@ export default function AvailabilityView({
                 </div>
                 {selected.reviewedAt && (
                   <div className="flex justify-between gap-3 py-1 text-xs text-slate-500">
-                    <span>Đã duyệt</span>
+                    <span>{selected.status === "rejected" ? "Đã từ chối" : "Đã duyệt"}</span>
                     <span>{selected.reviewedAt}</span>
                   </div>
                 )}
