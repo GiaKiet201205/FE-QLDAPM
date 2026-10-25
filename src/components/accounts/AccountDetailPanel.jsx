@@ -6,7 +6,7 @@ export default function AccountDetailPanel({ account, onClose, onToggleLock, pen
   const fields = [
     ['Username', account.username],
     ['Employee ID', account.employeeId],
-    ['Employee code', account.code],
+    ['Employee Code', account.code],
     ['Full name', account.user],
     ['Email', account.email],
     ['Phone', account.phone],
@@ -28,7 +28,7 @@ export default function AccountDetailPanel({ account, onClose, onToggleLock, pen
         <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#173557] text-lg font-semibold text-white">{account.initials}</div>
         <div className="min-w-0">
           <p className="truncate font-semibold text-slate-900">{account.user}</p>
-          <p className="truncate text-xs text-slate-500">{account.code || '—'}</p>
+          <p className="truncate text-xs text-slate-500">{account.username}</p>
           <span className={`mt-1 inline-flex items-center gap-1.5 text-xs font-medium ${account.status === 'Active' ? 'text-green-600' : 'text-red-600'}`}>
             <span className={`h-1.5 w-1.5 rounded-full ${account.status === 'Active' ? 'bg-green-500' : 'bg-red-500'}`} />
             {account.status}

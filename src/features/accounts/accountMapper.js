@@ -11,6 +11,7 @@ export function mapAccountResponse(account) {
     employeeId: account.employeeId || '',
     code: account.employeeCode || '',
     phone: account.phone || '',
+    specialization: account.specialization || '',
     role: Object.keys(ACCOUNT_ROLE_MAP).find((label) => ACCOUNT_ROLE_MAP[label] === account.role) || account.role,
     status: account.status === 'ACTIVE' ? 'Active' : account.status === 'LOCKED' ? 'Locked' : account.status,
     initials: getInitials(name),

@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { Eye, EyeOff, LockKeyhole, ShieldCheck, UserRound } from 'lucide-react';
 import { toast } from 'react-toastify';
 import Button from '../components/ui/Button';
+import ProfileSalaryCard from '../components/profile/ProfileSalaryCard';
+import ProfileCertificates from '../components/profile/ProfileCertificates';
 import { useAccountData } from '../features/accounts/hooks/useAccountData';
 import { getInitials } from '../features/accounts/accountStore';
 import { ROLES } from '../config/roles';
@@ -39,7 +41,7 @@ export default function ProfilePage() {
 
 function ProfileEditor() {
   const { authUser, updateProfile, changePassword, loggingOut } = useAccountData();
-  const [form, setForm] = useState(() => ({ fullName: authUser.user, email: authUser.email, phone: authUser.phone }));
+  const [form, setForm] = useState(() => ({ fullName: authUser.user, email: authUser.email, phone: authUser.phone, specialization: authUser.specialization || '' }));
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
   const [passwords, setPasswords] = useState(emptyPasswords);
@@ -64,7 +66,7 @@ function ProfileEditor() {
     try {
       const result = await updateProfile(form);
       if (!result.ok) { setErrors(result.errors); return; }
-      setForm({ fullName: result.account.user, email: result.account.email, phone: result.account.phone });
+      setForm({ fullName: result.account.user, email: result.account.email, phone: result.account.phone, specialization: result.account.specialization });
       toast.success('Cập nhật thông tin cá nhân thành công!');
     } catch (error) {
       setErrors({ general: error.message || 'Không thể lưu thông tin cá nhân.' });
@@ -106,8 +108,6 @@ function ProfileEditor() {
 
   const accountFields = [
     ['Tên đăng nhập', authUser.username],
-    ['Employee ID', authUser.employeeId],
-    ['Mã nhân viên', authUser.code],
     ['Vai trò', role?.label || authUser.role],
     ['Ngày tạo tài khoản', authUser.createdDate],
   ];
@@ -137,25 +137,32 @@ function ProfileEditor() {
                 <input id="profile-email" name="email" type="email" autoComplete="email" required maxLength={100} disabled={busy} value={form.email} onChange={updateField} className={inputClass} aria-invalid={!!errors.email} />
               </Field>
             </div>
+            <Field id="profile-specialization" label="Chuyên môn" error={errors.specialization}>
+              <input id="profile-specialization" name="specialization" maxLength={100} disabled={busy} value={form.specialization} onChange={updateField} className={inputClass} placeholder="Ví dụ: TOEIC, IELTS, tư vấn tuyển sinh..." aria-invalid={!!errors.specialization} aria-describedby={errors.specialization ? 'profile-specialization-error' : undefined} />
+            </Field>
             {errors.general && <p role="alert" className="text-sm text-red-600">{errors.general}</p>}
             <div className="flex justify-end border-t border-slate-100 pt-4">
               <Button type="submit" variant="primary" disabled={busy}>{saving ? 'Đang lưu...' : 'Lưu thông tin'}</Button>
             </div>
           </form>
         </section>
-        <aside className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-          <h3 className="mb-4 flex items-center gap-2 text-base font-semibold text-slate-800"><ShieldCheck size={18} />Thông tin tài khoản</h3>
-          <dl className="space-y-4 text-sm">
-            {accountFields.map(([label, value]) => (
-              <div key={label}><dt className="mb-1 text-xs text-slate-400">{label}</dt><dd className="break-all font-medium text-slate-800">{value || '—'}</dd></div>
-            ))}
-            <div>
-              <dt className="mb-1 text-xs text-slate-400">Trạng thái tài khoản</dt>
-              <dd className={`font-medium ${authUser.status === 'Active' ? 'text-emerald-700' : 'text-red-600'}`}>{authUser.status === 'Active' ? 'Active' : authUser.status === 'Locked' ? 'Locked' : authUser.status}</dd>
-            </div>
-          </dl>
-        </aside>
+        <div className="min-w-0 space-y-5">
+          <aside className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+            <h3 className="mb-4 flex items-center gap-2 text-base font-semibold text-slate-800"><ShieldCheck size={18} />Thông tin tài khoản</h3>
+            <dl className="space-y-4 text-sm">
+              {accountFields.map(([label, value]) => (
+                <div key={label}><dt className="mb-1 text-xs text-slate-400">{label}</dt><dd className="break-all font-medium text-slate-800">{value || '—'}</dd></div>
+              ))}
+              <div>
+                <dt className="mb-1 text-xs text-slate-400">Trạng thái tài khoản</dt>
+                <dd className={`font-medium ${authUser.status === 'Active' ? 'text-emerald-700' : 'text-red-600'}`}>{authUser.status === 'Active' ? 'Active' : authUser.status === 'Locked' ? 'Locked' : authUser.status}</dd>
+              </div>
+            </dl>
+          </aside>
+          <ProfileSalaryCard />
+        </div>
       </div>
+      <ProfileCertificates />
       <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
         <h3 className="flex items-center gap-2 text-base font-semibold text-slate-800"><LockKeyhole size={18} />Thay đổi mật khẩu</h3>
         <p className="mb-5 mt-1 text-sm text-slate-500">Mật khẩu mới phải có ít nhất 6 ký tự và khác mật khẩu hiện tại.</p>

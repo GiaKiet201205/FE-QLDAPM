@@ -165,6 +165,7 @@ export default function AccountDataProvider({ children }) {
   function updateProfile(form) {
     return mutateProfile(() => profileApi.update({
       fullName: form.fullName.trim(), email: form.email.trim(), phone: form.phone.trim() || null,
+      specialization: form.specialization.trim() || null,
     }), true);
   }
 
