@@ -191,12 +191,20 @@ export function AssignmentScreen({role}) {
     if(!approved) return;
     setSaving(true);
     try {
-      if(role==='TEACHER') {
-        await schedulingApi.updateTeacher(row.id, {
-          teacherId:selected,classId:row.classId,date:String(row.date).slice(0,10),
-          startTime:String(row.startTime).slice(0,5),
-          endTime:String(row.endTime).slice(0,5),
-          campus:form.campus,
+      if (role === 'TEACHER' ||
+          (role === 'CS' && row.workType === 'CLASS_SUPPORT' && row.classId)) {
+        const lessons = await classApi.plannedSessions(row.classId);
+        const lesson = (lessons || []).find((item) =>
+          item.status === 'PLANNED' &&
+          String(item.date).slice(0,10) === String(row.date).slice(0,10) &&
+          String(item.startTime).slice(0,5) === String(row.startTime).slice(0,5) &&
+          String(item.endTime).slice(0,5) === String(row.endTime).slice(0,5)
+        );
+        if (!lesson) throw new Error('Không tìm thấy buổi học trong kế hoạch.');
+        await classApi.assignStaffingRange(row.classId, {
+          role, employeeId: selected, campus: form.campus,
+          workplaceId: row.workplaceId || form.workplaceId,
+          mode: 'REPLACE', sessionIds: [lesson.id],
         });
       } else {
         await schedulingApi.updateStaff(row.id, {
