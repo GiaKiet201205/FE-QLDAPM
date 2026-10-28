@@ -14,7 +14,7 @@ function EmptyRow({ columns, children }) {
   )
 }
 
-export function TeamAttendanceTable({ records, personLabel }) {
+export function TeamAttendanceTable({ records, personLabel, onReview }) {
   return (
     <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
       <div className="border-b border-slate-100 px-5 py-4">
@@ -32,6 +32,7 @@ export function TeamAttendanceTable({ records, personLabel }) {
             <th className="px-5 py-2.5">GIỜ THEO LỊCH</th>
             <th className="px-5 py-2.5">BUỔI DẠY</th>
             <th className="px-5 py-2.5">CA / BUỔI ĐƯỢC GIAO</th>
+            {onReview && <th className="px-5 py-2.5 text-right">THAO TÁC</th>}
           </tr>
         </thead>
         <tbody>
@@ -46,9 +47,10 @@ export function TeamAttendanceTable({ records, personLabel }) {
               <td className="px-5 py-3 text-slate-700">{record.totalHours.toFixed(1)} giờ</td>
               <td className="px-5 py-3 text-slate-700">{record.teachingSessions}</td>
               <td className="px-5 py-3 text-slate-700">{record.assignedSessions}</td>
+              {onReview && <td className="px-5 py-3 text-right"><button type="button" onClick={() => onReview(record)} className="rounded-md border border-blue-200 px-2.5 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-50">Review lương</button></td>}
             </tr>
           ))}
-          {records.length === 0 && <EmptyRow columns={6}>Không có nhân viên phù hợp.</EmptyRow>}
+          {records.length === 0 && <EmptyRow columns={onReview ? 7 : 6}>Không có nhân viên phù hợp.</EmptyRow>}
         </tbody>
       </table>
     </div>
