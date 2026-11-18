@@ -1,6 +1,33 @@
+
+@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
-/* Hide native scrollbars while preserving wheel, touch and trackpad scrolling. */
+/* ========================================
+   MAIN - Font & Toastify
+======================================== */
+
+@theme {
+  --font-review: "Be Vietnam Pro", "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+.font-review {
+  font-family: var(--font-review);
+  letter-spacing: -0.01em;
+}
+
+.Toastify__toast {
+  font-family: var(--font-review);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgb(15 23 42 / 0.14);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* ========================================
+   COMPACT - Scrollbar
+======================================== */
+
+/* Hide native scrollbars while preserving scrolling. */
 .scrollbar-hidden {
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -11,11 +38,9 @@
 }
 
 /*
- * Native scroll indicators are hidden application-wide by design.
- * Do not set overflow: hidden here: vertical and horizontal scrolling,
- * keyboard navigation, wheel/trackpad gestures, and touch must keep working.
- * This includes the document viewport, detail panels, tables, modal bodies,
- * side navigation, and nested lesson/student lists.
+ * Native scroll indicators are hidden application-wide.
+ * Do not set overflow: hidden.
+ * Scrolling must remain functional.
  */
 html,
 body,
