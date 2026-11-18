@@ -1,4 +1,4 @@
-import { addDays, days, iso } from "./schedulingUtils";
+import { addDays, days, iso } from "./schedulingUtils.js";
 
 const DAY_ALIASES = {
   mon: "mon",
