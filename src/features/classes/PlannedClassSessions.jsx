@@ -23,6 +23,8 @@ function normalized(slot) {
     endTime: String(slot.endTime).slice(0, 5),
     id: slot.id,
     status: slot.status || "PLANNED",
+    teacherAssigned: Boolean(slot.teacherAssigned),
+    csAssigned: Boolean(slot.csAssigned),
   };
 }
 
@@ -312,6 +314,15 @@ export default function PlannedClassSessions({
         </div>
       ) : null}
 
+      {classItem.status === "RUNNING" && arranged.some((item) =>
+        item.status === "PLANNED" &&
+        new Date(`${item.date}T${item.startTime}:00+07:00`).getTime() > Date.now() &&
+        (!item.teacherAssigned || !item.csAssigned)
+      ) && (
+        <p role="alert" className="rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">
+          Lớp đang học có buổi tương lai chưa đủ Teacher/CS. Hãy phân công trước giờ học.
+        </p>
+      )}
       <div className="max-h-72 space-y-1 overflow-y-auto">
         {arranged.map((item) => (
           <div key={slotKey(item)}
@@ -323,6 +334,14 @@ export default function PlannedClassSessions({
                 assigned.has(slotKey(item)) ?
                   <span className="text-emerald-700">Đã phân công</span> :
                   <span className="text-slate-500">Chưa phân công</span>}
+              {classItem.status === "RUNNING" && item.status === "PLANNED" &&
+                (!item.teacherAssigned || !item.csAssigned) && (
+                  <span className="text-amber-700">
+                    {![item.teacherAssigned,item.csAssigned].every(Boolean)
+                      ? `Thiếu ${[!item.teacherAssigned && "GV", !item.csAssigned && "CS"].filter(Boolean).join("/")}`
+                      : ""}
+                  </span>
+                )}
               {canRemove && item.status === "PLANNED" &&
                 (classItem.status !== "READY" ||
                 new Date(`${item.date}T${item.startTime}:00+07:00`).getTime() > Date.now()) ?

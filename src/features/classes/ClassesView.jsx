@@ -723,7 +723,7 @@ function ClassDetail({
           )}
 
           {tab === "TeacherAttendance" && roleKey === "CS" && (
-            <TeacherAttendanceTab classId={classItem.id} />
+            <TeacherAttendanceTab classId={classItem.id} classStatus={classItem.status} />
           )}
 
           {tab === "Support" && roleKey !== "TEACHER" && (

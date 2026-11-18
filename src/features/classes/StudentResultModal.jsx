@@ -137,6 +137,7 @@ export default function StudentResultModal({
             type="number"
             step="0.01"
             min="0"
+            max="999.99"
             value={score}
             onChange={(event) => setScore(event.target.value)}
             required

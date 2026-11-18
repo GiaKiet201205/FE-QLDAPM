@@ -110,6 +110,18 @@ export function normalizeEmployee(row, role) {
   };
 }
 
+// The availability API returns a campus name, not a workplace id.
+// Do not silently map every non-default campus to center-01.
+const CAMPUS_WORKPLACES = {
+  "cơ sở chính": "center-01",
+  "cơ sở quận 1": "center-02",
+  "cơ sở quận 3": "center-03",
+};
+export function workplaceForCampus(campus) {
+  const normalized = String(campus ?? "").trim().toLocaleLowerCase("vi");
+  return CAMPUS_WORKPLACES[normalized] || "";
+}
+
 export function normalizeAvailability(row, role) {
   const date = row?.availableDate ?? row?.date ?? "";
   const employeeId =
@@ -140,7 +152,7 @@ export function normalizeAvailability(row, role) {
     availableDate: date ? String(date).slice(0, 10) : "",
     availabilityType: row?.availabilityType ?? row?.type ?? "RECURRING",
     campus: row?.campus ?? row?.workplaceName ?? row?.location ?? "Cơ sở chính",
-    workplaceId: row?.workplaceId ?? "center-01",
+    workplaceId: row?.workplaceId ?? workplaceForCampus(row?.campus),
     note: row?.note ?? "",
     createdAt: row?.createdAt ?? row?.submittedAt ?? "",
     reviewedAt: row?.reviewedAt ?? "",

@@ -27,7 +27,7 @@ function hasStarted(slot, now) {
   return Number.isFinite(start) && start <= now;
 }
 
-export default function TeacherAttendanceTab({ classId }) {
+export default function TeacherAttendanceTab({ classId, classStatus }) {
   const [rows, setRows] = useState([]);
   const [now, setNow] = useState(() => Date.now());
   const [drafts, setDrafts] = useState({});
@@ -116,7 +116,8 @@ export default function TeacherAttendanceTab({ classId }) {
             const activeAssignment = slot.assignmentStatus === "ASSIGNED";
             // Do not show an enabled Save button when an older/incompatible API
             // omits assignmentStatus. The BE must explicitly confirm ASSIGNED.
-            const editable = activeAssignment && Boolean(slot.assignedToMe) && hasStarted(slot, now);
+            const closed = ["COMPLETED", "CLOSED"].includes(classStatus);
+            const editable = !closed && activeAssignment && Boolean(slot.assignedToMe) && hasStarted(slot, now);
             const saved = slot.attendanceStatus;
             const chosen = drafts[slot.id] ?? saved ?? "";
             const changed = chosen && chosen !== saved;
@@ -177,6 +178,11 @@ export default function TeacherAttendanceTab({ classId }) {
                 {saved && slot.recordedByName && (
                   <p className="mt-2 text-[11px] text-slate-500">
                     Xác nhận bởi: {slot.recordedByName}
+                  </p>
+                )}
+                {!archived && ["COMPLETED", "CLOSED"].includes(classStatus) && (
+                  <p className="mt-2 text-[11px] text-amber-700">
+                    Lớp đã hoàn thành hoặc đóng; điểm danh đã khóa.
                   </p>
                 )}
                 {!archived && !slot.assignedToMe && (
