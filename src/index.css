@@ -1,6 +1,11 @@
+
 @import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap');
 @import "tailwindcss";
 @source "./";
+
+/* ========================================
+   MAIN - Font & Toastify
+======================================== */
 
 @theme {
   --font-review: "Be Vietnam Pro", "Inter", ui-sans-serif, system-ui, sans-serif;
@@ -17,4 +22,38 @@
   box-shadow: 0 12px 32px rgb(15 23 42 / 0.14);
   font-size: 14px;
   font-weight: 500;
+}
+
+/* ========================================
+   COMPACT - Scrollbar
+======================================== */
+
+/* Hide native scrollbars while preserving scrolling. */
+.scrollbar-hidden {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none;
+}
+
+/*
+ * Native scroll indicators are hidden application-wide.
+ * Do not set overflow: hidden.
+ * Scrolling must remain functional.
+ */
+html,
+body,
+body * {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar,
+body *::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
