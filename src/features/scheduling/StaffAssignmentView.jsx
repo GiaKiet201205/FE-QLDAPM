@@ -286,7 +286,7 @@ export default function StaffAssignmentView({ staffRole = "SALE" }) {
         date:day?.date ?? current.date,
         startTime:availability.startTime,endTime:availability.endTime,
       }),
-      workplaceId: availability.workplaceId,
+      workplaceId: availability.workplaceId || current.workplaceId,
     }));
     setMessage(null);
   }
