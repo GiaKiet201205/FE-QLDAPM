@@ -35,7 +35,7 @@ function findPageMeta(role, pathname) {
     }
   }
 
-  return match || { label: "Dashboard" };
+  return match || { label: "Tổng quan" };
 }
 
 export default function Layout({ role }) {
@@ -43,7 +43,7 @@ export default function Layout({ role }) {
   const page = findPageMeta(role, pathname);
 
   return (
-    <div className="flex min-h-screen bg-[#F5F6F8]">
+    <div className="gk-admin flex min-h-screen bg-[#f5f8f7]">
       <Sidebar role={role} />
 
       <div className="flex min-w-0 flex-1 flex-col">
@@ -51,7 +51,7 @@ export default function Layout({ role }) {
           role={role}
           pageTitle={page.label}
           pageSubtitle={
-            page.label === "Dashboard"
+            page.label === "Tổng quan"
               ? new Intl.DateTimeFormat("vi-VN", {
                   dateStyle: "full",
                   timeZone: "Asia/Ho_Chi_Minh",

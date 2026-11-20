@@ -1,37 +1,19 @@
-import { Link, useLocation, useSearchParams } from 'react-router-dom';
-import { ArrowUpRight, CheckCircle2 } from 'lucide-react';
+import { useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { useAccountData } from '../../features/accounts/hooks/useAccountData';
-import { useDemoPurchases } from '../../features/user/useDemoPurchases';
-import { findUserCourse } from '../../data/userCourses';
+import { useStore } from '../../features/storefront/useStore';
+import { coursePrice } from '../../data/userCourses';
+import { storeApi } from '../../services/storeApi';
+import SocialConnections from '../../components/user/SocialConnections';
 import UserProfileOverview from '../../components/user/UserProfileOverview';
-import UserProfileCourses from '../../components/user/UserProfileCourses';
+import StoreStatus from '../../components/user/StoreStatus';
 
-export default function UserProfile() {
-  const { authUser } = useAccountData();
-  const purchases = useDemoPurchases(authUser.username);
-  const [params, setParams] = useSearchParams();
-  const location = useLocation();
-  const selected = purchases.find((purchase) => purchase.courseId === params.get('course')) || purchases[0];
-  const course = selected ? findUserCourse(selected.courseId) : null;
-  const purchaseSucceeded = location.state?.purchaseSuccess && purchases.some((purchase) => purchase.courseId === location.state.purchaseSuccess);
-
-  return (
-    <div className="mx-auto max-w-5xl space-y-5 px-5 py-8 lg:py-10">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0">
-          <h1 className="text-xl font-semibold text-slate-900">Thông tin cá nhân</h1>
-          <p className="mt-1 text-sm text-slate-500">Cập nhật hồ sơ, xem thông tin tài khoản và các khóa học của bạn.</p>
-        </div>
-        <Link to="/courses" className="inline-flex min-h-9 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-3.5 text-[13px] font-medium text-slate-700 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600">Khám phá khóa học<ArrowUpRight size={15} /></Link>
-      </div>
-      {purchaseSucceeded && (
-        <div role="status" className="flex items-start gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-emerald-800">
-          <CheckCircle2 size={20} className="shrink-0" />
-          <div><p className="text-sm font-semibold">Thanh toán mô phỏng thành công!</p><p className="mt-1 text-xs leading-5">Khóa học đã được thêm vào hồ sơ của bạn. Không phát sinh giao dịch tiền thật.</p></div>
-        </div>
-      )}
-      <UserProfileOverview key={authUser.username} account={authUser} courseCount={purchases.length} />
-      <UserProfileCourses purchases={purchases} selected={selected} course={course} onSelect={(courseId) => setParams({ course: courseId }, { replace: true })} />
-    </div>
-  );
+export default function UserProfile(){
+ const {authUser}=useAccountData();const {orders,enrollments,privateLoading,privateError,refresh}=useStore();const location=useLocation();
+ const [pending,setPending]=useState('');const [error,setError]=useState('');
+ async function cancel(id){if(pending)return;setPending(id);setError('');try{await storeApi.cancel(id);refresh();}catch(e){setError(e.message);}finally{setPending('');}}
+ return <div className="gk-profile mx-auto max-w-5xl space-y-5 px-5 py-8 lg:py-10"><h1 className="text-2xl font-semibold">Tài khoản của tôi</h1>{location.state?.orderCreated&&<p role="status" className="gk-info-box gk-mint">Đã ghi nhận đơn đăng ký. Trung tâm sẽ kiểm tra và xác nhận ghi danh; chưa phát sinh thanh toán trực tuyến.</p>}
+ <UserProfileOverview key={`profile-${authUser.username}`} account={authUser} courseCount={orders.filter(o=>o.status!=='CANCELLED').reduce((n,o)=>n+o.items.length,0)}/><SocialConnections key={`social-${authUser.username}`}/>
+ <section className="gk-social-connections"><h2>Lớp học của tôi</h2>{privateLoading||privateError?<StoreStatus loading={privateLoading} error={privateError} retry={refresh}/>:!enrollments.length?<p>Chưa có lớp được xác nhận ghi danh.</p>:enrollments.map(e=><article key={e.id} className="gk-info-box gk-mint"><h3>{e.title}</h3><p>Mã lớp: {e.classCode}</p><p>Trạng thái học viên: {e.status==='ACTIVE'?'Đang ghi danh':'Ngừng ghi danh'} · Lớp: {{DRAFT:'Đang chuẩn bị',READY:'Sắp khai giảng',RUNNING:'Đang học',COMPLETED:'Đã hoàn thành',CLOSED:'Đã đóng'}[e.classStatus]||e.classStatus}</p><p>Ngày ghi danh: {new Date(e.joinedAt).toLocaleDateString('vi-VN')}</p></article>)}</section>
+ <section className="gk-social-connections"><h2>Đăng ký và khóa học của tôi</h2>{error&&<p role="alert" className="gk-danger">{error}</p>}{privateLoading||privateError?<StoreStatus loading={privateLoading} error={privateError} retry={refresh}/>:!orders.length?<p>Bạn chưa có đơn đăng ký. <Link to="/courses">Khám phá khóa học</Link></p>:orders.map(order=><article key={order.id} className="gk-info-box gk-warm"><div className="gk-results-title"><strong>Đơn {order.id}</strong><span className="gk-badge">{{PENDING:'Chờ xác nhận',CONFIRMED:'Đã xác nhận ghi danh',CANCELLED:'Đã hủy'}[order.status]}</span></div><p>{new Date(order.createdAt).toLocaleString('vi-VN')}</p>{order.items.map(item=><div className="gk-results-title" key={item.id}><div><h3>{item.title}</h3><p>Mã lớp: {item.classCode}</p></div><strong>{coursePrice(item.amount)}</strong></div>)}<p>Tổng học phí đăng ký: <strong>{coursePrice(order.amount)}</strong></p><p className="gk-payment-status">Thanh toán: {{PAID:'Đã thanh toán',PENDING:'Chờ thanh toán',UNPAID:'Chưa thanh toán'}[order.paymentStatus]||'Chưa thanh toán'}</p>{order.fulfillmentError&&<p className="gk-auth-notice">{order.fulfillmentError}</p>}{order.status!=='CANCELLED'&&<Link className="gk-button gk-primary" to={`/payment/${order.id}`}>{order.paymentStatus==='PAID'?'Xem kết quả thanh toán':'Thanh toán VNPAY / MoMo'}</Link>}{order.status==='PENDING'&&order.paymentStatus!=='PAID'&&<button className="gk-button" disabled={Boolean(pending)} onClick={()=>cancel(order.id)}>{pending===order.id?'Đang hủy...':'Hủy đăng ký'}</button>}</article>)}</section></div>;
 }

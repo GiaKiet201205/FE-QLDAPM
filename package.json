@@ -4,19 +4,27 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
+    "dev": "node scripts/dev.mjs",
+    "build": "npm run build:shop && npm run build:admin",
     "lint": "oxlint",
     "test": "node --test",
-    "preview": "vite preview"
+    "preview": "vite preview --mode shop",
+    "dev:shop": "vite --mode shop",
+    "dev:admin": "vite --mode admin",
+    "build:shop": "vite build --mode shop",
+    "build:admin": "vite build --mode admin",
+    "preview:shop": "vite preview --mode shop",
+    "preview:admin": "vite preview --mode admin"
   },
   "dependencies": {
     "lucide-react": "^1.48.0",
+    "qrcode": "^1.5.4",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router-dom": "^7.18.4",
     "react-toastify": "^11.1.0",
-    "recharts": "^3.10.1"
+    "recharts": "^3.10.1",
+    "three": "^0.187.0"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",

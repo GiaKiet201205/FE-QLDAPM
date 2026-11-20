@@ -19,7 +19,7 @@ const fixedAccounts = [
     status: 'Active',
     lastLogin: 'Today, 09:20',
     username: 'admin',
-    email: 'admin@iiglearning.edu.vn',
+    email: 'admin@gk.local',
     department: 'Headquarters',
     createdDate: '2023-01-15',
     mfaStatus: 'Enforced',
@@ -35,7 +35,7 @@ const fixedAccounts = [
     status: 'Active',
     lastLogin: 'Today, 09:10',
     username: 'teacher',
-    email: 'teacher@iiglearning.edu.vn',
+    email: 'teacher@gk.local',
     department: 'HCM Branch',
     createdDate: '2023-01-16',
     mfaStatus: 'Enforced',
@@ -51,7 +51,7 @@ const fixedAccounts = [
     status: 'Active',
     lastLogin: 'Today, 09:00',
     username: 'tc',
-    email: 'tc@iiglearning.edu.vn',
+    email: 'tc@gk.local',
     department: 'HCM Branch',
     createdDate: '2023-01-17',
     mfaStatus: 'Enforced',
@@ -67,7 +67,7 @@ const fixedAccounts = [
     status: 'Active',
     lastLogin: 'Today, 08:50',
     username: 'cm',
-    email: 'cm@iiglearning.edu.vn',
+    email: 'cm@gk.local',
     department: 'HCM Branch',
     createdDate: '2023-01-18',
     mfaStatus: 'Enforced',
@@ -83,7 +83,7 @@ const fixedAccounts = [
     status: 'Active',
     lastLogin: 'Today, 08:40',
     username: 'sale',
-    email: 'sale@iiglearning.edu.vn',
+    email: 'sale@gk.local',
     department: 'HCM Branch',
     createdDate: '2023-01-19',
     mfaStatus: 'Enforced',
@@ -99,7 +99,7 @@ const fixedAccounts = [
     status: 'Active',
     lastLogin: 'Today, 08:30',
     username: 'cs',
-    email: 'cs@iiglearning.edu.vn',
+    email: 'cs@gk.local',
     department: 'HCM Branch',
     createdDate: '2023-01-20',
     mfaStatus: 'Enforced',
@@ -118,7 +118,7 @@ const generatedAccounts = Array.from({ length: 44 }, (_, index) => {
   const fullName = `${fName} ${mName} ${lName}`;
   const initials = `${removeAccents(fName)[0]}${removeAccents(lName)[0]}`;
   const username = `${removeAccents(lName).toLowerCase()}.${removeAccents(fName).toLowerCase()}${id}`;
-  const email = `${username}@iiglearning.edu.vn`;
+  const email = `${username}@gk.local`;
 
   return {
     id,

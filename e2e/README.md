@@ -41,7 +41,7 @@ npm run dev -- --host 127.0.0.1
 
 Then from FE:
 ```sh
-E2E_BASE_URL=http://127.0.0.1:5173 E2E_API_URL=http://127.0.0.1:8080/api ./e2e/node_modules/.bin/playwright test --config=e2e/playwright.config.mjs
+E2E_BASE_URL=http://127.0.0.1:5174 E2E_API_URL=http://127.0.0.1:8080/api ./e2e/node_modules/.bin/playwright test --config=e2e/playwright.config.mjs
 ```
 
 Seed credentials are for isolated CI only. Never reuse them in deployed environments. Never run `docker compose down -v` on the user's normal development volume unless they explicitly intend to discard it.

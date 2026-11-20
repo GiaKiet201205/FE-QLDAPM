@@ -49,7 +49,7 @@ export default function DataTable({ title, columns, rows, viewAllLabel }) {
                     {ci === statusColIndex ? (
                       <StatusBadge value={cell} />
                     ) : ci === row.length - 1 ? (
-                      <button className="text-blue-600 font-medium hover:underline">{cell}</button>
+                      <button className="text-[#07857f] font-medium hover:underline">{cell}</button>
                     ) : (
                       cell
                     )}
@@ -62,7 +62,7 @@ export default function DataTable({ title, columns, rows, viewAllLabel }) {
       </div>
       {viewAllLabel && (
         <div className="px-5 py-3 border-t border-slate-100">
-          <button className="text-xs font-medium text-blue-600 hover:underline">{viewAllLabel} →</button>
+          <button className="text-xs font-medium text-[#07857f] hover:underline">{viewAllLabel} →</button>
         </div>
       )}
     </div>
