@@ -1,7 +1,8 @@
 const BASE_URL =
-  import.meta.env.VITE_API_URL || 'http://localhost:8080/api'
+  (import.meta.env.VITE_API_URL || '/api').replace(/\/+$/, '')
 
 const SESSION_KEY = 'qldapm.scheduling.session'
+const PUBLIC_AUTH_PATHS = new Set(['/auth/login', '/auth/register', '/auth/social/providers', '/auth/social/start', '/auth/social/exchange'])
 
 /* =========================================================
    API ERROR
@@ -36,6 +37,9 @@ function parseSession(raw) {
       !session.role
     ) return null;
 
+    const isCustomer = session.role === 'USER';
+    if (import.meta.env.VITE_APP_TARGET === 'admin' ? isCustomer : !isCustomer) return null;
+
     // Reject expired JWTs rather than treating a stale browser session as logged in.
     const jwtPayload = session.token.split('.')[1];
     if (!jwtPayload) return null;
@@ -58,6 +62,10 @@ export function getSession() {
     parseSession(sessionStorage.getItem(SESSION_KEY)) ||
     parseSession(localStorage.getItem(SESSION_KEY))
   );
+}
+
+export function isSessionRemembered() {
+  return Boolean(parseSession(localStorage.getItem(SESSION_KEY)));
 }
 
 export function saveSession(session, remember = false) {
@@ -134,12 +142,14 @@ export async function apiRequest(
   path,
   options = {},
 ) {
-  const token = getAccessToken()
+  const { skipAuth = false, ...requestOptions } = options
+  const token = skipAuth ? null : getAccessToken()
 
   // Spring Security can return 403 when a missing/expired JWT reaches a
   // protected endpoint. Detect stale local sessions before making the request.
   if (
-    !['/auth/login', '/auth/register'].includes(path) &&
+    !skipAuth &&
+    !PUBLIC_AUTH_PATHS.has(path) &&
     !token &&
     (sessionStorage.getItem(SESSION_KEY) || localStorage.getItem(SESSION_KEY))
   ) {
@@ -148,7 +158,7 @@ export async function apiRequest(
   }
 
   const headers = new Headers(
-    options.headers || {},
+    requestOptions.headers || {},
   )
 
   /*
@@ -158,8 +168,8 @@ export async function apiRequest(
     vì browser cần tự thêm boundary.
   */
   if (
-    options.body != null &&
-    !(options.body instanceof FormData) &&
+    requestOptions.body != null &&
+    !(requestOptions.body instanceof FormData) &&
     !headers.has('Content-Type')
   ) {
     headers.set(
@@ -187,13 +197,13 @@ export async function apiRequest(
     response = await fetch(
       `${BASE_URL}${path}`,
       {
-        ...options,
+        ...requestOptions,
         headers,
       },
     )
   } catch (error) {
     throw new ApiError(
-      'Không thể kết nối tới server.',
+      'Không thể kết nối tới máy chủ GK. Vui lòng thử lại sau.',
       0,
       error,
     )
@@ -233,7 +243,8 @@ export async function apiRequest(
   if (!response.ok) {
     if (
       response.status === 401 &&
-      !['/auth/login', '/auth/register'].includes(path)
+      !skipAuth &&
+      !PUBLIC_AUTH_PATHS.has(path)
     ) {
       // A failed request from a previous login must not clear a newer session.
       const currentToken = getAccessToken()
@@ -241,7 +252,9 @@ export async function apiRequest(
     }
 
     let message =
-      `API error: ${response.status}`
+      [502, 503, 504].includes(response.status)
+        ? 'Máy chủ GK đang tạm thời không khả dụng. Vui lòng thử lại sau.'
+        : `API error: ${response.status}`
 
     if (
       body &&

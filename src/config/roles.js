@@ -8,7 +8,7 @@ export const ROLES = {
     sections: [
       {
         title: 'Chính',
-        items: [{ label: 'Dashboard', path: '/', icon: 'LayoutDashboard' }],
+        items: [{ label: 'Tổng quan', path: '/', icon: 'LayoutTổng quan' }],
       },
       {
         title: 'Lịch của tôi',
@@ -40,18 +40,18 @@ export const ROLES = {
 
   TC: {
     key: 'TC',
-    label: 'Teaching Coordinator',
+    label: 'Điều phối giảng dạy',
     shortLabel: 'TC',
     color: '#8B5CF6',
     sections: [
       {
         title: 'Chính',
-        items: [{ label: 'Dashboard', path: '/', icon: 'LayoutDashboard' }],
+        items: [{ label: 'Tổng quan', path: '/', icon: 'LayoutTổng quan' }],
       },
       {
         title: 'Quản lý Giáo viên',
         items: [
-          { label: 'Teachers', path: '/teachers', icon: 'Users' },
+          { label: 'Giáo viên', path: '/teachers', icon: 'Users' },
           // { label: 'Hồ sơ Giáo viên', path: '/teachers/profiles', icon: 'IdCard' },
         ],
       },
@@ -81,18 +81,18 @@ export const ROLES = {
 
   CM: {
     key: 'CM',
-    label: 'Center Management',
+    label: 'Quản lý trung tâm',
     shortLabel: 'CM',
     color: '#F59E0B',
     sections: [
       {
         title: 'Chính',
-        items: [{ label: 'Dashboard', path: '/', icon: 'LayoutDashboard' }],
+        items: [{ label: 'Tổng quan', path: '/', icon: 'LayoutTổng quan' }],
       },
       {
         title: 'Nhân sự vận hành',
         items: [
-          { label: 'Sale / CS Staff', path: '/staff', icon: 'Users' },
+          { label: 'Tư vấn & chăm sóc học viên', path: '/staff', icon: 'Users' },
         ],
       },
       {
@@ -134,7 +134,7 @@ export const ROLES = {
     sections: [
       {
         title: 'Chính',
-        items: [{ label: 'Dashboard', path: '/', icon: 'LayoutDashboard' }],
+        items: [{ label: 'Tổng quan', path: '/', icon: 'LayoutTổng quan' }],
       },
       {
         title: 'Lịch của tôi',
@@ -156,7 +156,7 @@ export const ROLES = {
     sections: [
       {
         title: 'Chính',
-        items: [{ label: 'Dashboard', path: '/', icon: 'LayoutDashboard' }],
+        items: [{ label: 'Tổng quan', path: '/', icon: 'LayoutTổng quan' }],
       },
       {
         title: 'Lịch của tôi',
@@ -187,18 +187,19 @@ export const ROLES = {
 
   ADMIN: {
     key: 'ADMIN',
-    label: 'Admin',
+    label: 'Quản trị viên',
     shortLabel: 'AD',
     color: '#EF4444',
     sections: [
       {
         title: 'Chính',
-        items: [{ label: 'Dashboard', path: '/', icon: 'LayoutDashboard' }],
+        items: [
+            { path: '/storefront', label: 'Website khóa học', icon: 'Store', meta: { page: 'store-management' } },{ label: 'Tổng quan', path: '/', icon: 'LayoutTổng quan' }],
       },
       {
         title: 'Quản lý nhân sự',
         items: [
-          { label: 'Employees', path: '/employees', icon: 'Users' },
+          { label: 'Nhân viên', path: '/employees', icon: 'Users' },
           { label: 'Tài khoản nhân viên', path: '/accounts', icon: 'Users' },
           { label: 'Vai trò & quyền hạn', path: '/permissions', icon: 'ShieldCheck' },
         ],

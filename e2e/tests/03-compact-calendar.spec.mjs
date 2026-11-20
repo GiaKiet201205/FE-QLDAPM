@@ -123,7 +123,7 @@ async function seedThreeAssignedShifts(request, day) {
 async function checkRole(browser, username, route, employeeCode, day) {
   const context = await browser.newContext({
     timezoneId: 'Asia/Ho_Chi_Minh',
-    baseURL: process.env.E2E_BASE_URL || 'http://localhost:5173',
+    baseURL: process.env.E2E_BASE_URL || 'http://localhost:5174',
     viewport: { width: 1440, height: 900 },
   });
   const page = await context.newPage();

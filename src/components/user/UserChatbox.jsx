@@ -40,7 +40,7 @@ export default function UserChatbox() {
         <section id="user-support-chat" role="dialog" aria-modal="false" aria-labelledby="user-support-title"
           onKeyDown={(event) => { if (event.key === 'Escape') { event.stopPropagation(); closeChat(); } }}
           className="flex h-[min(480px,calc(100dvh-2rem))] w-[calc(100vw-2rem)] max-w-[340px] min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_12px_48px_rgba(23,53,87,0.2)]">
-          <header className="flex shrink-0 items-center gap-3 bg-[#173557] px-4 py-4 text-white">
+          <header className="flex shrink-0 items-center gap-3 bg-[#07857f] px-4 py-4 text-white">
             <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-[#173557]"><GraduationCap size={23} /></span>
             <div className="min-w-0 flex-1">
               <h2 id="user-support-title" className="text-sm font-semibold">Hỗ trợ trực tuyến</h2>
@@ -53,11 +53,11 @@ export default function UserChatbox() {
             className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain bg-slate-50 px-3 py-5">
             <div className="flex items-end gap-2">
               <span aria-hidden="true" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-[#173557]"><GraduationCap size={16} /></span>
-              <p className="max-w-[85%] rounded-2xl rounded-bl-sm border border-slate-100 bg-white px-3 py-2.5 text-xs leading-6 text-slate-600 shadow-sm">Xin chào! 👋 Cảm ơn bạn đã quan tâm đến IIG Learning. Bạn cần tư vấn khóa học nào?</p>
+              <p className="max-w-[85%] rounded-2xl rounded-bl-sm border border-slate-100 bg-white px-3 py-2.5 text-xs leading-6 text-slate-600 shadow-sm">Xin chào! 👋 Cảm ơn bạn đã quan tâm đến GK Academy. Bạn cần tư vấn khóa học nào?</p>
             </div>
             {messages.map((message) => (
               <div key={message.id} className="flex justify-end">
-                <p className="max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-sm bg-[#173557] px-3 py-2.5 text-xs leading-6 text-white [overflow-wrap:anywhere]">
+                <p className="max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-sm bg-[#07857f] px-3 py-2.5 text-xs leading-6 text-white [overflow-wrap:anywhere]">
                   <span className="sr-only">Bạn: </span>{message.content}
                 </p>
               </div>
@@ -70,14 +70,14 @@ export default function UserChatbox() {
               <textarea ref={inputRef} id="user-chat-message" rows={1} maxLength={1000} value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Nhập tin nhắn..."
                 onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) sendMessage(event); }}
                 className="max-h-24 min-h-9 min-w-0 flex-1 resize-none overflow-x-hidden overflow-y-auto rounded-lg border-0 bg-transparent py-2 text-xs leading-5 text-slate-700 outline-none placeholder:text-slate-400 focus:ring-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" />
-              <button type="submit" disabled={!canSend} aria-label="Gửi tin nhắn" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#173557] text-white transition-colors hover:bg-[#24486f] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:opacity-40"><Send size={16} /></button>
+              <button type="submit" disabled={!canSend} aria-label="Gửi tin nhắn" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#07857f] text-white transition-colors hover:bg-[#066d69] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:opacity-40"><Send size={16} /></button>
             </form>
             <p className="mt-2 text-center text-[10px] leading-4 text-slate-400">Giao diện mẫu · Chưa kết nối tư vấn viên</p>
           </div>
         </section>
       ) : (
         <button ref={launcherRef} type="button" onClick={() => setIsOpen(true)} aria-label="Mở chat hỗ trợ khóa học" aria-expanded={isOpen} aria-haspopup="dialog"
-          className="flex h-14 w-14 items-center justify-center rounded-full border-4 border-white bg-[#173557] text-white shadow-lg transition-colors hover:bg-[#24486f] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600">
+          className="flex h-14 w-14 items-center justify-center rounded-full border-4 border-white bg-[#07857f] text-white shadow-lg transition-colors hover:bg-[#066d69] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600">
           <MessageCircle size={25} />
         </button>
       )}

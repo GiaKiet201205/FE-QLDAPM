@@ -8,6 +8,7 @@ export function mapAccountResponse(account) {
     username: account.username,
     user: name,
     email: account.email || '',
+    contactEmail: account.contactEmail || '',
     employeeId: account.employeeId || '',
     code: account.employeeCode || '',
     phone: account.phone || '',

@@ -1,85 +1,35 @@
-import { useRef, useState } from 'react';
-import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, Check, CreditCard, LockKeyhole } from 'lucide-react';
-import Modal from '../../components/ui/Modal';
-import { coursePrice, findUserCourse } from '../../data/userCourses';
+import { paymentApi } from '../../services/paymentApi';
+import PaymentMethods from '../../components/user/PaymentMethods';
+import './payment.css';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { coursePrice } from '../../data/userCourses';
+import { courseImage, displayDate } from '../../data/storefront';
 import { useAccountData } from '../../features/accounts/hooks/useAccountData';
-import { completeDemoPurchase, useDemoPurchases } from '../../features/user/useDemoPurchases';
+import { useStore } from '../../features/storefront/useStore';
+import { storeApi } from '../../services/storeApi';
+import StoreStatus from '../../components/user/StoreStatus';
 
-const methods = [
-  { id: 'momo', label: 'MoMo', badge: 'mo', color: 'bg-[#a50064]' },
-  { id: 'vnpay', label: 'VNPAY', badge: 'VN', color: 'bg-[#155596]' },
-];
-
-export default function UserCheckout() {
-  const { courseId } = useParams();
-  const { authUser, loggingOut } = useAccountData();
-  const navigate = useNavigate();
-  const purchases = useDemoPurchases(authUser.username);
-  const [method, setMethod] = useState('momo');
-  const [confirming, setConfirming] = useState(false);
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState('');
-  const pendingRef = useRef(false);
-  const course = findUserCourse(courseId);
-  const selected = methods.find((item) => item.id === method);
-  if (!course) return <div className="p-20 text-center"><h1 className="text-xl font-bold">Không tìm thấy khóa học</h1><Link to="/courses" className="mt-4 inline-block underline">Về danh mục</Link></div>;
-  if (purchases.some((row) => row.courseId === course.id)) return <Navigate to={`/user/profile?course=${course.id}`} replace />;
-
-  function complete() {
-    if (pendingRef.current || loggingOut) return;
-    pendingRef.current = true;
-    setPending(true);
-    setError('');
-    try {
-      completeDemoPurchase(authUser.username, course.id, method);
-      navigate(`/user/profile?course=${course.id}`, { replace: true, state: { purchaseSuccess: course.id } });
-    } catch (err) { setError(err.message); }
-    finally { pendingRef.current = false; setPending(false); }
-  }
-
-  return <div className="mx-auto max-w-2xl px-5 py-8 lg:py-10">
-    <Link to="/courses" className="inline-flex items-center gap-2 text-xs text-slate-500"><ArrowLeft size={14} />Quay lại danh sách khóa học</Link>
-    <div className="mb-6 mt-6"><h1 className="text-2xl font-bold text-[#173557]">Đăng ký khóa học</h1><p className="mt-2 text-sm text-slate-500">Xác nhận lựa chọn của bạn và chọn phương thức thanh toán.</p></div>
-    <section aria-labelledby="registration-heading" className="min-w-0 rounded-xl border border-slate-200 bg-white p-5 shadow-sm [overflow-wrap:anywhere] sm:p-6">
-      <h2 id="registration-heading" className="border-b border-slate-100 pb-4 text-base font-semibold text-[#173557]">Thông tin đăng ký</h2>
-      <p className="mt-5 text-xs font-semibold text-blue-600">{course.category}</p>
-      <h3 className="mt-2 text-xl font-bold text-[#173557]">{course.title}</h3>
-      <p className="mt-3 text-[10px] font-semibold uppercase tracking-wide text-slate-400">{course.level}</p>
-      <p className="mt-1.5 whitespace-pre-line text-xs leading-6 text-slate-500">{course.description}</p>
-      <dl className="my-5 space-y-3 border-b border-slate-100 pb-5 text-sm">
-        <div className="flex justify-between gap-4"><dt className="shrink-0 text-slate-500">Thời lượng</dt><dd className="min-w-0 text-right">{course.duration}</dd></div>
-        <div className="flex justify-between gap-4"><dt className="shrink-0 text-slate-500">Số buổi</dt><dd className="min-w-0 text-right">{course.lessons} buổi</dd></div>
-      </dl>
-      <fieldset>
-        <legend className="mb-3 text-sm font-semibold text-[#173557]">Phương thức thanh toán</legend>
-        <div className="grid gap-3 sm:grid-cols-2">
-          {methods.map((item) => (
-            <label key={item.id} className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 ${method === item.id ? 'border-[#173557] bg-blue-50' : 'border-slate-200'}`}>
-              <input type="radio" name="payment-method" value={item.id} checked={method === item.id} onChange={() => { setMethod(item.id); setError(''); }} className="shrink-0 accent-[#173557]" />
-              <span aria-hidden="true" className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-sm font-extrabold text-white ${item.color}`}>{item.badge}</span>
-              <span className="min-w-0 text-sm font-semibold">{item.label}</span>
-            </label>
-          ))}
-        </div>
-      </fieldset>
-      <p className="mt-5 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-5 text-sm"><span>Tổng học phí mẫu</span><strong className="min-w-0 text-xl text-[#173557]">{coursePrice(course.price)}</strong></p>
-      <button onClick={() => setConfirming(true)} disabled={loggingOut} className="mt-5 flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-[#173557] px-4 py-3 text-sm font-semibold text-white hover:bg-[#24486f] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:opacity-50">Tiếp tục với {selected.label}<ArrowRight size={16} /></button>
-      <p className="mt-4 flex items-center justify-center gap-1.5 text-[11px] text-slate-500"><LockKeyhole size={12} />Thanh toán mô phỏng · Không trừ tiền thật</p>
-    </section>
-    {confirming && <Modal title={`Thanh toán mô phỏng · ${selected.label}`} onClose={() => { if (!pending) setConfirming(false); }} maxWidth="max-w-lg">
-      <div className="min-w-0 space-y-5 [overflow-wrap:anywhere]">
-        <div className="flex min-w-0 items-center gap-3">
-          <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl font-bold text-white ${selected.color}`}>{selected.badge}</span>
-          <div className="min-w-0"><p className="font-semibold">{course.title}</p><p className="text-sm text-slate-500">{coursePrice(course.price)}</p></div>
-        </div>
-        <p className="rounded-lg bg-amber-50 p-4 text-sm leading-6 text-amber-900">Bấm xác nhận để mô phỏng thanh toán thành công.</p>
-        {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
-        <div className="flex flex-wrap justify-end gap-3">
-          <button className="rounded-lg border border-slate-200 px-4 py-3 text-sm" disabled={pending} onClick={() => setConfirming(false)}>Hủy</button>
-          <button className="inline-flex items-center gap-2 rounded-lg bg-[#16324f] px-4 py-3 text-sm font-semibold text-white disabled:opacity-50" disabled={pending || loggingOut} onClick={complete}>{pending ? <CreditCard size={16} className="shrink-0" /> : <Check size={16} className="shrink-0" />}Xác nhận thanh toán mô phỏng</button>
-        </div>
-      </div>
-    </Modal>}
-  </div>;
+export default function UserCheckout(){
+ const {courseId}=useParams();const [params]=useSearchParams();const navigate=useNavigate();
+ const {authUser,loggingOut,reloadProfile}=useAccountData();
+ const {cart,classes,findUserCourse,loading,error,privateLoading,privateError,refresh}=useStore();
+ const [providers,setProviders]=useState(null);const [selectedProvider,setSelectedProvider]=useState(null);
+ const provider=selectedProvider||(['VNPAY','MOMO'].find(p=>providers?.[p]?.enabled))||'VNPAY';
+ const [pending,setPending]=useState(false);const [failure,setFailure]=useState('');const busy=useRef(false);
+ useEffect(()=>{let live=true;paymentApi.providers().then(data=>{if(live)setProviders(data);}).catch(e=>{if(live)setFailure(e.message);});return()=>{live=false;};},[]);
+ const [profile,setProfile]=useState({fullName:authUser.user===authUser.username?'':authUser.user,email:authUser.contactEmail||authUser.email,phone:authUser.phone||''});
+ const rows=courseId==='cart'?cart:[{courseId,classId:params.get('class')||''}];
+ const signature=rows.map(r=>r.courseId+':'+r.classId).sort().join('|');
+ const request=useMemo(()=>({signature,key:crypto.randomUUID()}),[signature]);
+ const requestKey=request.key;
+ const total=rows.reduce((sum,row)=>sum+(findUserCourse(row.courseId)?.price||0),0);
+ const valid=rows.length>0&&rows.every(row=>findUserCourse(row.courseId)?.price!=null&&classes.some(c=>c.id===row.classId&&c.courseId===row.courseId&&c.seats>0));
+ async function complete(event){event.preventDefault();if(busy.current||loggingOut||!valid||!providers?.[provider]?.enabled)return;busy.current=true;setPending(true);setFailure('');try{
+  const order=await storeApi.checkout({requestKey,items:rows,profile});let paymentError='';try{await paymentApi.start(order.id,provider);}catch(e){paymentError=e.message;}refresh();navigate(`/payment/${order.id}`,{replace:true,state:{provider,paymentError}});reloadProfile();
+ }catch(e){setFailure(e.message);refresh();}finally{busy.current=false;setPending(false);}}
+ if(loading||error||privateLoading||privateError)return <StoreStatus loading={loading||privateLoading} error={error||privateError} retry={refresh}/>;
+ return <><section className="gk-page-hero gk-warm"><div className="gk-container"><p className="gk-breadcrumb"><Link to="/cart">Giỏ hàng</Link> / Đăng ký</p><h1>Xác nhận hành trình học tập</h1><p className="gk-muted">Kiểm tra lớp học và thông tin liên hệ trước khi gửi đăng ký.</p></div></section><section className="gk-section"><form className="gk-container gk-cart-grid" onSubmit={complete}><div>{rows.map(row=>{const course=findUserCourse(row.courseId),cl=classes.find(c=>c.id===row.classId&&c.courseId===row.courseId);return <article className="gk-cart-item" key={row.courseId}>{course&&<img src={courseImage(course)} alt={course.title}/>}<div className="gk-cart-item-content"><h2>{course?.title||'Khóa học không còn hiển thị'}</h2><p>{cl?<>Lớp: {cl.code}<br/>{displayDate(cl.date)} · {cl.time}<br/>{cl.location}</>:'Lớp không còn mở đăng ký. Vui lòng chọn lại.'}</p><strong className="gk-price">{coursePrice(course?.price)}</strong><Link className="gk-button" to={`/courses/${row.courseId}#classes`}>Chọn lại lớp</Link></div></article>;})}
+ <section className="gk-contact-form"><h2>Thông tin người đăng ký</h2>{[['fullName','Họ và tên','text'],['phone','Số điện thoại','tel'],['email','Email liên hệ','email']].map(([name,label,type])=><label key={name}>{label}<input required name={name} type={type} maxLength={name==='phone'?15:100} pattern={name==='phone'?'[+]?[0-9]{9,15}':undefined} value={profile[name]} onChange={e=>setProfile(p=>({...p,[name]:e.target.value}))} disabled={pending}/></label>)}</section><PaymentMethods providers={providers} value={provider} onChange={setSelectedProvider} disabled={pending}/>{providers&&!Object.values(providers).some(p=>p.enabled)&&<p className="gk-auth-notice">Trung tâm chưa kích hoạt thanh toán sandbox. Vui lòng liên hệ GK để được hỗ trợ.</p>}</div>
+ <aside className="gk-registration gk-warm"><h2>Thông tin đăng ký</h2><p>Tài khoản: {authUser.username}</p><p>{rows.length} khóa học</p><strong className="gk-price">{coursePrice(total)}</strong><p className="gk-muted">Chọn VNPAY hoặc MoMo để tiếp tục. Kết quả thanh toán sẽ được cập nhật sau khi nhà cung cấp xác nhận.</p>{failure&&<p role="alert" className="gk-danger">{failure}</p>}{!valid&&<p role="alert" className="gk-danger">Vui lòng chọn lại lớp còn chỗ và có học phí.</p>}<label className="gk-consent"><input type="checkbox" required disabled={pending}/>Tôi đã kiểm tra thông tin và đồng ý gửi đăng ký tới GK.</label><button className="gk-button gk-primary gk-button-wide" disabled={pending||loggingOut||!valid||!providers?.[provider]?.enabled}>{pending?'Đang tạo thanh toán...':'Tiếp tục thanh toán'}</button></aside></form></section></>;
 }
