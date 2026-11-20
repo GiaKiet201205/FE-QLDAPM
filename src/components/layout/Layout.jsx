@@ -1,6 +1,7 @@
 import { Outlet, useLocation } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
+import ChatWidget from "../chat/ChatWidget";
 
 function findPageMeta(role, pathname) {
   const prefix = `/${role.key.toLowerCase()}`;
@@ -63,6 +64,7 @@ export default function Layout({ role }) {
           <Outlet />
         </main>
       </div>
+      <ChatWidget role={role} />
     </div>
   );
 }
