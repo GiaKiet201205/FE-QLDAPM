@@ -1,4 +1,5 @@
 import * as Icons from 'lucide-react'
+import Brand from '../user/Brand';
 import { NavLink } from 'react-router-dom'
 
 function Icon({ name, ...props }) {
@@ -9,17 +10,8 @@ function Icon({ name, ...props }) {
 export default function Sidebar({ role }) {
   const rolePrefix = `/${role.key.toLowerCase()}`;
   return (
-    <aside className="w-64 shrink-0 bg-white text-slate-600 flex flex-col h-screen sticky top-0 border-r border-slate-200">
-      {/* Brand */}
-      <div className="flex items-center gap-3 px-5 py-5 border-b border-white/10">
-        <div className="w-9 h-9 rounded-lg bg-blue-950 flex items-center justify-center text-white font-bold text-sm">
-          IIG
-        </div>
-        <div>
-          <div className="text-black text-sm font-semibold leading-tight">IIG Learning</div>
-          <div className="text-[11px] text-slate-500 leading-tight">ERP System</div>
-        </div>
-      </div>
+    <aside className="gk-admin-sidebar w-64 shrink-0 bg-white text-slate-600 flex flex-col h-screen sticky top-0 border-r border-slate-200">
+      <div className="gk-sidebar-brand"><NavLink to={rolePrefix} aria-label="GK Academy - Tổng quan"><Brand /></NavLink><p>KHÔNG GIAN QUẢN LÝ</p></div>
 
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-6">
@@ -58,7 +50,7 @@ export default function Sidebar({ role }) {
 
       {/* Footer */}
       <div className="px-5 py-4 border-t border-white/10 flex items-center justify-between text-[11px] text-slate-500">
-        <span>v2.4.1</span>
+        <span>GK Academy · Quản lý trung tâm</span>
         <Icon name="Settings" size={14} />
       </div>
     </aside>

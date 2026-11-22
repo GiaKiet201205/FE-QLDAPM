@@ -1,18 +1,18 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useAccountData } from '../../accounts/hooks/useAccountData';
 
 const authContent = {
   login: {
-    title: 'Welcome back',
-    subtitle: 'Sign in to access your ERP workspace',
-    action: 'Sign In →',
+    title: 'Đăng nhập quản lý',
+    subtitle: 'Chào mừng bạn trở lại không gian làm việc GK.',
+    action: 'Đăng nhập',
   },
   reset: {
-    title: 'Forgot Password?',
-    subtitle: 'Enter your email to reset your password',
-    action: 'Send Reset Link →',
+    title: 'Quên mật khẩu?',
+    subtitle: 'Nhập email để kiểm tra hướng dẫn hỗ trợ truy cập.',
+    action: 'Xem hướng dẫn khôi phục',
   },
 };
 
@@ -26,6 +26,7 @@ export function useAuthForm(mode = 'login') {
   const [pending, setPending] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
+  const pendingRef = useRef(false);
   const navigate = useNavigate();
   const copy = authContent[mode];
 
@@ -56,26 +57,28 @@ export function useAuthForm(mode = 'login') {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!validateInputs()) return;
+    if (pendingRef.current || !validateInputs()) return;
 
     if (mode === 'reset') {
-      setNotice('Đặt lại mật khẩu chưa được kết nối. Chưa có email nào được gửi.');
+      setNotice('Chức năng gửi email khôi phục hiện chưa được kết nối. Vui lòng liên hệ quản lý GK để được hỗ trợ đặt lại mật khẩu.');
       return;
     }
 
+    pendingRef.current = true;
     setPending(true);
 
     try {
       const result = await login(userId, password, rememberMe);
       if (!result.ok) {
-        toast.error(result.reason);
+        setErrors((current) => ({ ...current, general: result.reason }));
         return;
       }
       toast.success(`Xin chào ${result.user}!`);
-      navigate(result.roleKey === 'USER' ? '/user/profile' : `/${result.roleKey.toLowerCase()}`, { replace: true });
+      navigate(`/${result.roleKey.toLowerCase()}`, { replace: true });
     } catch {
-      toast.error('Không thể đăng nhập. Vui lòng thử lại.');
+      setErrors((current) => ({ ...current, general: 'Không thể đăng nhập. Vui lòng thử lại.' }));
     } finally {
+      pendingRef.current = false;
       setPending(false);
     }
   };

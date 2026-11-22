@@ -5,7 +5,7 @@
         <h3 className="text-sm font-semibold text-slate-800">{title}</h3>
         {items.some((i) => i.urgent) && (
           <span className="text-[11px] font-semibold text-red-600 bg-red-50 px-2 py-0.5 rounded-full">
-            {items.filter((i) => i.urgent).length} Pending
+            {items.filter((i) => i.urgent).length} chờ xử lý
           </span>
         )}
       </div>
@@ -24,7 +24,7 @@
       </div>
       <button
         className="w-full mt-4 py-2.5 rounded-lg text-white text-sm font-medium"
-        style={{ backgroundColor: role.color }}
+        style={{ backgroundColor: "var(--gk-teal)" }}
       >
         Đi tới việc cần làm
       </button>

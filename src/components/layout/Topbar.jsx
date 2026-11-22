@@ -18,7 +18,7 @@ export default function Topbar({
   };
 
   return (
-    <header className="flex h-16 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-6">
+    <header className="gk-admin-topbar flex h-16 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-6">
       <div>
         <h1 className="text-[15px] font-semibold leading-tight text-slate-900">
           {pageTitle}
@@ -32,15 +32,14 @@ export default function Topbar({
       </div>
 
       <div className="flex items-center gap-3">
-        <button className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-[11px] font-medium text-slate-600">
-          GMT+7 · EN
-        </button>
+        <span className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-[11px] font-medium text-slate-600">
+          Giờ Việt Nam · GMT+7
+        </span>
 
-        <button className="relative flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100">
+        <span aria-label="Thông báo" className="relative flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100">
           <Bell size={16} />
 
-          <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" />
-        </button>
+        </span>
 
         <div className="flex items-center gap-2.5 border-l border-slate-200 pl-3">
           <button
@@ -49,7 +48,7 @@ export default function Topbar({
               navigate(`/${role.key.toLowerCase()}/profile`)
             }
             className="flex h-8 w-8 cursor-pointer items-center justify-center overflow-hidden rounded-full text-xs font-semibold text-white"
-            style={{ backgroundColor: role.color }}
+            style={{ backgroundColor: "var(--gk-teal)" }}
           >
             {authUser?.avatar ? (
               <img

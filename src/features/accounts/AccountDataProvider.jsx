@@ -4,6 +4,7 @@ import { ACCOUNT_ROLE_MAP } from '../../config/roles';
 import { getInitials } from './accountStore';
 import { mapAccountResponse } from './accountMapper';
 import { getSession, login as backendLogin, saveSession } from '../../services/api';
+import { storeApi } from '../../services/storeApi';
 import { profileApi } from '../../services/profileApi';
 import { currentAccountRequest, logoutRequest, registerRequest } from '../../services/authApi';
 
@@ -77,13 +78,16 @@ export default function AccountDataProvider({ children }) {
     setReloadCount((current) => current + 1);
   }, [token]);
 
-  async function login(identifier, password, remember, userOnly = false) {
+  async function login(identifier, password, remember, userOnly = import.meta.env.VITE_APP_TARGET !== 'admin') {
     try {
       const input = identifier.trim().toLowerCase();
       const response = await backendLogin(userOnly ? input : USERNAME_ALIASES[input] ?? input, password);
       const role = response?.role?.toUpperCase();
       if (userOnly && role !== 'USER') {
-        return { ok: false, reason: 'Đây là tài khoản nhân viên. Vui lòng dùng trang đăng nhập nhân viên.' };
+        return { ok: false, code: 'STAFF_PORTAL_REQUIRED', reason: 'Tài khoản này thuộc cổng quản lý GK. Bạn đang mở trang đăng nhập học viên, vui lòng chuyển sang cổng quản lý để tiếp tục.' };
+      }
+      if (import.meta.env.VITE_APP_TARGET === 'admin' && role === 'USER') {
+        return { ok: false, reason: 'Tài khoản học viên chỉ đăng nhập tại website bán hàng.' };
       }
       if (!response?.token || !response.username || !ROLE_LABELS[role]) {
         return { ok: false, reason: 'Backend không trả về phiên đăng nhập hợp lệ.' };
@@ -115,6 +119,15 @@ export default function AccountDataProvider({ children }) {
       return { ok: false, reason: error.message || 'Không thể đăng ký tài khoản.' };
     }
   }
+
+  const acceptSocialSession = useCallback((response, remember) => {
+    if (!response?.token || !response.username || response.role !== 'USER') {
+      throw new Error('Phiên đăng nhập học viên không hợp lệ.');
+    }
+    saveSession({ token: response.token, tokenType: response.tokenType || 'Bearer', username: response.username, role: 'USER' }, Boolean(remember));
+    setProfileState(null);
+    setSession(getSession());
+  }, []);
 
   function clearLocalSession(expectedToken) {
     const currentToken = getSession()?.token;
@@ -185,6 +198,9 @@ export default function AccountDataProvider({ children }) {
   }
 
   function updateProfile(form) {
+    if (session?.role === 'USER') return mutateProfile(() => storeApi.profile({
+      fullName: form.fullName.trim(), email: form.email.trim(), phone: form.phone.trim(),
+    }), true);
     return mutateProfile(() => profileApi.update({
       fullName: form.fullName.trim(), email: form.email.trim(), phone: form.phone.trim() || null,
       specialization: form.specialization.trim() || null,
@@ -203,7 +219,7 @@ export default function AccountDataProvider({ children }) {
   }
 
   return (
-    <AccountDataContext.Provider value={{ authUser, profileLoading, profileError, reloadProfile, loggingOut, login, registerUser, logout, updateProfile, changePassword }}>
+    <AccountDataContext.Provider value={{ authUser, profileLoading, profileError, reloadProfile, loggingOut, login, registerUser, acceptSocialSession, logout, updateProfile, changePassword }}>
       {children}
     </AccountDataContext.Provider>
   );

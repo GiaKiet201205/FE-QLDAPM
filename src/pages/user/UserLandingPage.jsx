@@ -1,69 +1,51 @@
-import { ArrowDown, ArrowRight, BookOpen, Check, CreditCard, GraduationCap, Search, Target, UserRound } from 'lucide-react';
+import { storeApi } from '../../services/storeApi';
+import { useStore } from '../../features/storefront/useStore';
+import StoreStatus from '../../components/user/StoreStatus';
 import { Link } from 'react-router-dom';
+import { useState } from 'react';
+import { Target, CalendarDays, GraduationCap } from 'lucide-react';
+import CourseCard from '../../components/user/CourseCard';
+import LearningEmblem from '../../components/user/learning-emblem/LearningEmblem';
+import { courseImage } from '../../data/storefront';
+import { coursePrice } from '../../data/userCourses';
 
-const benefits = [
-  { icon: Target, title: 'Lộ trình theo mục tiêu', description: 'TOEIC, IELTS, SAT, VSTEP và tiếng Anh giao tiếp, từ nền tảng đến nâng cao.' },
-  { icon: BookOpen, title: 'Thông tin rõ ràng', description: 'Tìm hiểu nội dung, thời lượng và học phí trước khi lựa chọn.' },
-  { icon: UserRound, title: 'Không gian học tập riêng', description: 'Xem lại các khóa đã đăng ký ngay trong Profile của bạn.' },
-];
-const steps = [
-  { icon: Search, title: 'Khám phá khóa học', description: 'Xem danh sách và nội dung chi tiết để chọn khóa phù hợp. Bạn chưa cần đăng nhập ở bước này.' },
-  { icon: UserRound, title: 'Đăng nhập hoặc đăng ký', description: 'Khi chọn mua, đăng nhập bằng tài khoản học viên. Chưa có tài khoản? Bạn có thể tạo mới ngay.' },
-  { icon: CreditCard, title: 'Thanh toán và xem khóa học', description: 'Trải nghiệm thanh toán mô phỏng với MoMo hoặc VNPay, sau đó xem chi tiết khóa học trong Profile.' },
+const learningBenefits = [
+  { icon: Target, title: 'Mục tiêu rõ ràng', description: 'Chọn lộ trình TOEIC, IELTS, MOS hoặc IC3 phù hợp với bạn.' },
+  { icon: CalendarDays, title: 'Lịch học vừa vặn', description: 'Linh hoạt buổi tối, cuối tuần hoặc học trực tuyến.' },
+  { icon: GraduationCap, title: 'Từng bước tiến xa', description: 'Học có định hướng, thực hành để tự tin hơn mỗi ngày.' },
 ];
 
+const questions = [
+  ['Tôi đăng ký khóa học như thế nào?', 'Chọn khóa học, xem lịch lớp phù hợp rồi đăng nhập để tiếp tục đăng ký. Bạn có thể thêm khóa học vào giỏ trước khi quyết định.'],
+  ['Nếu lịch học của tôi thay đổi thì sao?', 'Bạn có thể tham khảo các khung giờ khác trong lịch khai giảng. Hãy trao đổi với trung tâm trước khi xác nhận đăng ký.'],
+  ['Học phí đã bao gồm lệ phí thi không?', 'Học phí hiển thị được cập nhật từ trung tâm. Lệ phí thi chứng chỉ không nằm trong học phí này.'],
+];
 export default function UserLandingPage() {
-  return (
-    <>
-      <section id="introduction" className="scroll-mt-40 border-b border-slate-200 bg-white md:scroll-mt-24" aria-labelledby="landing-heading">
-        <div className="mx-auto max-w-7xl px-5 py-10 sm:py-14 lg:px-8 lg:py-16">
-          <div className="mx-auto max-w-3xl text-center">
-            <p className="mb-5 inline-flex items-center gap-2 rounded-md border border-blue-100 bg-blue-50 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-blue-700"><GraduationCap size={15} />IIG Learning · Learning Portal</p>
-            <h1 id="landing-heading" className="text-4xl font-bold leading-[1.2] tracking-tight text-[#173557] sm:text-5xl lg:text-[52px]">Ngoại ngữ vững vàng.<br /><span className="text-blue-600">Tương lai rộng mở.</span></h1>
-            <p className="mx-auto mt-5 max-w-xl text-sm leading-7 text-slate-500 sm:text-[15px]">Mỗi mục tiêu đều bắt đầu từ một lựa chọn. Tìm lộ trình tiếng Anh phù hợp và bắt đầu hành trình học tập của bạn cùng IIG Learning.</p>
-            <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
-              <Link to="/courses" className="inline-flex min-h-11 items-center justify-center gap-3 rounded-md border border-[#173557] bg-[#173557] px-5 text-[13px] font-medium text-white transition-colors hover:bg-[#24486f] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600">Khám phá khóa học<ArrowRight size={16} /></Link>
-              <a href="#journey" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-5 text-[13px] font-medium text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600">Cách đăng ký<ArrowDown size={15} /></a>
-            </div>
-            <div className="mt-6 flex flex-wrap justify-center gap-x-5 gap-y-2 text-xs text-slate-500">
-              {['Xem khóa học tự do', 'Lựa chọn theo mục tiêu', 'Quản lý trong Profile'].map((item) => <span key={item} className="flex items-center gap-1.5"><Check size={14} className="text-blue-600" />{item}</span>)}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <div className="mx-auto max-w-7xl px-5 lg:px-8">
-        <section aria-label="Trải nghiệm học tập" className="grid gap-4 py-7 md:grid-cols-3">
-          {benefits.map(({ icon: Icon, title, description }) => (
-            <div key={title} className="flex items-start gap-3 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-100 bg-slate-50 text-[#173557]"><Icon size={18} strokeWidth={1.6} /></span>
-              <div><h2 className="text-[13px] font-semibold text-slate-800">{title}</h2><p className="mt-1.5 text-xs leading-6 text-slate-500">{description}</p></div>
-            </div>
-          ))}
-        </section>
-      </div>
-
-      <section id="journey" aria-labelledby="journey-heading" className="scroll-mt-40 border-y border-slate-200 bg-white sm:scroll-mt-24">
-        <div className="mx-auto max-w-7xl px-5 py-12 lg:px-8">
-          <div className="mb-7"><p className="text-[10px] font-semibold uppercase tracking-widest text-blue-600">Hành trình của bạn</p><h2 id="journey-heading" className="mt-2 text-2xl font-bold text-[#173557]">Bắt đầu với 3 bước đơn giản</h2></div>
-          <div className="grid gap-5 md:grid-cols-3">
-            {steps.map(({ icon: Icon, title, description }, index) => (
-              <article key={title} className="rounded-lg border border-slate-200 bg-slate-50/70 p-5">
-                <div className="mb-5 flex items-center justify-between"><span className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-[#173557]"><Icon size={17} /></span><span className="text-xl font-bold text-slate-300">0{index + 1}</span></div>
-                <h3 className="text-sm font-semibold text-slate-800">{title}</h3><p className="mt-2 text-xs leading-6 text-slate-500">{description}</p>
-              </article>
-            ))}
-          </div>
-          <p className="mt-5 text-xs leading-6 text-slate-500">Phần thanh toán hiện là mô phỏng, không trừ tiền thật. Các khóa đăng ký thử được lưu trên trình duyệt theo tài khoản.</p>
-        </div>
-      </section>
-
-      <div className="mx-auto max-w-7xl px-5 py-10 lg:px-8">
-        <section className="flex flex-wrap items-center justify-between gap-6 rounded-lg bg-[#173557] px-6 py-8 text-white sm:px-8">
-          <div><p className="mb-2 text-[10px] font-medium uppercase tracking-widest text-blue-200">Bước tiếp theo là của bạn</p><h2 className="text-xl font-semibold sm:text-2xl">Sẵn sàng cho một khởi đầu mới?</h2><p className="mt-3 text-xs leading-6 text-blue-100">Khám phá nội dung trước, chọn lộ trình khi bạn đã sẵn sàng.</p></div>
-          <Link to="/courses" className="inline-flex min-h-10 items-center justify-center gap-3 rounded-md border border-white bg-white px-4 text-[13px] font-semibold text-[#173557] hover:bg-blue-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">Tìm khóa học của bạn<ArrowRight size={16} /></Link>
-        </section>
-      </div>
-    </>
-  );
+  const { featuredCourses,classes:publicClasses,findUserCourse,loading,error,refresh }=useStore();
+  const [notice, setNotice] = useState('');
+  const [sending,setSending]=useState(false);
+  async function consult(e){e.preventDefault();if(sending)return;const form=e.currentTarget;setSending(true);setNotice('');try{await storeApi.consultation({email:new FormData(form).get('email'),consent:true});setNotice('Đã lưu yêu cầu. GK sẽ liên hệ tư vấn qua email của bạn.');form.reset();}catch(err){setNotice(err.message);}finally{setSending(false);}}
+  if(loading||error)return <StoreStatus loading={loading} error={error} retry={refresh}/>;
+  return <div className="gk-home">
+    <section className="gk-hero gk-home-hero" aria-labelledby="gk-home-heading">
+      <figure className="gk-home-banner"><img src="/images/learning.jpg" alt="Học viên cùng trao đổi trong không gian học tập GK" fetchPriority="high" /></figure>
+      <div className="gk-container gk-home-hero-content"><div className="gk-home-hero-copy">
+        <p className="gk-eyebrow">Học đúng hướng · Tiến xa hơn</p><h1 id="gk-home-heading">Chọn khóa học phù hợp với mục tiêu của bạn</h1>
+        <p className="gk-lead">Từ chứng chỉ ngoại ngữ đến kỹ năng tin học. Tìm lộ trình vừa sức, chọn lịch học vừa vặn và bắt đầu cùng GK.</p>
+        <div className="gk-actions"><Link className="gk-button gk-primary" to="/courses">Khám phá khóa học</Link><Link className="gk-button" to="/schedule">Xem lịch khai giảng</Link></div>
+      </div></div>
+    </section>
+    <section className="gk-home-values" aria-label="Hành trình học tập cùng GK"><div className="gk-container gk-values">
+      {learningBenefits.map(({ icon: Icon, title, description }) => <article className="gk-value-item" key={title}><span className="gk-value-icon"><Icon size={25} strokeWidth={1.7} aria-hidden="true" /></span><div><h2>{title}</h2><p>{description}</p></div></article>)}
+    </div></section>
+    <LearningEmblem />
+    <section id="about" className="gk-section"><div className="gk-container"><p className="gk-eyebrow">Chương trình đào tạo</p><h2>Mỗi mục tiêu, một hướng đi</h2><p className="gk-muted">Chọn chương trình đầu tiên. Từng bước tiến gần hơn đến mục tiêu.</p>
+      <div className="gk-program-grid">{featuredCourses.map((course) => <Link to={`/courses?category=${course.category}`} key={course.id}><img loading="lazy" src={courseImage(course)} alt={`Học tập và thực hành ${course.category}`} /><h3>{course.category}</h3><p>{({ TOEIC: 'Giao tiếp công việc, mở lối sự nghiệp', IELTS: 'Vững nền tảng, tự tin hội nhập', MOS: 'Thành thạo công cụ, làm việc hiệu quả', IC3: 'Kỹ năng số thiết yếu cho cuộc sống' })[course.category]}</p></Link>)}</div>
+    </div></section>
+    <section className="gk-section gk-warm"><div className="gk-container"><div className="gk-section-title"><div><p className="gk-eyebrow">Bước tiếp theo của bạn</p><h2>Bắt đầu từ một khóa học phù hợp</h2></div><Link className="gk-button" to="/courses">Tất cả khóa học</Link></div><div className="gk-card-grid">{featuredCourses.map((c) => <CourseCard course={c} key={c.id} />)}</div></div></section>
+    <section className="gk-section gk-mint"><div className="gk-container"><div className="gk-section-title"><div><p className="gk-eyebrow">Những lớp sắp khai giảng</p><h2>Một lịch học vừa vặn với bạn</h2></div><Link className="gk-button" to="/schedule">Xem toàn bộ lịch</Link></div>
+      <div className="gk-opening-list">{publicClasses.filter((c) => c.seats > 0).slice(0, 3).map((c) => { const course = findUserCourse(c.courseId); return <article key={c.id} className="gk-opening"><div className="gk-opening-date"><strong>{c.date.slice(8)}/{c.date.slice(5, 7)}</strong><small>{c.date.slice(0,4)}</small></div><div className="gk-opening-info"><h3>{course.title}</h3><p>{c.time}</p><p>{c.location}</p></div><div><strong>{coursePrice(course.price)}</strong><p className="gk-teal">Còn chỗ đăng ký</p></div><Link className="gk-button" to={`/courses/${course.id}?class=${c.id}#classes`}>Chọn lớp</Link></article>; })}</div>
+    </div></section>
+    <section id="consultation" className="gk-section"><div className="gk-container gk-faq-grid"><div><p className="gk-eyebrow">Đồng hành cùng bạn</p><h2>Bạn hỏi, GK giải đáp</h2><p className="gk-muted">Một vài điều cần biết trước khi bắt đầu hành trình mới.</p><form className="gk-consultation" onSubmit={consult}><label htmlFor="consult-email">Email nhận tư vấn</label><input id="consult-email" name="email" type="email" maxLength={100} required placeholder="Email của bạn" /><label className="gk-consent"><input type="checkbox" required/>Tôi đồng ý để GK liên hệ tư vấn qua email.</label><button className="gk-button gk-primary" disabled={sending}>{sending?'Đang gửi...':'Nhận tư vấn'}</button>{notice && <p role="status">{notice}</p>}</form></div><div>{questions.map(([q, a]) => <details key={q} open><summary>{q}</summary><p>{a}</p></details>)}</div></div></section>
+  </div>;
 }

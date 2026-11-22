@@ -40,7 +40,7 @@ export function useUserAuthForm(register = false) {
     setPending(true);
     try {
       const result = register ? await registerUser(form) : await login(form.username, form.password, form.remember, true);
-      if (!result.ok) setErrors({ general: result.reason });
+      if (!result.ok) setErrors({ general: result.reason, staffPortal: result.code === 'STAFF_PORTAL_REQUIRED' });
       else navigate(returnTo, { replace: true });
     } catch { setErrors({ general: 'Không thể kết nối. Vui lòng thử lại.' }); }
     finally { pendingRef.current = false; setPending(false); }

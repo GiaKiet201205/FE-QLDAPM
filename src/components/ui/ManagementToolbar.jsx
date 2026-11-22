@@ -17,19 +17,19 @@ export default function ManagementToolbar({
             <input type="text" value={searchTerm} onChange={onSearch} maxLength={searchMaxLength} placeholder={searchPlaceholder} aria-label={searchPlaceholder}
               className="w-full rounded-md border border-gray-300 py-2 pl-9 pr-3 text-sm focus:border-[#1a365d] focus:outline-none" />
           </div>
-          <select value={selectedRole} aria-label="Filter by role" onChange={onRoleChange}
+          <select value={selectedRole} aria-label="Lọc theo vai trò" onChange={onRoleChange}
             className="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-600 focus:border-[#1a365d] focus:outline-none">
-            <option value={allRolesValue}>Role: All Roles</option>
+            <option value={allRolesValue}>Tất cả vai trò</option>
             {roleOptions.map(({ value, label }) => <option key={value} value={value}>{label}</option>)}
           </select>
-          <select value={selectedStatus} aria-label="Filter by status" onChange={onStatusChange}
+          <select value={selectedStatus} aria-label="Lọc theo trạng thái" onChange={onStatusChange}
             className="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-600 focus:border-[#1a365d] focus:outline-none">
-            <option value={allStatusValue}>Status: All Status</option>
+            <option value={allStatusValue}>Tất cả trạng thái</option>
             {statusOptions.map(({ value, label }) => <option key={value} value={value}>{label}</option>)}
           </select>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <Button onClick={onExport} disabled={exportDisabled}><Download size={16} />Export</Button>
+          <Button onClick={onExport} disabled={exportDisabled}><Download size={16} />Xuất dữ liệu</Button>
           {showAdd && <Button variant="primary" onClick={onAddClick} disabled={addDisabled}><Plus size={16} />{addLabel}</Button>}
         </div>
       </div>

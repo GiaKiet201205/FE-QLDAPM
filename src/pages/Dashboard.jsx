@@ -93,18 +93,18 @@ export default function Dashboard({ role }) {
             <h3 className="text-sm font-semibold text-slate-800">Trạng thái hôm nay</h3>
             <span className="flex items-center gap-1.5 text-xs text-emerald-600 font-medium">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-              Online
+              Đã kết nối
             </span>
           </div>
-          <p className="text-xs text-slate-400 mb-4">Cập nhật theo thời gian thực</p>
+          <p className="text-xs text-slate-400 mb-4">Tổng quan thông tin làm việc</p>
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-slate-50 rounded-lg p-3">
               <div className="text-lg font-bold text-slate-900">{role.label}</div>
               <div className="text-[11px] text-slate-400 mt-0.5">Vai trò hiện tại</div>
             </div>
             <div className="bg-slate-50 rounded-lg p-3">
-              <div className="text-lg font-bold text-slate-900">Hanoi Main</div>
-              <div className="text-[11px] text-slate-400 mt-0.5">Cơ sở</div>
+              <div className="text-lg font-bold text-slate-900">GK Academy</div>
+              <div className="text-[11px] text-slate-400 mt-0.5">Trung tâm</div>
             </div>
           </div>
         </div>
