@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { CalendarDays, ChevronDown, ChevronUp, AlertTriangle, Plus, Trash2 } from "lucide-react";
 import Button from "../../components/ui/Button";
 import Modal from "../../components/ui/Modal";
-import { courses as fallbackCourses } from "./mockClasses";
+import { courses as fallbackCourses } from "./classConfig";
 import { getCourseTargetDefinition } from "../academic/targetEligibility";
 
 const inputClass =

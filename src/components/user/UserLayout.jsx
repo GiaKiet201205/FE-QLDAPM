@@ -5,7 +5,6 @@ import { LogOut, ShoppingBag, UserRound } from 'lucide-react';
 import { useAccountData } from '../../features/accounts/hooks/useAccountData';
 import { useStore } from '../../features/storefront/useStore';
 import Brand from './Brand';
-import UserChatbox from './UserChatbox';
 import StoreFooter from './StoreFooter';
 import './storefront.css';
 
@@ -35,6 +34,5 @@ export default function UserLayout() {
     </div></header>
     <main id="gk-main"><Outlet /></main>
     <StoreFooter />
-    <UserChatbox key={authUser?.username || 'guest'} />
   </div>;
 }

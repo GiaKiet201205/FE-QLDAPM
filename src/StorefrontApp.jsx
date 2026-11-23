@@ -19,6 +19,7 @@ import ShoppingCart from './pages/user/ShoppingCart';
 import AboutPage from './pages/user/AboutPage';
 import ContactPage from './pages/user/ContactPage';
 import UserForgotPassword from './pages/user/UserForgotPassword';
+import UserChatbox from './components/user/UserChatbox';
 
 export default function StorefrontApp() {
   return <BrowserRouter>
@@ -45,6 +46,7 @@ export default function StorefrontApp() {
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      <UserChatbox />
     </StoreDataProvider></AccountDataProvider>
   </BrowserRouter>;
 }

@@ -5,7 +5,7 @@ import Button from '../components/ui/Button';
 import ProfileSalaryCard from '../components/profile/ProfileSalaryCard';
 import ProfileCertificates from '../components/profile/ProfileCertificates';
 import { useAccountData } from '../features/accounts/hooks/useAccountData';
-import { getInitials } from '../features/accounts/accountStore';
+import { getInitials } from '../features/accounts/accountHelpers';
 import { ROLES } from '../config/roles';
 
 const inputClass = 'w-full rounded-md border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-50';

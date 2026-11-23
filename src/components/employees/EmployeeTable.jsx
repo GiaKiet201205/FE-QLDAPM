@@ -1,5 +1,5 @@
 import EntityTable from '../ui/EntityTable';
-import { getInitials } from '../../features/accounts/accountStore';
+import { getInitials } from '../../features/accounts/accountHelpers';
 import { EMPLOYEE_ROLES, EMPLOYEE_STATUSES, formatNumber } from '../../features/employees/employeeHelpers';
 
 export function EmployeeStatus({ value }) {

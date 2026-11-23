@@ -21,7 +21,7 @@ import {
   csWorkTypes,
   saleWorkTypes,
   workplaceOptions,
-} from "./mockStaffAssignment";
+} from "./staffAssignmentConfig";
 import { addDays, iso, mondayOf } from "./schedulingUtils";
 import {
   buildWeekDays,

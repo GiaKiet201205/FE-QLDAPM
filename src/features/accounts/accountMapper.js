@@ -1,5 +1,5 @@
 import { ACCOUNT_ROLE_MAP } from '../../config/roles';
-import { getInitials } from './accountStore';
+import { getInitials } from './accountHelpers';
 
 export function mapAccountResponse(account) {
   const name = account.fullName || account.username;

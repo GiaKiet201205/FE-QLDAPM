@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import DetailPanel from '../ui/DetailPanel';
 import Button from '../ui/Button';
-import { getInitials } from '../../features/accounts/accountStore';
+import { getInitials } from '../../features/accounts/accountHelpers';
 import { EMPLOYEE_ROLES, formatNumber, formatDate } from '../../features/employees/employeeHelpers';
 import { EmployeeStatus } from './EmployeeTable';
 import EditEmployeeModal from './EditEmployeeModal';

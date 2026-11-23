@@ -17,7 +17,7 @@ import {
 import Button from "../../components/ui/Button";
 import EntityTable from "../../components/ui/EntityTable";
 import DetailPanel from "../../components/ui/DetailPanel";
-import { classStatuses, courses as fallbackCourses } from "./mockClasses";
+import { classStatuses, courses as fallbackCourses } from "./classConfig";
 
 const labelClass =
   "mb-1 block text-[11px] font-medium uppercase tracking-wide text-slate-400";

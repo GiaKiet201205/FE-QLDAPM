@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { applyAvailabilityShift, shiftDefinitions } from "./mockAvailability.js";
+import { applyAvailabilityShift, shiftDefinitions } from "./availabilityConfig.js";
 
 test("changing shift uses its advertised time range", () => {
   const original = {

@@ -1,5 +1,5 @@
 import { BookOpen, ShieldCheck, UserRound } from 'lucide-react';
-import { getInitials } from '../../features/accounts/accountStore';
+import { getInitials } from '../../features/accounts/accountHelpers';
 import useUserProfileForm from '../../features/user/useUserProfileForm';
 import { useAccountData } from '../../features/accounts/hooks/useAccountData';
 import Button from '../ui/Button';

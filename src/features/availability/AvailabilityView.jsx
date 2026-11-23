@@ -15,7 +15,7 @@ import {
   getDurationHours,
   shiftDefinitions,
   weekDayDefinitions,
-} from "./mockAvailability";
+} from "./availabilityConfig";
 
 function StatusLegend({ tone, label }) {
   return (
