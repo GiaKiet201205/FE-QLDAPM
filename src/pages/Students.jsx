@@ -3,7 +3,7 @@ import StudentsView from "../features/students/StudentsView";
 import StudentFormModal from "../features/students/StudentFormModal";
 import ConfirmActionModal from "../components/ui/ConfirmActionModal";
 import AssignStudentsModal from "../features/students/AssignStudentsModal";
-import { PAGE_SIZE, emptyForm } from "../features/students/mockStudents";
+import { PAGE_SIZE, emptyForm } from "../features/students/studentConfig";
 import { courseTargetDefinitions } from "../features/academic/targetEligibility";
 import { useAcademicData } from "../features/academic/AcademicDataContext";
 

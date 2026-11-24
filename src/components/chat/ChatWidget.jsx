@@ -56,7 +56,8 @@ function Conversation({ role }) {
     setPending(true);
     setError('');
     setDraft('');
-    const history = messages.slice(-8).map(({ role: messageRole, content }) => ({ role: messageRole, content: content.slice(0, 4000) }));
+    const history = messages.filter((message) => message.mode !== 'data').slice(-8)
+      .map(({ role: messageRole, content }) => ({ role: messageRole, content: content.slice(0, 4000) }));
     setMessages((previous) => [...previous, { role: 'user', content: question }].slice(-39));
     const controller = new AbortController();
     request.current = controller;
@@ -104,9 +105,10 @@ function Conversation({ role }) {
 
           <div className="flex-1 space-y-4 overflow-y-auto bg-slate-50 p-4" role="log" aria-label="Hội thoại với trợ lý" aria-live="polite" aria-relevant="additions">
             <div className="rounded-xl rounded-tl-sm border border-slate-200 bg-white p-3 text-sm leading-6 text-slate-700">
-              Chào bạn! Mình có thể hướng dẫn thao tác trên hệ thống theo vai trò của bạn.
-              Hãy mô tả công việc bạn đang cần hỗ trợ.
-              <p className="mt-2 text-xs text-slate-500">Hiện mình chưa đọc dữ liệu cá nhân hoặc thực hiện thao tác thay bạn. Không gửi mật khẩu vào chat.</p>
+              {role.key === 'ADMIN'
+                ? 'Chào bạn! Mình có thể giải thích nghiệp vụ và tra cứu dữ liệu quản trị theo quyền ADMIN.'
+                : `Chào bạn! Mình chỉ hướng dẫn các chức năng dành cho ${role.label}. Mình không tra cứu dữ liệu thực tế, thống kê hoặc hướng dẫn chức năng của vai trò khác.`}
+              <p className="mt-2 text-xs text-slate-500">Mình chỉ đọc dữ liệu, không thay đổi hay phê duyệt thay bạn. Không gửi mật khẩu hoặc khóa API vào chat.</p>
             </div>
 
             {messages.length === 0 && status?.suggestions?.length > 0 && (
@@ -123,14 +125,14 @@ function Conversation({ role }) {
 
             {messages.map((message, index) => (
               <article key={index} className={message.role === 'user' ? 'ml-7' : 'mr-3'}>
-                <p className="mb-1 text-[11px] font-medium text-slate-500">{message.role === 'user' ? 'Bạn' : `Trợ lý · ${message.mode === 'ai' ? 'AI' : 'Hướng dẫn'}`}</p>
+                <p className="mb-1 text-[11px] font-medium text-slate-500">{message.role === 'user' ? 'Bạn' : `Trợ lý · ${message.mode === 'data' ? 'Dữ liệu hệ thống' : message.mode === 'ai' ? 'AI' : 'Hướng dẫn'}`}</p>
                 <div className={`whitespace-pre-wrap break-words rounded-xl px-3 py-2.5 text-sm leading-6 ${message.role === 'user' ? 'rounded-tr-sm bg-[#173557] text-white' : 'rounded-tl-sm border border-slate-200 bg-white text-slate-700'}`}>
                   {message.content}
                 </div>
                 {message.notice && <p className="mt-1.5 text-[11px] leading-5 text-amber-800">{message.notice}</p>}
                 {message.sources?.length > 0 && (
                   <div className="mt-2 space-y-1.5">
-                    <p className="text-[11px] text-slate-500">Hướng dẫn tham khảo · mở màn hình</p>
+                    <p className="text-[11px] text-slate-500">{message.mode === 'data' ? 'Kiểm tra dữ liệu · mở màn hình' : 'Hướng dẫn tham khảo · mở màn hình'}</p>
                     {message.sources.filter((source) => source.path.startsWith(`/${role.key.toLowerCase()}/`) && !source.path.includes('..')).map((source) => (
                       <Link key={source.id} to={source.path} onClick={close}
                         className="flex items-center justify-between gap-2 rounded-lg border border-blue-100 bg-white px-2.5 py-2 text-xs text-blue-800 hover:bg-blue-50">
@@ -141,7 +143,7 @@ function Conversation({ role }) {
                 )}
               </article>
             ))}
-            {pending && <p className="flex items-center gap-2 text-xs text-slate-500" role="status"><LoaderCircle size={15} className="animate-spin" />Đang tìm hướng dẫn…</p>}
+            {pending && <p className="flex items-center gap-2 text-xs text-slate-500" role="status"><LoaderCircle size={15} className="animate-spin" />Đang tra cứu hệ thống…</p>}
             <div ref={end} />
           </div>
 
@@ -150,7 +152,7 @@ function Conversation({ role }) {
             <label htmlFor="assistant-question" className="sr-only">Câu hỏi cho trợ lý</label>
             <div className="flex items-end gap-2 rounded-xl border border-slate-300 bg-white p-2 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-100">
               <textarea id="assistant-question" ref={input} value={draft} maxLength={2000} rows={2}
-                onChange={(event) => setDraft(event.target.value)} placeholder="Bạn cần hướng dẫn công việc gì?"
+                onChange={(event) => setDraft(event.target.value)} placeholder="Hỏi cách làm hoặc tra cứu dữ liệu…"
                 onKeyDown={(event) => {
                   if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
                     event.preventDefault(); send(draft);

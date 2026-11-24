@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AccountDataContext } from './hooks/useAccountData';
 import { ACCOUNT_ROLE_MAP } from '../../config/roles';
-import { getInitials } from './accountStore';
+import { getInitials } from './accountHelpers';
 import { mapAccountResponse } from './accountMapper';
 import { getSession, login as backendLogin, saveSession } from '../../services/api';
 import { storeApi } from '../../services/storeApi';

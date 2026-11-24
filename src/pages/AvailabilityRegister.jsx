@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import AvailabilityFormModal from "../features/availability/AvailabilityFormModal";
 import AvailabilityView from "../features/availability/AvailabilityView";
 import Modal from "../components/ui/Modal";
-import { emptyAvailabilityForm } from "../features/availability/mockAvailability";
+import { emptyAvailabilityForm } from "../features/availability/availabilityConfig";
 import { useAccountData } from "../features/accounts/hooks/useAccountData";
 import { schedulingApi } from "../services/api";
 import { addDays, days, iso, mondayOf } from "../features/scheduling/schedulingUtils";

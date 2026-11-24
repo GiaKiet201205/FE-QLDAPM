@@ -10,8 +10,7 @@ import {
   emptyClassForm,
   PAGE_SIZE,
   courses as fallbackCourses,
-  classStatuses,
-} from "../features/classes/mockClasses";
+} from "../features/classes/classConfig";
 import { useAcademicData } from "../features/academic/AcademicDataContext";
 import { assignableClassStatuses } from "../features/academic/targetEligibility";
 
