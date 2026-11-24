@@ -359,3 +359,4 @@
 .gk-catalog-pagination nav { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .gk-catalog-pagination .gk-button { min-height: 42px; padding: 10px 14px; font-size: 14px; }
 .gk-catalog-pagination .gk-page-number { min-width: 42px; }
+.gk-profile .gk-payment-status{font-weight:600;color:#07857f}.gk-profile .gk-payment-status.is-cancelled{color:#607583}
