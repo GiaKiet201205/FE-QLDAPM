@@ -1,10 +1,10 @@
 export function userReturnTo(requested) {
   if (typeof requested !== 'string') return '/user/profile';
-  return (/^\/payment\/gk-[a-zA-Z0-9-]+$/.test(requested) || /^\/checkout\/[a-z0-9-]+(?:\?class=[a-zA-Z0-9-]+)?$/.test(requested))
+  return (/^\/user\/profile(?:\?payment=gk-[a-zA-Z0-9-]+)?$/.test(requested) || /^\/checkout\/[a-z0-9-]+(?:\?class=[a-zA-Z0-9-]+)?$/.test(requested))
     ? requested : '/user/profile';
 }
 
-// Local portals use different origins; never send credentials in the URL.
+// Các cổng local dùng địa chỉ khác nhau; không truyền thông tin đăng nhập qua URL.
 export function managementLoginUrl(origin, configuredUrl = '') {
   try {
     const current = new URL(origin);

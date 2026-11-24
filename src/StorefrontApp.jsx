@@ -9,7 +9,6 @@ import CourseCatalog from './pages/user/CourseCatalog';
 import UserLandingPage from './pages/user/UserLandingPage';
 import UserLoginPage from './pages/user/UserLoginPage';
 import UserRegisterPage from './pages/user/UserRegisterPage';
-import OrderPayment from './pages/user/OrderPayment';
 import UserCheckout from './pages/user/UserCheckout';
 import UserProfile from './pages/user/UserProfile';
 import SocialCallback from './pages/user/SocialCallback';
@@ -39,7 +38,6 @@ export default function StorefrontApp() {
           <Route path="/cart" element={<ShoppingCart />} />
           <Route path="/about" element={<AboutPage />} />
           <Route path="/contact" element={<ContactPage />} />
-          <Route path="/payment/:orderId" element={<UserRoute><OrderPayment /></UserRoute>} />
           <Route path="/checkout/:courseId" element={<UserRoute><UserCheckout /></UserRoute>} />
           <Route path="/user/profile" element={<UserRoute><UserProfile /></UserRoute>} />
           <Route path="/user" element={<Navigate to="/user/profile" replace />} />

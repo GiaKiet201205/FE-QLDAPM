@@ -31,7 +31,8 @@ test('login preserves a selected class and rejects external redirect targets', (
   const checkout = '/checkout/toeic-650?class=GK-TOEIC-1226-B';
   assert.equal(userReturnTo(checkout), checkout);
   assert.equal(userReturnTo('/checkout/cart'), '/checkout/cart');
-  assert.equal(userReturnTo('/payment/gk-order-123'), '/payment/gk-order-123');
+  assert.equal(userReturnTo('/user/profile?payment=gk-order-123'), '/user/profile?payment=gk-order-123');
+  assert.equal(userReturnTo('/payment/gk-order-123'), '/user/profile');
   assert.equal(userReturnTo('/payment/../../admin'), '/user/profile');
   for (const target of ['https://example.com', '//example.com', '/checkout/../admin', '/checkout/cart?redirect=https://example.com']) {
     assert.equal(userReturnTo(target), '/user/profile');
