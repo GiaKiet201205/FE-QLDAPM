@@ -8,7 +8,6 @@ export const storeApi={
  enrollments:()=>apiRequest('/store/me/enrollments'),
  orders:()=>apiRequest('/store/me/orders'),
  checkout:(body)=>post('/store/me/orders',body),
- cancel:(id)=>post(`/store/me/orders/${encodeURIComponent(id)}/cancel`),
  profile:(body)=>apiRequest('/store/me/profile',{method:'PUT',body:JSON.stringify(body)}),
  consultation:(body)=>apiRequest('/store/consultations',{method:'POST',skipAuth:true,body:JSON.stringify(body)}),
  adminCatalog:()=>apiRequest('/store/admin/catalog'),
