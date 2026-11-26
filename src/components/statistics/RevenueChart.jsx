@@ -7,12 +7,7 @@ import {
   CartesianGrid,
   Tooltip,
 } from 'recharts'
-
-function formatCurrency(value) {
-  if (value == null) return '—'
-  if (value >= 1000) return `$${(value / 1000).toFixed(1)}k`
-  return `$${value}`
-}
+import { formatCompactCurrency, formatCurrency } from './formatters'
 
 function CustomTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null
@@ -23,7 +18,7 @@ function CustomTooltip({ active, payload, label }) {
         <div key={p.dataKey} className="flex items-center gap-2" style={{ color: p.color }}>
           <span className="w-2 h-2 rounded-full" style={{ backgroundColor: p.color }} />
           <span className="text-slate-600">{p.name}:</span>
-          <span className="font-semibold">{p.value == null ? 'Chưa có dữ liệu' : `$${Number(p.value).toLocaleString()}`}</span>
+          <span className="font-semibold">{formatCurrency(p.value)}</span>
         </div>
       ))}
     </div>
@@ -53,7 +48,7 @@ export default function RevenueChart({ data }) {
           <LineChart data={data} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
             <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#94A3B8' }} axisLine={false} tickLine={false} />
-            <YAxis tickFormatter={formatCurrency} tick={{ fontSize: 12, fill: '#94A3B8' }} axisLine={false} tickLine={false} />
+            <YAxis width={80} tickFormatter={formatCompactCurrency} tick={{ fontSize: 12, fill: '#94A3B8' }} axisLine={false} tickLine={false} />
             <Tooltip content={<CustomTooltip />} />
             <Line type="monotone" dataKey="revenue" name="Doanh thu" stroke="#3B82F6" strokeWidth={2.5} dot={{ r: 3 }} />
             <Line type="monotone" dataKey="salaryCost" name="Chi phí lương" stroke="#F87171" strokeWidth={2.5} dot={{ r: 3 }} />
