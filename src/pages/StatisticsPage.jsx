@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import {
   Briefcase,
+  Banknote,
   CalendarCheck,
   ChevronDown,
-  DollarSign,
   School,
   Users,
   Wallet,
@@ -13,6 +13,7 @@ import RevenueChart from '../components/statistics/RevenueChart'
 import EmployeeBreakdown from '../components/statistics/EmployeeBreakdown'
 import EnrollmentBarChart from '../components/statistics/EnrollmentBarChart'
 import MonthlyStatsTable from '../components/statistics/MonthlyStatsTable'
+import { formatCurrency } from '../components/statistics/formatters'
 
 const today = new Date()
 const TODAY = [
@@ -27,10 +28,6 @@ const ROLE_COLORS = {
   sales: '#10B981',
   customerSupport: '#EC4899',
   admins: '#EF4444',
-}
-
-function formatCurrency(value) {
-  return value == null ? 'Chưa có dữ liệu' : `$${Number(value).toLocaleString()}`
 }
 
 function StatCard({ icon: Icon, label, value, sub, accent }) {
@@ -132,11 +129,12 @@ export default function StatisticsPage() {
   if (!data) return null
 
   const { overview, employees, schedules, financial, monthly } = data
-  const periodLabel = period === 'DAY'
-    ? new Date(`${date}T00:00:00`).toLocaleDateString('vi-VN')
-    : period === 'MONTH'
-      ? `Tháng ${month}/${year}`
-      : `Năm ${year}`
+  // Nhãn đi cùng dữ liệu BE trả về để tránh gắn số liệu cũ vào kỳ lọc mới đang tải.
+  const periodLabel = data.period === 'DAY'
+    ? new Date(`${data.startDate}T00:00:00+07:00`).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })
+    : data.period === 'MONTH'
+      ? `Tháng ${Number(data.startDate.slice(5, 7))}/${data.startDate.slice(0, 4)}`
+      : `Năm ${data.startDate.slice(0, 4)}`
   const employeeData = [
     { role: 'Giáo viên', count: employees.teachers, color: ROLE_COLORS.teachers },
     { role: 'TC', count: employees.coordinators, color: ROLE_COLORS.coordinators },
@@ -280,10 +278,10 @@ export default function StatisticsPage() {
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <StatCard
-            icon={DollarSign}
+            icon={Banknote}
             label="DOANH THU"
             value={formatCurrency(financial.revenue)}
-            sub={financial.revenueAvailable ? periodLabel : 'Chưa có dữ liệu giao dịch/học phí'}
+            sub={financial.revenueAvailable ? `Đơn đã thanh toán · ${periodLabel}` : 'Chưa có dữ liệu thanh toán'}
             accent="#10B981"
           />
           <StatCard
@@ -336,8 +334,9 @@ export default function StatisticsPage() {
         <div className="bg-white rounded-xl border border-slate-200 p-5">
           <h3 className="text-sm font-semibold text-slate-800 mb-2">Lưu ý về doanh thu</h3>
           <p className="text-xs leading-5 text-slate-500">
-            Hệ thống chưa có bảng giao dịch hoặc học phí. Doanh thu chưa được tính và được biểu diễn là
-            chưa có dữ liệu, không phải 0 đồng.
+            Doanh thu là tổng tiền các đơn đã thanh toán, tính theo ngày thanh toán ở múi giờ Việt Nam,
+            bao gồm đơn đang chờ hoàn tất ghi danh. Lợi nhuận tạm tính bằng doanh thu trừ chi phí lương,
+            chưa trừ hoàn tiền hoặc các chi phí khác.
           </p>
         </div>
       </div>

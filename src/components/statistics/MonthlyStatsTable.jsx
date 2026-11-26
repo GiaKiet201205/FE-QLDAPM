@@ -1,7 +1,9 @@
+import { formatCurrency } from './formatters'
+
 export default function MonthlyStatsTable({ data, year }) {
   const hasRevenue = data.some((r) => r.revenue != null)
-  const totalRevenue = data.reduce((s, r) => s + (r.revenue ?? 0), 0)
-  const totalSalaryCost = data.reduce((s, r) => s + r.salaryCost, 0)
+  const totalRevenue = data.reduce((s, r) => s + Number(r.revenue ?? 0), 0)
+  const totalSalaryCost = data.reduce((s, r) => s + Number(r.salaryCost ?? 0), 0)
   const totalProfit = hasRevenue ? totalRevenue - totalSalaryCost : null
   const totalNewEnrollments = data.reduce((s, r) => s + r.newEnrollments, 0)
 
@@ -21,7 +23,7 @@ export default function MonthlyStatsTable({ data, year }) {
               <th className="px-5 py-2.5">LỚP HỌC</th>
               <th className="px-5 py-2.5">DOANH THU</th>
               <th className="px-5 py-2.5">CHI PHÍ LƯƠNG</th>
-              <th className="px-5 py-2.5">LỢI NHUẬN</th>
+              <th className="px-5 py-2.5">LỢI NHUẬN TẠM TÍNH</th>
             </tr>
           </thead>
           <tbody>
@@ -32,11 +34,11 @@ export default function MonthlyStatsTable({ data, year }) {
                 <td className="px-5 py-2.5 text-slate-600">{r.students.toLocaleString()}</td>
                 <td className="px-5 py-2.5 text-slate-600">{r.classes}</td>
                 <td className="px-5 py-2.5 text-slate-700 whitespace-nowrap">
-                  {r.revenue == null ? 'Chưa có dữ liệu' : `$${Number(r.revenue).toLocaleString()}`}
+                  {formatCurrency(r.revenue)}
                 </td>
-                <td className="px-5 py-2.5 text-slate-700 whitespace-nowrap">${r.salaryCost.toLocaleString()}</td>
+                <td className="px-5 py-2.5 text-slate-700 whitespace-nowrap">{formatCurrency(r.salaryCost)}</td>
                 <td className={`px-5 py-2.5 font-semibold whitespace-nowrap ${r.profit == null ? 'text-slate-400' : r.profit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                  {r.profit == null ? '—' : `$${Number(r.profit).toLocaleString()}`}
+                  {r.profit == null ? '—' : formatCurrency(r.profit)}
                 </td>
               </tr>
             ))}
@@ -48,11 +50,11 @@ export default function MonthlyStatsTable({ data, year }) {
               <td className="px-5 py-3 text-slate-400">—</td>
               <td className="px-5 py-3 text-slate-400">—</td>
               <td className="px-5 py-3 text-slate-900 whitespace-nowrap">
-                {hasRevenue ? `$${totalRevenue.toLocaleString()}` : 'Chưa có dữ liệu'}
+                {hasRevenue ? formatCurrency(totalRevenue) : 'Chưa có dữ liệu'}
               </td>
-              <td className="px-5 py-3 text-slate-900 whitespace-nowrap">${totalSalaryCost.toLocaleString()}</td>
+              <td className="px-5 py-3 text-slate-900 whitespace-nowrap">{formatCurrency(totalSalaryCost)}</td>
               <td className={`px-5 py-3 whitespace-nowrap ${totalProfit == null ? 'text-slate-400' : totalProfit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                {totalProfit == null ? '—' : `$${totalProfit.toLocaleString()}`}
+                {totalProfit == null ? '—' : formatCurrency(totalProfit)}
               </td>
             </tr>
           </tfoot>
