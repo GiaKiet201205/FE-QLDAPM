@@ -209,7 +209,8 @@
 .gk-store > main { flex: 1; }
 .gk-store input[type=checkbox] { width: 16px; height: 16px; min-height: 0; flex-shrink: 0; accent-color: var(--teal); }
 .gk-store textarea { display: block; width: 100%; margin-top: 8px; padding: 13px; border: 1px solid #dce3e7; border-radius: 5px; resize: vertical; font: inherit; font-size: 13px; background: white; }
-.gk-about-hero { display: grid; grid-template-columns: 1fr 1fr; gap: 65px; align-items: center; margin-top: 28px; }
+.gk-about-page .gk-container { width: min(1640px, calc(100% - clamp(40px, 7vw, 128px))); max-width: none; }
+.gk-about-hero { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(36px, 5vw, 80px); align-items: center; margin-top: 28px; }
 .gk-about-hero h1 { font-size: 40px; }
 .gk-about-hero p { font-size: 14px; line-height: 1.9; }
 .gk-about-hero .gk-button { margin-top: 14px; }
@@ -221,6 +222,48 @@
 .gk-about-gallery { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin-top: 28px; }
 .gk-about-gallery img { width: 100%; height: 300px; object-fit: cover; border-radius: 6px; }
 .gk-about-gallery figcaption { margin-top: 12px; color: var(--muted); font-size: 12px; }
+.gk-about-intro { display: grid; grid-template-columns: 1fr 1fr; align-items: start; gap: 72px; margin-bottom: 58px; }
+.gk-about-intro h2 { max-width: 480px; font-size: 32px; }
+.gk-about-intro-copy { padding-top: 25px; }
+.gk-about-intro-copy p { color: var(--muted); font-size: 14px; line-height: 1.9; }
+.gk-about-programs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 22px; margin-top: 30px; }
+.gk-about-program { overflow: hidden; border: 1px solid #e6e9e5; border-radius: 8px; background: #fff; transition: transform .18s, box-shadow .18s; }
+.gk-about-program:hover { transform: translateY(-3px); box-shadow: 0 10px 24px #152e5012; }
+.gk-about-program > img { display: block; width: 100%; height: 165px; object-fit: cover; }
+.gk-about-program > div { padding: 18px; }
+.gk-about-program h3 { margin-bottom: 7px; }
+.gk-about-program p { min-height: 60px; color: var(--muted); font-size: 12px; line-height: 1.7; }
+.gk-about-program > div > span { color: var(--teal); font-size: 12px; font-weight: 600; }
+.gk-about-team { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: clamp(20px, 2vw, 32px); margin-top: 30px; }
+.gk-about-team-card {
+border: none;
+  box-shadow: none;
+  background: transparent;
+  padding: 0;
+}
+
+.gk-about-team-card img {
+  display: block;
+  width: 100%;
+  max-width: 220px;      
+  height: 240px;          
+  margin: 0 auto;        
+  border-radius: 50px;     
+  object-fit: cover;
+  object-position: center 30%; 
+  background: var(--warm);
+}
+
+.gk-about-team-card h3 {
+  min-height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center; 
+  text-align: center;     
+  padding: 16px 8px 4px;
+  margin: 0;
+  font-size: 19px;
+}
 .gk-about-cta { padding: 58px 0; background: var(--navy); color: white; }
 .gk-about-cta h2 { font-size: 33px; }
 .gk-about-cta p { color: #bccbd7; font-size: 14px; }
